@@ -13,17 +13,38 @@ class LexerTest {
 
     @Test
     public void testNextToken_singleCharSymbols() {
-        String input = "=+(){},;";
+        String input = "( ) { } , ; \n" +
+                "+ - / * = ! < >";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.ASSIGN, "="),
-                new Token(TokenType.PLUS, "+"),
                 new Token(TokenType.LPAREN, "("),
                 new Token(TokenType.RPAREN, ")"),
                 new Token(TokenType.LBRACE, "{"),
                 new Token(TokenType.RBRACE, "}"),
                 new Token(TokenType.COMMA, ","),
-                new Token(TokenType.SEMICOLON, ";")
+                new Token(TokenType.SEMICOLON, ";"),
+                new Token(TokenType.PLUS, "+"),
+                new Token(TokenType.MINUS, "-"),
+                new Token(TokenType.SLASH, "/"),
+                new Token(TokenType.STAR, "*"),
+                new Token(TokenType.ASSIGN, "="),
+                new Token(TokenType.BANG, "!"),
+                new Token(TokenType.LANGLE, "<"),
+                new Token(TokenType.RANGLE, ">")
+        );
+
+        assertTokensForInput(expectedTokens, input);
+    }
+
+    @Test
+    public void testNextToken_multiCharSymbols() {
+        String input = "== != <= >=";
+
+        List<Token> expectedTokens = Lists.newArrayList(
+                new Token(TokenType.EQ, "=="),
+                new Token(TokenType.NEQ, "!="),
+                new Token(TokenType.LTE, "<="),
+                new Token(TokenType.GTE, ">=")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -73,11 +94,15 @@ class LexerTest {
 
     @Test
     public void testNextToken_keywords() {
-        String input = "let fn";
+        String input = "let fn true false if else";
 
         List<Token> expectedTokens = Lists.newArrayList(
                 new Token(TokenType.LET, "let"),
-                new Token(TokenType.FUNCTION, "fn")
+                new Token(TokenType.FUNCTION, "fn"),
+                new Token(TokenType.TRUE, "true"),
+                new Token(TokenType.FALSE, "false"),
+                new Token(TokenType.IF, "if"),
+                new Token(TokenType.ELSE, "else")
         );
         assertTokensForInput(expectedTokens, input);
     }

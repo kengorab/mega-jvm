@@ -1,17 +1,27 @@
 package co.kenrg.mega.lexer;
 
 import static co.kenrg.mega.token.TokenType.ASSIGN;
+import static co.kenrg.mega.token.TokenType.BANG;
 import static co.kenrg.mega.token.TokenType.COMMA;
 import static co.kenrg.mega.token.TokenType.EOF;
+import static co.kenrg.mega.token.TokenType.EQ;
 import static co.kenrg.mega.token.TokenType.FLOAT;
+import static co.kenrg.mega.token.TokenType.GTE;
 import static co.kenrg.mega.token.TokenType.ILLEGAL;
 import static co.kenrg.mega.token.TokenType.INT;
+import static co.kenrg.mega.token.TokenType.LANGLE;
 import static co.kenrg.mega.token.TokenType.LBRACE;
 import static co.kenrg.mega.token.TokenType.LPAREN;
+import static co.kenrg.mega.token.TokenType.LTE;
+import static co.kenrg.mega.token.TokenType.MINUS;
+import static co.kenrg.mega.token.TokenType.NEQ;
 import static co.kenrg.mega.token.TokenType.PLUS;
+import static co.kenrg.mega.token.TokenType.RANGLE;
 import static co.kenrg.mega.token.TokenType.RBRACE;
 import static co.kenrg.mega.token.TokenType.RPAREN;
 import static co.kenrg.mega.token.TokenType.SEMICOLON;
+import static co.kenrg.mega.token.TokenType.SLASH;
+import static co.kenrg.mega.token.TokenType.STAR;
 import static java.lang.Character.isDigit;
 
 import co.kenrg.mega.token.Token;
@@ -54,10 +64,38 @@ public class Lexer {
 
         switch (this.ch) {
             case '=':
-                token = new Token(ASSIGN, this.ch);
+                if (peekChar() == '=') {
+                    this.readChar();
+                    token = new Token(EQ, "==");
+                } else {
+                    token = new Token(ASSIGN, this.ch);
+                }
+                break;
+            case '!':
+                if (peekChar() == '=') {
+                    this.readChar();
+                    token = new Token(NEQ, "!=");
+                } else {
+                    token = new Token(BANG, this.ch);
+                }
+                break;
+            case '+':
+                token = new Token(PLUS, this.ch);
+                break;
+            case '-':
+                token = new Token(MINUS, this.ch);
+                break;
+            case '/':
+                token = new Token(SLASH, this.ch);
+                break;
+            case '*':
+                token = new Token(STAR, this.ch);
                 break;
             case ';':
                 token = new Token(SEMICOLON, this.ch);
+                break;
+            case ',':
+                token = new Token(COMMA, this.ch);
                 break;
             case '(':
                 token = new Token(LPAREN, this.ch);
@@ -65,17 +103,27 @@ public class Lexer {
             case ')':
                 token = new Token(RPAREN, this.ch);
                 break;
-            case ',':
-                token = new Token(COMMA, this.ch);
-                break;
-            case '+':
-                token = new Token(PLUS, this.ch);
-                break;
             case '{':
                 token = new Token(LBRACE, this.ch);
                 break;
             case '}':
                 token = new Token(RBRACE, this.ch);
+                break;
+            case '<':
+                if (peekChar() == '=') {
+                    this.readChar();
+                    token = new Token(LTE, "<=");
+                } else {
+                    token = new Token(LANGLE, this.ch);
+                }
+                break;
+            case '>':
+                if (peekChar() == '=') {
+                    this.readChar();
+                    token = new Token(GTE, ">=");
+                } else {
+                    token = new Token(RANGLE, this.ch);
+                }
                 break;
             case 0:
                 token = new Token(EOF, "");
