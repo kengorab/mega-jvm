@@ -293,7 +293,12 @@ class ParserTest {
             new TestCase("1+2+3==5+1", "(((1 + 2) + 3) == (5 + 1))"),
 
             new TestCase("3 < 5 == true", "((3 < 5) == true)"),
-            new TestCase("false != 1 * 3 > 1", "(false != ((1 * 3) > 1))")
+            new TestCase("false != 1 * 3 > 1", "(false != ((1 * 3) > 1))"),
+
+            new TestCase("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            new TestCase("(1 + 2) * 3", "((1 + 2) * 3)"),
+            new TestCase("-(5 + 5)", "(-(5 + 5))"),
+            new TestCase("!(true == true)", "(!(true == true))")
         );
 
         return testCases.stream()

@@ -49,6 +49,7 @@ public class Parser {
         this.registerPrefix(TokenType.FALSE, this::parseBooleanLiteral);
         this.registerPrefix(TokenType.BANG, this::parsePrefixExpression);
         this.registerPrefix(TokenType.MINUS, this::parsePrefixExpression);
+        this.registerPrefix(TokenType.LPAREN, this::parseParenExpression);
 
         // Register infix parser functions
         this.registerInfix(TokenType.PLUS, this::parseInfixExpression);
@@ -227,5 +228,17 @@ public class Parser {
         Expression rightExpr = this.parseExpression(curPrecedence);
 
         return new InfixExpression(operator, operator.literal, leftExpr, rightExpr);
+    }
+
+    private Expression parseParenExpression() {
+        this.nextToken();   // Skip '('
+
+        Expression expr = this.parseExpression(LOWEST);
+
+        if (!this.expectPeek(TokenType.RPAREN)) {
+            return null;
+        }
+
+        return expr;
     }
 }
