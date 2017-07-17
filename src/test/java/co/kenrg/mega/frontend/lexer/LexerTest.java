@@ -1,11 +1,11 @@
-package co.kenrg.mega.lexer;
+package co.kenrg.mega.frontend.lexer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
-import co.kenrg.mega.token.Token;
-import co.kenrg.mega.token.TokenType;
+import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.token.TokenType;
 import com.google.common.collect.Lists;
 import org.junit.jupiter.api.Test;
 

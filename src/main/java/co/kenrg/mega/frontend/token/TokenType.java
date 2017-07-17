@@ -1,4 +1,4 @@
-package co.kenrg.mega.token;
+package co.kenrg.mega.frontend.token;
 
 import java.util.Map;
 

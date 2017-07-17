@@ -1,4 +1,4 @@
-package co.kenrg.mega.token;
+package co.kenrg.mega.frontend.token;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;

@@ -1,31 +1,31 @@
-package co.kenrg.mega.lexer;
+package co.kenrg.mega.frontend.lexer;
 
-import static co.kenrg.mega.token.TokenType.ASSIGN;
-import static co.kenrg.mega.token.TokenType.BANG;
-import static co.kenrg.mega.token.TokenType.COMMA;
-import static co.kenrg.mega.token.TokenType.EOF;
-import static co.kenrg.mega.token.TokenType.EQ;
-import static co.kenrg.mega.token.TokenType.FLOAT;
-import static co.kenrg.mega.token.TokenType.GTE;
-import static co.kenrg.mega.token.TokenType.ILLEGAL;
-import static co.kenrg.mega.token.TokenType.INT;
-import static co.kenrg.mega.token.TokenType.LANGLE;
-import static co.kenrg.mega.token.TokenType.LBRACE;
-import static co.kenrg.mega.token.TokenType.LPAREN;
-import static co.kenrg.mega.token.TokenType.LTE;
-import static co.kenrg.mega.token.TokenType.MINUS;
-import static co.kenrg.mega.token.TokenType.NEQ;
-import static co.kenrg.mega.token.TokenType.PLUS;
-import static co.kenrg.mega.token.TokenType.RANGLE;
-import static co.kenrg.mega.token.TokenType.RBRACE;
-import static co.kenrg.mega.token.TokenType.RPAREN;
-import static co.kenrg.mega.token.TokenType.SEMICOLON;
-import static co.kenrg.mega.token.TokenType.SLASH;
-import static co.kenrg.mega.token.TokenType.STAR;
+import static co.kenrg.mega.frontend.token.TokenType.ASSIGN;
+import static co.kenrg.mega.frontend.token.TokenType.BANG;
+import static co.kenrg.mega.frontend.token.TokenType.COMMA;
+import static co.kenrg.mega.frontend.token.TokenType.EOF;
+import static co.kenrg.mega.frontend.token.TokenType.EQ;
+import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
+import static co.kenrg.mega.frontend.token.TokenType.GTE;
+import static co.kenrg.mega.frontend.token.TokenType.ILLEGAL;
+import static co.kenrg.mega.frontend.token.TokenType.INT;
+import static co.kenrg.mega.frontend.token.TokenType.LANGLE;
+import static co.kenrg.mega.frontend.token.TokenType.LBRACE;
+import static co.kenrg.mega.frontend.token.TokenType.LPAREN;
+import static co.kenrg.mega.frontend.token.TokenType.LTE;
+import static co.kenrg.mega.frontend.token.TokenType.MINUS;
+import static co.kenrg.mega.frontend.token.TokenType.NEQ;
+import static co.kenrg.mega.frontend.token.TokenType.PLUS;
+import static co.kenrg.mega.frontend.token.TokenType.RANGLE;
+import static co.kenrg.mega.frontend.token.TokenType.RBRACE;
+import static co.kenrg.mega.frontend.token.TokenType.RPAREN;
+import static co.kenrg.mega.frontend.token.TokenType.SEMICOLON;
+import static co.kenrg.mega.frontend.token.TokenType.SLASH;
+import static co.kenrg.mega.frontend.token.TokenType.STAR;
 import static java.lang.Character.isDigit;
 
-import co.kenrg.mega.token.Token;
-import co.kenrg.mega.token.TokenType;
+import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.token.TokenType;
 
 public class Lexer {
     private final String input;
@@ -131,11 +131,14 @@ public class Lexer {
             default:
                 if (Character.isLetter(this.ch)) {
                     String ident = this.readIdentifier();
-                    token = new Token(TokenType.lookupIdent(ident), ident);
+                    return new Token(TokenType.lookupIdent(ident), ident);
                 } else if (isDigit(this.ch)) {
                     String number = this.readNumber();
+                    if (number.endsWith(".")) {
+                        number = number.replace(".", "");
+                    }
                     TokenType type = number.contains(".") ? FLOAT : INT;
-                    token = new Token(type, number);
+                    return new Token(type, number);
                 } else {
                     token = new Token(ILLEGAL, this.ch);
                 }
@@ -162,6 +165,7 @@ public class Lexer {
 
                 char peekCh = this.peekChar();
                 if (!isDigit(peekCh)) {
+                    this.readChar();
                     return this.input.substring(position, this.position);
                 }
 

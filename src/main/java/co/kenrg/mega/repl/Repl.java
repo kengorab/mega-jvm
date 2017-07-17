@@ -1,8 +1,8 @@
 package co.kenrg.mega.repl;
 
-import co.kenrg.mega.lexer.Lexer;
-import co.kenrg.mega.token.Token;
-import co.kenrg.mega.token.TokenType;
+import co.kenrg.mega.frontend.lexer.Lexer;
+import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.token.TokenType;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
