@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -50,6 +52,7 @@ public class Parser {
         this.registerPrefix(TokenType.BANG, this::parsePrefixExpression);
         this.registerPrefix(TokenType.MINUS, this::parsePrefixExpression);
         this.registerPrefix(TokenType.LPAREN, this::parseParenExpression);
+        this.registerPrefix(TokenType.IF, this::parseIfExpression);
 
         // Register infix parser functions
         this.registerInfix(TokenType.PLUS, this::parseInfixExpression);
@@ -132,7 +135,7 @@ public class Parser {
 
     // let <ident> = <expr>
     private Statement parseLetStatement() {
-        Token t = this.curTok;
+        Token t = this.curTok;  // The 'let' token
 
         if (!this.expectPeek(TokenType.IDENT)) {
             return null;
@@ -190,10 +193,12 @@ public class Parser {
         return leftExpr;
     }
 
+    // <ident>
     private Expression parseIdentifier() {
         return new Identifier(this.curTok, this.curTok.literal);
     }
 
+    // <integer>
     private Expression parseIntegerLiteral() {
         Token t = this.curTok;
 
@@ -201,6 +206,7 @@ public class Parser {
         return new IntegerLiteral(t, value);
     }
 
+    // <number.number>
     private Expression parseFloatLiteral() {
         Token t = this.curTok;
 
@@ -208,10 +214,12 @@ public class Parser {
         return new FloatLiteral(t, value);
     }
 
+    // [true|false]
     private Expression parseBooleanLiteral() {
         return new BooleanLiteral(this.curTok, this.curTok.type == TokenType.TRUE);
     }
 
+    // <operator><expr>
     private Expression parsePrefixExpression() {
         Token operator = this.curTok;
 
@@ -220,6 +228,7 @@ public class Parser {
         return new PrefixExpression(operator, operator.literal, right);
     }
 
+    // <expr><operator><expr>
     private Expression parseInfixExpression(Expression leftExpr) {
         Token operator = this.curTok;
 
@@ -230,6 +239,7 @@ public class Parser {
         return new InfixExpression(operator, operator.literal, leftExpr, rightExpr);
     }
 
+    // (<expr>)
     private Expression parseParenExpression() {
         this.nextToken();   // Skip '('
 
@@ -240,5 +250,48 @@ public class Parser {
         }
 
         return expr;
+    }
+
+    // if <condition> <expr> [else <expr>]
+    private Expression parseIfExpression() {
+        Token t = this.curTok;  // The 'if' token
+        this.nextToken();   // Skip 'if'
+
+        Expression condition = this.parseExpression(LOWEST);
+
+        if (!this.expectPeek(TokenType.LBRACE)) {
+            return null;
+        }
+
+        Expression thenBlock = this.parseBlockExpression();
+
+        Expression elseBlock = null;
+        if (this.peekTokenIs(TokenType.ELSE)) {
+            this.nextToken();   // Skip 'else'
+
+            if (!this.expectPeek(TokenType.LBRACE)) {
+                return null;
+            }
+
+            elseBlock = this.parseBlockExpression();
+        }
+
+        return new IfExpression(t, condition, thenBlock, elseBlock);
+    }
+
+    private Expression parseBlockExpression() {
+        Token lBrace = this.curTok;
+        this.nextToken();   // Skip '{'
+
+        List<Statement> statements = Lists.newArrayList();
+        while (!this.curTokenIs(TokenType.RBRACE) && !this.curTokenIs(TokenType.EOF)) {
+            Statement stmt = this.parseStatement();
+            if (stmt != null) {
+                statements.add(stmt);
+            }
+            this.nextToken();
+        }
+
+        return new BlockExpression(lBrace, statements);
     }
 }

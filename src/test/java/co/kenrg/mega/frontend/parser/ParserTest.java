@@ -7,6 +7,7 @@ import static co.kenrg.mega.frontend.token.TokenType.INT;
 import static co.kenrg.mega.frontend.token.TokenType.TRUE;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -14,9 +15,11 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -313,5 +316,82 @@ class ParserTest {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    public void testIfExpression() {
+        String input = "if x < y { x }";
+        ExpressionStatement statement = parseExpressionStatement(input);
+        assertTrue(statement.expression instanceof IfExpression);
+        IfExpression ifExpression = (IfExpression) statement.expression;
+
+        InfixExpression condition = (InfixExpression) ifExpression.condition;
+        assertEquals("<", condition.operator);
+        assertEquals(condition.left, new Identifier(new Token(IDENT, "x"), "x"));
+        assertEquals(condition.right, new Identifier(new Token(IDENT, "y"), "y"));
+
+        BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
+        Identifier ident = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
+        assertEquals(ident, new Identifier(new Token(IDENT, "x"), "x"));
+
+        assertNull(ifExpression.elseExpr);
+    }
+
+    @Test
+    public void testIfElseExpression() {
+        String input = "if x < y { x } else { y }";
+        ExpressionStatement statement = parseExpressionStatement(input);
+        assertTrue(statement.expression instanceof IfExpression);
+        IfExpression ifExpression = (IfExpression) statement.expression;
+
+        InfixExpression condition = (InfixExpression) ifExpression.condition;
+        assertEquals("<", condition.operator);
+        assertEquals(condition.left, new Identifier(new Token(IDENT, "x"), "x"));
+        assertEquals(condition.right, new Identifier(new Token(IDENT, "y"), "y"));
+
+        BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
+        Identifier thenExpr = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
+        assertEquals(thenExpr, new Identifier(new Token(IDENT, "x"), "x"));
+
+        BlockExpression elseBlock = (BlockExpression) ifExpression.elseExpr;
+        Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
+        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y"), "y"));
+    }
+
+    @Test
+    public void testIfExpression_nestedIfElse() {
+        String input = "" +
+            "if x < y { \n" +
+            "  if x > 0 {\n" +
+            "    0" +
+            "  } else {\n" +
+            "    y\n" +
+            "  }\n" +
+            "}";
+        ExpressionStatement statement = parseExpressionStatement(input);
+        assertTrue(statement.expression instanceof IfExpression);
+        IfExpression ifExpression = (IfExpression) statement.expression;
+
+        InfixExpression condition1 = (InfixExpression) ifExpression.condition;
+        assertEquals("<", condition1.operator);
+        assertEquals(condition1.left, new Identifier(new Token(IDENT, "x"), "x"));
+        assertEquals(condition1.right, new Identifier(new Token(IDENT, "y"), "y"));
+
+        BlockExpression thenBlock1 = (BlockExpression) ifExpression.thenExpr;
+        IfExpression nestedIfExpr = (IfExpression) ((ExpressionStatement) thenBlock1.statements.get(0)).expression;
+        assertNull(ifExpression.elseExpr);
+
+        InfixExpression condition2 = (InfixExpression) nestedIfExpr.condition;
+        assertEquals(">", condition2.operator);
+        assertEquals(condition2.left, new Identifier(new Token(IDENT, "x"), "x"));
+        assertLiteralExpression(condition2.right, 0);
+
+        BlockExpression thenBlock2 = (BlockExpression) nestedIfExpr.thenExpr;
+        IntegerLiteral thenExpr = (IntegerLiteral) ((ExpressionStatement) thenBlock2.statements.get(0)).expression;
+        assertLiteralExpression(thenExpr, 0);
+
+        BlockExpression elseBlock = (BlockExpression) nestedIfExpr.elseExpr;
+        Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
+        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y"), "y"));
     }
 }
