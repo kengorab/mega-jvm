@@ -20,6 +20,14 @@ public class BlockExpression extends Expression {
 
     @Override
     public String repr(boolean debug, int indentLevel) {
+        if (this.statements.size() == 0) {
+            return "{}";
+        }
+
+        if (this.statements.size() == 1) {
+            return String.format("{ %s }", this.statements.get(0).repr(debug, indentLevel));
+        }
+
         String indentation = Strings.repeat("  ", indentLevel + 1);
         String exprReprs = this.statements.stream()
             .map(expr -> indentation + expr.repr(debug, indentLevel + 1))

@@ -314,6 +314,14 @@ public class Parser {
         return new BlockExpression(lBrace, statements);
     }
 
+    private Expression parseBlockOrSingleExpression() {
+        if (this.curTokenIs(TokenType.LBRACE)) {
+            return this.parseBlockExpression();
+        } else {
+            return this.parseExpression(LOWEST);
+        }
+    }
+
     private Expression parseArrowFunctionExpression() {
         Token t = this.curTok;
         List<Identifier> parameters = this.parseFunctionParameters();
@@ -323,7 +331,7 @@ public class Parser {
         }
         this.nextToken();   // Consume '=>'
 
-        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        Expression body = this.parseBlockOrSingleExpression();
         return new ArrowFunctionExpression(t, parameters, body);
     }
 
@@ -336,7 +344,7 @@ public class Parser {
 
         this.nextToken();   // Skip '=>'
 
-        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        Expression body = this.parseBlockOrSingleExpression();
         return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(param), body);
     }
 

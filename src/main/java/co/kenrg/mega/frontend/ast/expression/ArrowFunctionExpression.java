@@ -10,9 +10,9 @@ import co.kenrg.mega.frontend.token.Token;
 public class ArrowFunctionExpression extends Expression {
     public final Token token;
     public final List<Identifier> parameters;
-    public final BlockExpression body;
+    public final Expression body;
 
-    public ArrowFunctionExpression(Token token, List<Identifier> parameters, BlockExpression body) {
+    public ArrowFunctionExpression(Token token, List<Identifier> parameters, Expression body) {
         this.token = token;
         this.parameters = parameters;
         this.body = body;

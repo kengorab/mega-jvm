@@ -415,8 +415,10 @@ class ParserTest {
         List<TestCase> testCases = Lists.newArrayList(
             new TestCase("(a, b) => { 24 }", Lists.newArrayList("a", "b")),
             new TestCase("(a) => { 24 }", Lists.newArrayList("a")),
+            new TestCase("() => { 24 }", Lists.newArrayList()),
+            new TestCase("() => 24", Lists.newArrayList()),
             new TestCase("a => { 24 }", Lists.newArrayList("a")),
-            new TestCase("() => { 24 }", Lists.newArrayList())
+            new TestCase("a => 24", Lists.newArrayList("a"))
         );
 
         return testCases.stream()
@@ -432,9 +434,15 @@ class ParserTest {
                         assertIdentifier(expr.parameters.get(i), testCase.params.get(i));
                     }
 
-                    BlockExpression body = expr.body;
-                    assertEquals(1, body.statements.size());
-                    assertLiteralExpression(((ExpressionStatement) body.statements.get(0)).expression, 24);
+                    Expression body = expr.body;
+                    if (body instanceof BlockExpression) {
+                        BlockExpression block = (BlockExpression) body;
+
+                        assertEquals(1, block.statements.size());
+                        assertLiteralExpression(((ExpressionStatement) block.statements.get(0)).expression, 24);
+                    } else {
+                        assertLiteralExpression(body, 24);
+                    }
                 });
             })
             .collect(toList());
