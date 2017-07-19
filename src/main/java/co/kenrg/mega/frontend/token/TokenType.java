@@ -34,6 +34,8 @@ public enum TokenType {
     LANGLE("<"),
     RANGLE(">"),
 
+    ARROW("=>"),
+
     FUNCTION("FUNCTION"),
     TRUE("TRUE"),
     FALSE("FALSE"),

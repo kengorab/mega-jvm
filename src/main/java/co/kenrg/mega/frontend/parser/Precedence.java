@@ -5,6 +5,7 @@ import co.kenrg.mega.frontend.token.TokenType;
 enum Precedence {
     LOWEST,
     EQUALS,
+    ARROW,
     LESSGREATER,
     SUM,
     PRODUCT,
@@ -27,6 +28,8 @@ enum Precedence {
             case SLASH:
             case STAR:
                 return PRODUCT;
+            case ARROW:
+                return ARROW;
             default:
                 return LOWEST;
         }

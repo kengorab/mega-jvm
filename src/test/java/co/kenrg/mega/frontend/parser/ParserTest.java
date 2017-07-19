@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
@@ -124,6 +125,10 @@ class ParserTest {
         } else {
             fail("Cannot assert literal expr equivalence for type: " + expectedValue.getClass().getName());
         }
+    }
+
+    private void assertIdentifier(Expression expr, String identName) {
+        assertEquals(expr, new Identifier(new Token(IDENT, identName), identName));
     }
 
     @TestFactory
@@ -393,5 +398,54 @@ class ParserTest {
         BlockExpression elseBlock = (BlockExpression) nestedIfExpr.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
         assertEquals(elseExpr, new Identifier(new Token(IDENT, "y"), "y"));
+    }
+
+    @TestFactory
+    public List<DynamicTest> testArrowFunction() {
+        class TestCase {
+            public final String input;
+            public final List<String> params;
+
+            public TestCase(String input, List<String> params) {
+                this.input = input;
+                this.params = params;
+            }
+        }
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase("(a, b) => { 24 }", Lists.newArrayList("a", "b")),
+            new TestCase("(a) => { 24 }", Lists.newArrayList("a")),
+            new TestCase("a => { 24 }", Lists.newArrayList("a")),
+            new TestCase("() => { 24 }", Lists.newArrayList())
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+
+                String name = String.format("Correctly parses arrow function '%s'", testCase.input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(testCase.input);
+                    assertTrue(statement.expression instanceof ArrowFunctionExpression);
+                    ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
+
+                    for (int i = 0; i < testCase.params.size(); i++) {
+                        assertIdentifier(expr.parameters.get(i), testCase.params.get(i));
+                    }
+
+                    BlockExpression body = expr.body;
+                    assertEquals(1, body.statements.size());
+                    assertLiteralExpression(((ExpressionStatement) body.statements.get(0)).expression, 24);
+                });
+            })
+            .collect(toList());
+
+    }
+
+    @Test
+    public void testArrowFunction_errors() {
+        String input = "1 => { 24 }";
+        Parser p = new Parser(new Lexer(input));
+        p.parseModule();
+        assertTrue(p.errors.size() != 0);
     }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
@@ -35,11 +36,13 @@ public class Parser {
 
     private Token curTok;
     private Token peekTok;
+    private Token peekAheadTok;
 
     public Parser(Lexer lexer) {
         this.lexer = lexer;
 
-        // Read 2 tokens, so curTok and peekTok are both set
+        // Read 3 tokens, so curTok, peekTok, and peekAheadTok are all set
+        this.nextToken();
         this.nextToken();
         this.nextToken();
 
@@ -65,6 +68,7 @@ public class Parser {
         this.registerInfix(TokenType.LTE, this::parseInfixExpression);
         this.registerInfix(TokenType.RANGLE, this::parseInfixExpression);
         this.registerInfix(TokenType.GTE, this::parseInfixExpression);
+        this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
     }
 
     private void addParserError(String message) {
@@ -73,7 +77,13 @@ public class Parser {
 
     private void nextToken() {
         this.curTok = this.peekTok;
-        this.peekTok = this.lexer.nextToken();
+        this.peekTok = this.peekAheadTok;
+
+        // Since peekTok is null on initialization, allow for setting peekAheadTok when peekTok is null, since this
+        // method will be called 3 times on initialization to saturate all the lookahead tokens.
+        if (this.peekTok == null || this.peekTok.type != TokenType.EOF) {
+            this.peekAheadTok = this.lexer.nextToken();
+        }
     }
 
     private boolean curTokenIs(TokenType tokenType) {
@@ -100,6 +110,10 @@ public class Parser {
             this.addParserError(String.format("Expected %s, saw %s", tokenType, this.peekTok.type));
             return false;
         }
+    }
+
+    private boolean peekAheadTokenIs(TokenType tokenType) {
+        return this.peekAheadTok.type == tokenType;
     }
 
     private void registerPrefix(TokenType tokenType, PrefixParseFunction fn) {
@@ -241,8 +255,13 @@ public class Parser {
 
     // (<expr>)
     private Expression parseParenExpression() {
-        this.nextToken();   // Skip '('
+        if (this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW) ||
+            this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.COMMA) ||
+            this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.RPAREN)) {
+            return this.parseArrowFunctionExpression();
+        }
 
+        this.nextToken();   // Skip '('
         Expression expr = this.parseExpression(LOWEST);
 
         if (!this.expectPeek(TokenType.RPAREN)) {
@@ -293,5 +312,56 @@ public class Parser {
         }
 
         return new BlockExpression(lBrace, statements);
+    }
+
+    private Expression parseArrowFunctionExpression() {
+        Token t = this.curTok;
+        List<Identifier> parameters = this.parseFunctionParameters();
+
+        if (!this.expectPeek(TokenType.ARROW)) {
+            return null;
+        }
+        this.nextToken();   // Consume '=>'
+
+        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        return new ArrowFunctionExpression(t, parameters, body);
+    }
+
+    private Expression parseSingleParamArrowFunctionExpression(Expression leftExpr) {
+        if (leftExpr.getToken().type != TokenType.IDENT) {
+            addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, leftExpr.getToken().type));
+            return null;
+        }
+        Identifier param = (Identifier) leftExpr;
+
+        this.nextToken();   // Skip '=>'
+
+        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(param), body);
+    }
+
+    private List<Identifier> parseFunctionParameters() {
+        List<Identifier> params = Lists.newArrayList();
+        if (this.peekTokenIs(TokenType.RPAREN)) {
+            this.nextToken();
+            return params;
+        }
+
+        this.nextToken();
+
+        Identifier param1 = new Identifier(this.curTok, this.curTok.literal);
+        params.add(param1);
+
+        while (this.peekTokenIs(TokenType.COMMA)) {
+            this.nextToken();   // Consume ','
+            this.nextToken();
+            Identifier param = new Identifier(this.curTok, this.curTok.literal);
+            params.add(param);
+        }
+
+        if (!this.expectPeek(TokenType.RPAREN)) {
+            return null;
+        }
+        return params;
     }
 }
