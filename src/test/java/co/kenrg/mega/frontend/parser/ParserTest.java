@@ -467,9 +467,12 @@ class ParserTest {
                     assertTrue(statement.expression instanceof ArrowFunctionExpression);
                     ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
 
-                    for (int i = 0; i < testCase.params.size(); i++) {
-                        assertIdentifier(expr.parameters.get(i), testCase.params.get(i));
-                    }
+                    assertEquals(
+                        testCase.params,
+                        expr.parameters.stream()
+                            .map(param -> param.value)
+                            .collect(toList())
+                    );
 
                     Expression body = expr.body;
                     if (body instanceof BlockExpression) {
@@ -484,6 +487,34 @@ class ParserTest {
             })
             .collect(toList());
 
+    }
+
+    @Test
+    public void testArrowFunction_returnsAnotherArrowFunction() {
+        String input = "a => b => a + b";
+        ExpressionStatement statement = parseExpressionStatement(input);
+        assertTrue(statement.expression instanceof ArrowFunctionExpression);
+        ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
+
+        assertIdentifier(expr.parameters.get(0), "a");
+
+        Expression body = expr.body;
+        assertTrue(body instanceof ArrowFunctionExpression);
+        ArrowFunctionExpression arrowFunc = (ArrowFunctionExpression) body;
+
+        assertEquals(1, arrowFunc.parameters.size());
+        assertIdentifier(arrowFunc.parameters.get(0), "b");
+
+        Expression arrowFuncBody = arrowFunc.body;
+        assertEquals(
+            arrowFuncBody,
+            new InfixExpression(
+                new Token(PLUS, "+"),
+                "+",
+                new Identifier(new Token(IDENT, "a"), "a"),
+                new Identifier(new Token(IDENT, "b"), "b")
+            )
+        );
     }
 
     @Test
