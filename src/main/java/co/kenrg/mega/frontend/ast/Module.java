@@ -2,16 +2,18 @@ package co.kenrg.mega.frontend.ast;
 
 import java.util.List;
 
+import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.token.Token;
 
-public class Module {
+public class Module implements Node {
     public final List<Statement> statements;
 
     public Module(List<Statement> statements) {
         this.statements = statements;
     }
 
-
+    @Override
     public String repr(boolean debug, int indentLevel) {
         StringBuilder sb = new StringBuilder();
 
@@ -20,5 +22,10 @@ public class Module {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    public Token getToken() {
+        return null;
     }
 }
