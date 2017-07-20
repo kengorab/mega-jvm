@@ -5,5 +5,9 @@ public enum ObjectType {
     FLOAT,
     BOOLEAN,
 
-    NULL
+    NULL;
+
+    public boolean isNumeric() {
+        return this == INTEGER || this == FLOAT;
+    }
 }

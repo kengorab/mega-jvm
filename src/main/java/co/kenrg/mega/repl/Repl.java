@@ -30,7 +30,6 @@ public class Repl {
                 if (evaluated != null) {
                     System.out.println(evaluated.inspect());
                 }
-
             } catch (UserInterruptException | EndOfFileException e) {
                 System.out.println("Bye for now!");
                 return;
