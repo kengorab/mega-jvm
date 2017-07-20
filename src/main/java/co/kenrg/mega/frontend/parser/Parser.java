@@ -10,6 +10,7 @@ import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
@@ -70,6 +71,7 @@ public class Parser {
         this.registerInfix(TokenType.RANGLE, this::parseInfixExpression);
         this.registerInfix(TokenType.GTE, this::parseInfixExpression);
         this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
+        this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
     }
 
     private void addParserError(String message) {
@@ -397,5 +399,33 @@ public class Parser {
             return null;
         }
         return params;
+    }
+
+    private Expression parseCallExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '(' token
+        return new CallExpression(t, leftExpr, this.parseCallArguments());
+    }
+
+    private List<Expression> parseCallArguments() {
+        List<Expression> args = Lists.newArrayList();
+
+        if (this.peekTokenIs(TokenType.RPAREN)) {
+            this.nextToken();
+            return args;
+        }
+
+        this.nextToken();
+        args.add(this.parseExpression(LOWEST));
+
+        while (this.peekTokenIs(TokenType.COMMA)) {
+            this.nextToken();
+            this.nextToken();
+            args.add(this.parseExpression(LOWEST));
+        }
+
+        if (!this.expectPeek(TokenType.RPAREN)) {
+            return null;
+        }
+        return args;
     }
 }

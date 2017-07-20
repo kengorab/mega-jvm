@@ -30,6 +30,8 @@ enum Precedence {
                 return PRODUCT;
             case ARROW:
                 return ARROW;
+            case LPAREN:
+                return CALL;
             default:
                 return LOWEST;
         }

@@ -19,6 +19,7 @@ import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
@@ -343,7 +344,9 @@ class ParserTest {
             new TestCase("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
             new TestCase("(1 + 2) * 3", "((1 + 2) * 3)"),
             new TestCase("-(5 + 5)", "(-(5 + 5))"),
-            new TestCase("!(true == true)", "(!(true == true))")
+            new TestCase("!(true == true)", "(!(true == true))"),
+
+            new TestCase("add(a, 1 + add(b, 2))", "add(a, (1 + add(b, 2)))")
         );
 
         return testCases.stream()
@@ -523,5 +526,50 @@ class ParserTest {
         Parser p = new Parser(new Lexer(input));
         p.parseModule();
         assertTrue(p.errors.size() != 0);
+    }
+
+    @TestFactory
+    public List<DynamicTest> testCallExpression() {
+        class TestCase {
+            public final String input;
+            public final String targetRepr;
+            public final List<String> argReprs;
+
+            public TestCase(String input, String targetRepr, List<String> argReprs) {
+                this.input = input;
+                this.targetRepr = targetRepr;
+                this.argReprs = argReprs;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("add(1, 2)", "add", Lists.newArrayList("1", "2")),
+            new TestCase("add(a + 1, 2 * 2)", "add", Lists.newArrayList("(a + 1)", "(2 * 2)")),
+            new TestCase("(a => a + 1)(2)", "a => (a + 1)", Lists.newArrayList("2")),
+            new TestCase("map(arr, a => a)", "map", Lists.newArrayList("arr", "a => a"))
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                String targetRepr = testCase.targetRepr;
+                List<String> argReprs = testCase.argReprs;
+
+                String name = String.format("'%s', should be a CallExpression, applying %s to '%s'", input, argReprs, targetRepr);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertTrue(statement.expression instanceof CallExpression);
+                    CallExpression expr = (CallExpression) statement.expression;
+
+                    assertEquals(targetRepr, expr.target.repr(true, 0));
+                    assertEquals(
+                        argReprs,
+                        expr.arguments.stream()
+                            .map(arg -> arg.repr(true, 0))
+                            .collect(toList())
+                    );
+                });
+            })
+            .collect(toList());
     }
 }
