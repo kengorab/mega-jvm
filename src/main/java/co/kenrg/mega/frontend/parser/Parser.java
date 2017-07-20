@@ -19,6 +19,7 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
@@ -142,6 +143,8 @@ public class Parser {
         switch (this.curTok.type) {
             case LET:
                 return this.parseLetStatement();
+            case FUNCTION:
+                return this.parseFunctionDeclarationStatement();
             default:
                 return this.parseExpressionStatement();
         }
@@ -169,6 +172,29 @@ public class Parser {
         }
 
         return new LetStatement(t, name, expression);
+    }
+
+    private Statement parseFunctionDeclarationStatement() {
+        Token t = this.curTok;  // The 'func' token
+
+        if (!this.expectPeek(TokenType.IDENT)) {
+            return null;
+        }
+
+        Identifier name = new Identifier(this.curTok, this.curTok.literal);
+
+        if (!this.expectPeek(TokenType.LPAREN)) {
+            return null;
+        }
+
+        List<Identifier> params = this.parseFunctionParameters();
+
+        if (!this.expectPeek(TokenType.LBRACE)) {
+            return null;
+        }
+
+        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        return new FunctionDeclarationStatement(t, name, params, body);
     }
 
     private Statement parseExpressionStatement() {

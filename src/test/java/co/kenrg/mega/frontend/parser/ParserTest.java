@@ -4,6 +4,7 @@ import static co.kenrg.mega.frontend.token.TokenType.FALSE;
 import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
 import static co.kenrg.mega.frontend.token.TokenType.IDENT;
 import static co.kenrg.mega.frontend.token.TokenType.INT;
+import static co.kenrg.mega.frontend.token.TokenType.PLUS;
 import static co.kenrg.mega.frontend.token.TokenType.TRUE;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +28,7 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
@@ -77,6 +79,41 @@ class ParserTest {
         parser.parseModule();
 
         assertEquals(1, parser.errors.size());
+    }
+
+    @Test
+    public void testFunctionDeclarationStatement() {
+        String input = "func add(a, b) { a + b }";
+        Parser parser = new Parser(new Lexer(input));
+        Module module = parser.parseModule();
+        assertEquals(0, parser.errors.size());
+        FunctionDeclarationStatement statement = (FunctionDeclarationStatement) module.statements.get(0);
+
+        assertEquals("add", statement.name.value);
+        assertEquals(
+            Lists.newArrayList("a", "b"),
+            statement.parameters.stream()
+                .map(param -> param.value)
+                .collect(toList())
+        );
+
+        BlockExpression body = statement.body;
+        assertEquals(1, body.statements.size());
+
+        assertEquals(
+            Lists.newArrayList(
+                new ExpressionStatement(
+                    new Token(IDENT, "a"),
+                    new InfixExpression(
+                        new Token(PLUS, "+"),
+                        "+",
+                        new Identifier(new Token(IDENT, "a"), "a"),
+                        new Identifier(new Token(IDENT, "b"), "b")
+                    )
+                )
+            ),
+            body.statements
+        );
     }
 
     private ExpressionStatement parseExpressionStatement(String input) {

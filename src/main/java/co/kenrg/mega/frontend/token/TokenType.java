@@ -50,7 +50,7 @@ public enum TokenType {
     }
 
     private static Map<String, TokenType> KEYWORDS = ImmutableMap.<String, TokenType>builder()
-            .put("fn", FUNCTION)
+            .put("func", FUNCTION)
             .put("let", LET)
             .put("true", TRUE)
             .put("false", FALSE)
