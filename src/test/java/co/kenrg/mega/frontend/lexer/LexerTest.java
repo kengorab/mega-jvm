@@ -14,23 +14,23 @@ class LexerTest {
     @Test
     public void testNextToken_singleCharSymbols() {
         String input = "( ) { } , ; \n" +
-                "+ - / * = ! < >";
+            "+ - / * = ! < >";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.LPAREN, "("),
-                new Token(TokenType.RPAREN, ")"),
-                new Token(TokenType.LBRACE, "{"),
-                new Token(TokenType.RBRACE, "}"),
-                new Token(TokenType.COMMA, ","),
-                new Token(TokenType.SEMICOLON, ";"),
-                new Token(TokenType.PLUS, "+"),
-                new Token(TokenType.MINUS, "-"),
-                new Token(TokenType.SLASH, "/"),
-                new Token(TokenType.STAR, "*"),
-                new Token(TokenType.ASSIGN, "="),
-                new Token(TokenType.BANG, "!"),
-                new Token(TokenType.LANGLE, "<"),
-                new Token(TokenType.RANGLE, ">")
+            new Token(TokenType.LPAREN, "("),
+            new Token(TokenType.RPAREN, ")"),
+            new Token(TokenType.LBRACE, "{"),
+            new Token(TokenType.RBRACE, "}"),
+            new Token(TokenType.COMMA, ","),
+            new Token(TokenType.SEMICOLON, ";"),
+            new Token(TokenType.PLUS, "+"),
+            new Token(TokenType.MINUS, "-"),
+            new Token(TokenType.SLASH, "/"),
+            new Token(TokenType.STAR, "*"),
+            new Token(TokenType.ASSIGN, "="),
+            new Token(TokenType.BANG, "!"),
+            new Token(TokenType.LANGLE, "<"),
+            new Token(TokenType.RANGLE, ">")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -38,13 +38,14 @@ class LexerTest {
 
     @Test
     public void testNextToken_multiCharSymbols() {
-        String input = "== != <= >=";
+        String input = "== != <= >= =>";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.EQ, "=="),
-                new Token(TokenType.NEQ, "!="),
-                new Token(TokenType.LTE, "<="),
-                new Token(TokenType.GTE, ">=")
+            new Token(TokenType.EQ, "=="),
+            new Token(TokenType.NEQ, "!="),
+            new Token(TokenType.LTE, "<="),
+            new Token(TokenType.GTE, ">="),
+            new Token(TokenType.ARROW, "=>")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -52,12 +53,13 @@ class LexerTest {
 
     @Test
     public void testNextToken_integers() {
-        String input = "1 55 155";
+        String input = "1 55 155 1.";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.INT, "1"),
-                new Token(TokenType.INT, "55"),
-                new Token(TokenType.INT, "155")
+            new Token(TokenType.INT, "1"),
+            new Token(TokenType.INT, "55"),
+            new Token(TokenType.INT, "155"),
+            new Token(TokenType.INT, "1")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -65,14 +67,13 @@ class LexerTest {
 
     @Test
     public void testNextToken_floats() {
-        String input = "1.0 5.5 0.155 1. 0.003";
+        String input = "1.0 5.5 0.155 0.003";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.FLOAT, "1.0"),
-                new Token(TokenType.FLOAT, "5.5"),
-                new Token(TokenType.FLOAT, "0.155"),
-                new Token(TokenType.INT, "1"),
-                new Token(TokenType.FLOAT, "0.003")
+            new Token(TokenType.FLOAT, "1.0"),
+            new Token(TokenType.FLOAT, "5.5"),
+            new Token(TokenType.FLOAT, "0.155"),
+            new Token(TokenType.FLOAT, "0.003")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -83,10 +84,10 @@ class LexerTest {
         String input = "someVar foo bar fooBar";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.IDENT, "someVar"),
-                new Token(TokenType.IDENT, "foo"),
-                new Token(TokenType.IDENT, "bar"),
-                new Token(TokenType.IDENT, "fooBar")
+            new Token(TokenType.IDENT, "someVar"),
+            new Token(TokenType.IDENT, "foo"),
+            new Token(TokenType.IDENT, "bar"),
+            new Token(TokenType.IDENT, "fooBar")
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -94,15 +95,15 @@ class LexerTest {
 
     @Test
     public void testNextToken_keywords() {
-        String input = "let fn true false if else";
+        String input = "let func true false if else";
 
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.LET, "let"),
-                new Token(TokenType.FUNCTION, "fn"),
-                new Token(TokenType.TRUE, "true"),
-                new Token(TokenType.FALSE, "false"),
-                new Token(TokenType.IF, "if"),
-                new Token(TokenType.ELSE, "else")
+            new Token(TokenType.LET, "let"),
+            new Token(TokenType.FUNCTION, "func"),
+            new Token(TokenType.TRUE, "true"),
+            new Token(TokenType.FALSE, "false"),
+            new Token(TokenType.IF, "if"),
+            new Token(TokenType.ELSE, "else")
         );
         assertTokensForInput(expectedTokens, input);
     }
@@ -110,16 +111,16 @@ class LexerTest {
     @Test
     public void testNextToken_skipsWhitespaceAndNewlines() {
         String input = "let five = 5\n" +
-                "let ten = 10";
+            "let ten = 10";
         List<Token> expectedTokens = Lists.newArrayList(
-                new Token(TokenType.LET, "let"),
-                new Token(TokenType.IDENT, "five"),
-                new Token(TokenType.ASSIGN, "="),
-                new Token(TokenType.INT, "5"),
-                new Token(TokenType.LET, "let"),
-                new Token(TokenType.IDENT, "ten"),
-                new Token(TokenType.ASSIGN, "="),
-                new Token(TokenType.INT, "10")
+            new Token(TokenType.LET, "let"),
+            new Token(TokenType.IDENT, "five"),
+            new Token(TokenType.ASSIGN, "="),
+            new Token(TokenType.INT, "5"),
+            new Token(TokenType.LET, "let"),
+            new Token(TokenType.IDENT, "ten"),
+            new Token(TokenType.ASSIGN, "="),
+            new Token(TokenType.INT, "10")
         );
         assertTokensForInput(expectedTokens, input);
     }
