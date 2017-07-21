@@ -1,5 +1,6 @@
 package co.kenrg.mega.repl.object.iface;
 
+import co.kenrg.mega.repl.object.EvalError;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -7,6 +8,10 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 public abstract class Obj {
     public abstract ObjectType getType();
     public abstract String inspect();
+
+    public boolean isError() {
+        return this instanceof EvalError;
+    }
 
     @Override
     public String toString() {

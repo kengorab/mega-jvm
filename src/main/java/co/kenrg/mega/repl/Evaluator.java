@@ -1,5 +1,8 @@
 package co.kenrg.mega.repl;
 
+import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperator;
+import static co.kenrg.mega.repl.object.EvalError.unknownPrefixOperator;
+
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -56,6 +59,9 @@ public class Evaluator {
         Obj result = null;
         for (Statement statement : statements) {
             result = eval(statement);
+            if (result.isError()) {
+                return result;
+            }
         }
         return result;
     }
@@ -70,6 +76,9 @@ public class Evaluator {
 
     private static Obj evalPrefixExpression(PrefixExpression expr) {
         Obj result = eval(expr.expression);
+        if (result.isError()) {
+            return result;
+        }
 
         switch (expr.operator) {
             case "!":
@@ -89,16 +98,23 @@ public class Evaluator {
                     case FLOAT:
                         return new FloatObj(-((FloatObj) result).value);
                     default:
-                        return NullObj.NULL;
+                        return unknownPrefixOperator(expr.operator, result);
                 }
             default:
-                return NullObj.NULL;
+                return unknownPrefixOperator(expr.operator, result);
         }
     }
 
     private static Obj evalInfixExpression(InfixExpression expr) {
         Obj leftResult = eval(expr.left);
+        if (leftResult.isError()) {
+            return leftResult;
+        }
+
         Obj rightResult = eval(expr.right);
+        if (rightResult.isError()) {
+            return rightResult;
+        }
 
         if (expr.operator.equals("==")) {
             return evalEqualsExpression(leftResult, rightResult, false);
@@ -113,7 +129,7 @@ public class Evaluator {
             return evalNumericInfixExpression(expr.operator, leftResult, rightResult);
         }
 
-        return null;
+        return unknownInfixOperator(expr.operator, leftResult, rightResult);
     }
 
     private static Obj evalEqualsExpression(Obj left, Obj right, boolean negate) {
@@ -134,6 +150,7 @@ public class Evaluator {
         ObjectType leftType = left.getType();
         ObjectType rightType = right.getType();
 
+        Obj result;
         if (leftType == ObjectType.FLOAT || rightType == ObjectType.FLOAT) {
             float lval;
             if (leftType == ObjectType.INTEGER) {
@@ -148,11 +165,17 @@ public class Evaluator {
             } else {
                 rval = ((FloatObj) right).value;
             }
-            return evalFloatInfixExpression(operator, lval, rval);
+            result = evalFloatInfixExpression(operator, lval, rval);
         } else {
             int lval = ((IntegerObj) left).value;
             int rval = ((IntegerObj) right).value;
-            return evalIntegerInfixExpression(operator, lval, rval);
+            result = evalIntegerInfixExpression(operator, lval, rval);
+        }
+
+        if (result == null) {
+            return unknownInfixOperator(operator, left, right);
+        } else {
+            return result;
         }
     }
 
@@ -171,7 +194,7 @@ public class Evaluator {
             case ">":
                 return new BooleanObj(lval > rval);
             default:
-                return NullObj.NULL;
+                return null;
         }
     }
 
@@ -190,7 +213,7 @@ public class Evaluator {
             case ">":
                 return new BooleanObj(lval > rval);
             default:
-                return NullObj.NULL;
+                return null;
         }
     }
 
@@ -198,20 +221,23 @@ public class Evaluator {
         Obj result = NullObj.NULL;
         for (Statement statement : expression.statements) {
             result = eval(statement);
+            if (result.isError()) {
+                return result;
+            }
         }
         return result;
     }
 
     private static boolean isTruthy(Obj obj) {
-        if (obj.equals(NullObj.NULL) || obj.equals(BooleanObj.FALSE)) {
-            return false;
-        } else {
-            return true;
-        }
+        return !(obj.equals(NullObj.NULL) || obj.equals(BooleanObj.FALSE));
     }
 
     private static Obj evalIfExpression(IfExpression expression) {
         Obj condition = eval(expression.condition);
+        if (condition.isError()) {
+            return condition;
+        }
+
         if (isTruthy(condition)) {
             return eval(expression.thenExpr);
         } else if (expression.condition != null) {

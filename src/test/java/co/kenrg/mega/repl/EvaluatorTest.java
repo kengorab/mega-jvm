@@ -2,6 +2,7 @@ package co.kenrg.mega.repl;
 
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.parser.Parser;
 import co.kenrg.mega.repl.object.BooleanObj;
+import co.kenrg.mega.repl.object.EvalError;
 import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
@@ -175,6 +177,38 @@ class EvaluatorTest {
                     } else {
                         assertEquals(new IntegerObj(testCase.getValue()), result);
                     }
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testErrorReporting() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("5 + true;", "unknown operator: INTEGER + BOOLEAN"),
+            Pair.of("5 + true; 5;", "unknown operator: INTEGER + BOOLEAN"),
+            Pair.of("-true", "unknown operator: -BOOLEAN"),
+            Pair.of("true + false", "unknown operator: BOOLEAN + BOOLEAN"),
+            Pair.of("5; true * 2; 5;", "unknown operator: BOOLEAN * INTEGER"),
+            Pair.of("if 10 > 1 { true + false; 5 }", "unknown operator: BOOLEAN + BOOLEAN"),
+            Pair.of("if 10 > 1 { if 10 > 1 { true + false } }", "unknown operator: BOOLEAN + BOOLEAN")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should have error '%s'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Parser p = new Parser(new Lexer(testCase.getKey()));
+                    Module module = p.parseModule();
+
+                    Obj result = Evaluator.eval(module);
+                    assertTrue(result instanceof EvalError);
+                    assertEquals(testCase.getValue(), ((EvalError) result).message);
                 });
             })
             .collect(toList());
