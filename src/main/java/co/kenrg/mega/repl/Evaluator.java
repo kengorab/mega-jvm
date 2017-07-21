@@ -3,8 +3,10 @@ package co.kenrg.mega.repl;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -41,6 +43,10 @@ public class Evaluator {
             return evalPrefixExpression((PrefixExpression) node);
         } else if (node instanceof InfixExpression) {
             return evalInfixExpression((InfixExpression) node);
+        } else if (node instanceof IfExpression) {
+            return evalIfExpression((IfExpression) node);
+        } else if (node instanceof BlockExpression) {
+            return evalBlockExpression((BlockExpression) node);
         } else {
             return NullObj.NULL;
         }
@@ -185,6 +191,33 @@ public class Evaluator {
                 return new BooleanObj(lval > rval);
             default:
                 return NullObj.NULL;
+        }
+    }
+
+    private static Obj evalBlockExpression(BlockExpression expression) {
+        Obj result = NullObj.NULL;
+        for (Statement statement : expression.statements) {
+            result = eval(statement);
+        }
+        return result;
+    }
+
+    private static boolean isTruthy(Obj obj) {
+        if (obj.equals(NullObj.NULL) || obj.equals(BooleanObj.FALSE)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private static Obj evalIfExpression(IfExpression expression) {
+        Obj condition = eval(expression.condition);
+        if (isTruthy(condition)) {
+            return eval(expression.thenExpr);
+        } else if (expression.condition != null) {
+            return eval(expression.elseExpr);
+        } else {
+            return NullObj.NULL;
         }
     }
 }

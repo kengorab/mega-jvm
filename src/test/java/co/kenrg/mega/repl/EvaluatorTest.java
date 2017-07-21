@@ -12,6 +12,7 @@ import co.kenrg.mega.frontend.parser.Parser;
 import co.kenrg.mega.repl.object.BooleanObj;
 import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.IntegerObj;
+import co.kenrg.mega.repl.object.NullObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -139,6 +140,41 @@ class EvaluatorTest {
 
                     Obj result = Evaluator.eval(module);
                     assertEquals(new BooleanObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testIfElseExpressions() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("if true { 10 }", 10),
+            Pair.of("if false { 10 }", null),
+            Pair.of("if 1 { 10 }", 10),
+            Pair.of("if 1 > 2 { 10 }", null),
+            Pair.of("if 1 < 2 { 10 }", 10),
+            Pair.of("if 1 < 2 { 10 } else { 20 }", 10),
+            Pair.of("if 1 > 2 { 10 } else { 20 }", 20)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%s'",
+                    testCase.getKey(),
+                    testCase.getValue() == null ? "nil" : testCase.getValue().toString()
+                );
+
+                return dynamicTest(name, () -> {
+                    Parser p = new Parser(new Lexer(testCase.getKey()));
+                    Module module = p.parseModule();
+
+                    Obj result = Evaluator.eval(module);
+                    if (testCase.getValue() == null) {
+                        assertEquals(NullObj.NULL, result);
+                    } else {
+                        assertEquals(new IntegerObj(testCase.getValue()), result);
+                    }
                 });
             })
             .collect(toList());
