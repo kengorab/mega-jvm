@@ -3,6 +3,8 @@ package co.kenrg.mega.repl;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.parser.Parser;
+import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.repl.evaluator.Evaluator;
 import co.kenrg.mega.repl.object.iface.Obj;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -15,6 +17,8 @@ public class Repl {
         LineReader reader = LineReaderBuilder.builder().build();
         String prompt = ">> ";
 
+        Environment env = new Environment();
+
         while (true) {
             try {
                 String line = reader.readLine(prompt);
@@ -26,7 +30,7 @@ public class Repl {
                     System.out.println("There were errors!!!");
                 }
 
-                Obj evaluated = Evaluator.eval(module);
+                Obj evaluated = Evaluator.eval(module, env);
                 if (evaluated != null) {
                     System.out.println(evaluated.inspect());
                 }

@@ -10,6 +10,8 @@ import java.util.List;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.parser.Parser;
+import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.repl.evaluator.Evaluator;
 import co.kenrg.mega.repl.object.BooleanObj;
 import co.kenrg.mega.repl.object.EvalError;
 import co.kenrg.mega.repl.object.FloatObj;
@@ -22,6 +24,14 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class EvaluatorTest {
+
+    public Obj testEval(String input) {
+        Environment env = new Environment();
+        Parser p = new Parser(new Lexer(input));
+        Module module = p.parseModule();
+
+        return Evaluator.eval(module, env);
+    }
 
     @TestFactory
     public List<DynamicTest> testEvalIntegerLiteral() {
@@ -42,10 +52,7 @@ class EvaluatorTest {
             .map(testCase -> {
                 String name = String.format("'%s' should evaluate to '%d'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     assertEquals(new IntegerObj(testCase.getValue()), result);
                 });
             })
@@ -74,10 +81,7 @@ class EvaluatorTest {
             .map(testCase -> {
                 String name = String.format("'%s' should evaluate to '%f'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     assertEquals(new FloatObj(testCase.getValue()), result);
                 });
             })
@@ -112,10 +116,7 @@ class EvaluatorTest {
             .map(testCase -> {
                 String name = String.format("'%s' should evaluate to '%b'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     assertEquals(new BooleanObj(testCase.getValue()), result);
                 });
             })
@@ -137,10 +138,7 @@ class EvaluatorTest {
             .map(testCase -> {
                 String name = String.format("'%s' should evaluate to '%b'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     assertEquals(new BooleanObj(testCase.getValue()), result);
                 });
             })
@@ -168,10 +166,7 @@ class EvaluatorTest {
                 );
 
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     if (testCase.getValue() == null) {
                         assertEquals(NullObj.NULL, result);
                     } else {
@@ -191,7 +186,9 @@ class EvaluatorTest {
             Pair.of("true + false", "unknown operator: BOOLEAN + BOOLEAN"),
             Pair.of("5; true * 2; 5;", "unknown operator: BOOLEAN * INTEGER"),
             Pair.of("if 10 > 1 { true + false; 5 }", "unknown operator: BOOLEAN + BOOLEAN"),
-            Pair.of("if 10 > 1 { if 10 > 1 { true + false } }", "unknown operator: BOOLEAN + BOOLEAN")
+            Pair.of("if 10 > 1 { if 10 > 1 { true + false } }", "unknown operator: BOOLEAN + BOOLEAN"),
+
+            Pair.of("foobar", "unknown identifier: foobar")
         );
 
         return testCases.stream()
@@ -203,12 +200,34 @@ class EvaluatorTest {
                 );
 
                 return dynamicTest(name, () -> {
-                    Parser p = new Parser(new Lexer(testCase.getKey()));
-                    Module module = p.parseModule();
-
-                    Obj result = Evaluator.eval(module);
+                    Obj result = testEval(testCase.getKey());
                     assertTrue(result instanceof EvalError);
                     assertEquals(testCase.getValue(), ((EvalError) result).message);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testLetStatementBinding() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("let a = 5; a;", 5),
+            Pair.of("let a = 5 * 5; a", 25),
+            Pair.of("let a = 5; let b = a; b;", 5),
+            Pair.of("let a = 5; let b = a; let c = a + b + 5; c;", 15)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should have error '%s'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new IntegerObj(testCase.getValue()), result);
                 });
             })
             .collect(toList());

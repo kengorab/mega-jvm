@@ -20,6 +20,10 @@ public class EvalError extends Obj {
         return new EvalError(String.format("unknown operator: %s %s %s", left.getType(), operator, right.getType()));
     }
 
+    public static EvalError unknownIdentifier(String identifier) {
+        return new EvalError(String.format("unknown identifier: %s", identifier));
+    }
+
     @Override
     public ObjectType getType() {
         return EVAL_ERROR;

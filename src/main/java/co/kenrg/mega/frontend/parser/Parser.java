@@ -169,7 +169,7 @@ public class Parser {
 
         Expression expression = this.parseExpression(LOWEST);
 
-        while (!this.curTokenIs(TokenType.EOF)) {
+        if (this.peekTokenIs(TokenType.SEMICOLON)) {
             this.nextToken();
         }
 
