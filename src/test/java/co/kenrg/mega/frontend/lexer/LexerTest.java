@@ -80,14 +80,15 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_idents() {
-        String input = "someVar foo bar fooBar";
+    public void testNextToken_identifiers() {
+        String input = "someVar foo bar fooBar ab1";
 
         List<Token> expectedTokens = Lists.newArrayList(
             new Token(TokenType.IDENT, "someVar"),
             new Token(TokenType.IDENT, "foo"),
             new Token(TokenType.IDENT, "bar"),
-            new Token(TokenType.IDENT, "fooBar")
+            new Token(TokenType.IDENT, "fooBar"),
+            new Token(TokenType.IDENT, "ab1")
         );
 
         assertTokensForInput(expectedTokens, input);

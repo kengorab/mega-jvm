@@ -246,6 +246,10 @@ public class Evaluator {
                 return new BooleanObj(lval < rval);
             case ">":
                 return new BooleanObj(lval > rval);
+            case "<=":
+                return new BooleanObj(lval <= rval);
+            case ">=":
+                return new BooleanObj(lval >= rval);
             default:
                 return null;
         }
@@ -265,6 +269,10 @@ public class Evaluator {
                 return new BooleanObj(lval < rval);
             case ">":
                 return new BooleanObj(lval > rval);
+            case "<=":
+                return new BooleanObj(lval <= rval);
+            case ">=":
+                return new BooleanObj(lval >= rval);
             default:
                 return null;
         }
