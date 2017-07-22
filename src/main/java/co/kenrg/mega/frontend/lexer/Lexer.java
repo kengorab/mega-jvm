@@ -26,9 +26,12 @@ import static co.kenrg.mega.frontend.token.TokenType.STAR;
 import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static java.lang.Character.isDigit;
 
+import java.util.Map;
+
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class Lexer {
@@ -36,6 +39,14 @@ public class Lexer {
     private int position;
     private int readPosition;
     private char ch;
+
+    private Map<Character, Character> escapes = ImmutableMap.<Character, Character>builder()
+        .put('0', '\0')
+        .put('n', '\n')
+        .put('r', '\r')
+        .put('f', '\f')
+        .put('t', '\t')
+        .build();
 
     public Lexer(String input) {
         this.input = input;
@@ -134,6 +145,7 @@ public class Lexer {
                 }
                 break;
             case '"':
+            case '\'':
                 Pair<String, SyntaxError> str = this.readString();
                 if (str.getRight() != null) {
                     token = new Token(ILLEGAL, this.ch);
@@ -210,19 +222,30 @@ public class Lexer {
 
     private Pair<String, SyntaxError> readString() {
         StringBuilder sb = new StringBuilder();
+        char quote = this.ch;
 
         while (true) {
             this.readChar();
             char ch = this.ch;
-            if (ch == '"') {
+            if (ch == quote) {
                 break;
             }
             if (ch == '\\') {
                 char peekCh = this.peekChar();
                 switch (peekCh) {
                     case '"':
+                    case '\'':
+                    case '\\':
                         this.readChar();
-                        ch = '"';
+                        ch = this.ch;
+                        break;
+                    case '0':
+                    case 'n':
+                    case 'r':
+                    case 'f':
+                    case 't':
+                        this.readChar();
+                        ch = escapes.get(this.ch);
                         break;
                     case 'u':
                         this.readChar();
@@ -236,7 +259,7 @@ public class Lexer {
                                 return Pair.of("", error);
                             }
                             if (this.ch == 0) {
-                                SyntaxError error = new SyntaxError("Expected \", saw EOF");
+                                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote));
                                 return Pair.of("", error);
                             }
 
@@ -255,7 +278,7 @@ public class Lexer {
                 }
             }
             if (ch == 0) {
-                SyntaxError error = new SyntaxError("Expected \", saw EOF");
+                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote));
                 return Pair.of("", error);
             }
 

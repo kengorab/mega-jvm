@@ -132,6 +132,10 @@ class LexerTest {
     public List<DynamicTest> testNextToken_stringsWithEscapes() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("\\\"", "\""),
+            Pair.of("\\n", "\n"),
+            Pair.of("\\r", "\r"),
+            Pair.of("\\t", "\t"),
+            Pair.of("\\f", "\f"),
             Pair.of("\\u1215", "ሕ"),
             Pair.of("\\u09A3", "ণ"),
             Pair.of("\\uCAFE", "쫾"),
