@@ -19,6 +19,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
@@ -31,6 +32,7 @@ import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.FunctionObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
+import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.InvokeableObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
@@ -59,6 +61,8 @@ public class Evaluator {
             return new FloatObj(((FloatLiteral) node).value);
         } else if (node instanceof BooleanLiteral) {
             return nativeBoolToBoolObj(((BooleanLiteral) node).value);
+        } else if (node instanceof StringLiteral) {
+            return new StringObj(((StringLiteral) node).value);
         } else if (node instanceof PrefixExpression) {
             return evalPrefixExpression((PrefixExpression) node, env);
         } else if (node instanceof InfixExpression) {

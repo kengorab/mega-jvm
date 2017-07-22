@@ -17,6 +17,7 @@ import co.kenrg.mega.repl.object.EvalError;
 import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
+import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,6 +84,23 @@ class EvaluatorTest {
                 return dynamicTest(name, () -> {
                     Obj result = testEval(testCase.getKey());
                     assertEquals(new FloatObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testEvalStringLiteral() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("\"hello\"", "hello")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should evaluate to '%s'", testCase.getKey(), testCase.getValue());
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new StringObj(testCase.getValue()), result);
                 });
             })
             .collect(toList());
