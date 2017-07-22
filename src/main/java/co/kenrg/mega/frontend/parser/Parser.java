@@ -176,6 +176,7 @@ public class Parser {
         return new LetStatement(t, name, expression);
     }
 
+    // func <name>([<param> [, <param>]*]) { <stmts> }
     private Statement parseFunctionDeclarationStatement() {
         Token t = this.curTok;  // The 'func' token
 
@@ -199,6 +200,7 @@ public class Parser {
         return new FunctionDeclarationStatement(t, name, params, body);
     }
 
+    // Wrapper to allow top-level expressions
     private Statement parseExpressionStatement() {
         Token t = this.curTok;
 
@@ -326,6 +328,7 @@ public class Parser {
         return new IfExpression(t, condition, thenBlock, elseBlock);
     }
 
+    // { [<stmt> [<stmt>]*] }
     private Expression parseBlockExpression() {
         Token lBrace = this.curTok;
         this.nextToken();   // Skip '{'
@@ -350,6 +353,7 @@ public class Parser {
         }
     }
 
+    // ([<param> [, <param>]*]) => <expr>
     private Expression parseArrowFunctionExpression() {
         Token t = this.curTok;
         List<Identifier> parameters = this.parseFunctionParameters();
@@ -363,6 +367,7 @@ public class Parser {
         return new ArrowFunctionExpression(t, parameters, body);
     }
 
+    // <param> => <expr>
     private Expression parseSingleParamArrowFunctionExpression(Expression leftExpr) {
         if (leftExpr.getToken().type != TokenType.IDENT) {
             addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, leftExpr.getToken().type));
@@ -376,6 +381,7 @@ public class Parser {
         return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(param), body);
     }
 
+    // ([<param> [, <param>]*])
     private List<Identifier> parseFunctionParameters() {
         List<Identifier> params = Lists.newArrayList();
         if (this.peekTokenIs(TokenType.RPAREN)) {
@@ -401,6 +407,7 @@ public class Parser {
         return params;
     }
 
+    // <expr>([<expr> [, <expr>]*])
     private Expression parseCallExpression(Expression leftExpr) {
         Token t = this.curTok;  // The '(' token
         return new CallExpression(t, leftExpr, this.parseCallArguments());

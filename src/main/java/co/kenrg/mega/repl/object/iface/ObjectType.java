@@ -5,6 +5,8 @@ public enum ObjectType {
     FLOAT,
     BOOLEAN,
 
+    FUNCTION,
+
     NULL,
     EVAL_ERROR;
 

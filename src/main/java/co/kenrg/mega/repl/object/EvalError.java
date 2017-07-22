@@ -12,16 +12,24 @@ public class EvalError extends Obj {
         this.message = message;
     }
 
-    public static EvalError unknownPrefixOperator(String operator, Obj right) {
+    public static EvalError unknownPrefixOperatorError(String operator, Obj right) {
         return new EvalError(String.format("unknown operator: %s%s", operator, right.getType()));
     }
 
-    public static EvalError unknownInfixOperator(String operator, Obj left, Obj right) {
+    public static EvalError unknownInfixOperatorError(String operator, Obj left, Obj right) {
         return new EvalError(String.format("unknown operator: %s %s %s", left.getType(), operator, right.getType()));
     }
 
-    public static EvalError unknownIdentifier(String identifier) {
+    public static EvalError unknownIdentifierError(String identifier) {
         return new EvalError(String.format("unknown identifier: %s", identifier));
+    }
+
+    public static EvalError uninvokeableTypeError(Obj target) {
+        return new EvalError(String.format("cannot invoke %s as a function: incompatible type %s", target.inspect(), target.getType()));
+    }
+
+    public static EvalError functionArityError(int numExpected, int numReceived) {
+        return new EvalError(String.format("incorrect number of arguments for function: expected %d, got %d", numExpected, numReceived));
     }
 
     @Override

@@ -1,30 +1,40 @@
 package co.kenrg.mega.repl.evaluator;
 
-import static co.kenrg.mega.repl.object.EvalError.unknownIdentifier;
-import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperator;
-import static co.kenrg.mega.repl.object.EvalError.unknownPrefixOperator;
+import static co.kenrg.mega.repl.object.EvalError.functionArityError;
+import static co.kenrg.mega.repl.object.EvalError.uninvokeableTypeError;
+import static co.kenrg.mega.repl.object.EvalError.unknownIdentifierError;
+import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperatorError;
+import static co.kenrg.mega.repl.object.EvalError.unknownPrefixOperatorError;
 
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.repl.object.ArrowFunctionObj;
 import co.kenrg.mega.repl.object.BooleanObj;
 import co.kenrg.mega.repl.object.FloatObj;
+import co.kenrg.mega.repl.object.FunctionObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
+import co.kenrg.mega.repl.object.iface.InvokeableObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
+import com.google.common.collect.Lists;
 
 public class Evaluator {
 
@@ -38,6 +48,8 @@ public class Evaluator {
             return eval(((ExpressionStatement) node).expression, env);
         } else if (node instanceof LetStatement) {
             return evalLetStatement((LetStatement) node, env);
+        } else if (node instanceof FunctionDeclarationStatement) {
+            return evalFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
         }
 
         // Expressions
@@ -57,19 +69,34 @@ public class Evaluator {
             return evalBlockExpression((BlockExpression) node, env);
         } else if (node instanceof Identifier) {
             return evalIdentifier((Identifier) node, env);
+        } else if (node instanceof ArrowFunctionExpression) {
+            return evalArrowFunctionExpression((ArrowFunctionExpression) node, env);
+        } else if (node instanceof CallExpression) {
+            return evalCallExpression((CallExpression) node, env);
         } else {
             return NullObj.NULL;
         }
     }
 
-    private static Obj evalLetStatement(LetStatement letStatement, Environment env) {
-        Obj value = eval(letStatement.value, env);
+    private static Obj evalLetStatement(LetStatement statement, Environment env) {
+        Obj value = eval(statement.value, env);
         if (value.isError()) {
             return value;
         }
 
-        env.set(letStatement.name.value, value);
+        env.set(statement.name.value, value);
 
+        return NullObj.NULL;
+    }
+
+    private static Obj evalFunctionDeclarationStatement(FunctionDeclarationStatement statement, Environment env) {
+        FunctionObj function = new FunctionObj(
+            statement.name.value,
+            statement.parameters,
+            statement.body,
+            env
+        );
+        env.set(statement.name.value, function);
         return NullObj.NULL;
     }
 
@@ -95,7 +122,7 @@ public class Evaluator {
     private static Obj evalIdentifier(Identifier ident, Environment env) {
         Obj value = env.get(ident.value);
         if (value == null) {
-            return unknownIdentifier(ident.value);
+            return unknownIdentifierError(ident.value);
         }
         return value;
     }
@@ -124,10 +151,10 @@ public class Evaluator {
                     case FLOAT:
                         return new FloatObj(-((FloatObj) result).value);
                     default:
-                        return unknownPrefixOperator(expr.operator, result);
+                        return unknownPrefixOperatorError(expr.operator, result);
                 }
             default:
-                return unknownPrefixOperator(expr.operator, result);
+                return unknownPrefixOperatorError(expr.operator, result);
         }
     }
 
@@ -155,7 +182,7 @@ public class Evaluator {
             return evalNumericInfixExpression(expr.operator, leftResult, rightResult);
         }
 
-        return unknownInfixOperator(expr.operator, leftResult, rightResult);
+        return unknownInfixOperatorError(expr.operator, leftResult, rightResult);
     }
 
     private static Obj evalEqualsExpression(Obj left, Obj right, boolean negate) {
@@ -199,7 +226,7 @@ public class Evaluator {
         }
 
         if (result == null) {
-            return unknownInfixOperator(operator, left, right);
+            return unknownInfixOperatorError(operator, left, right);
         } else {
             return result;
         }
@@ -271,5 +298,45 @@ public class Evaluator {
         } else {
             return NullObj.NULL;
         }
+    }
+
+    private static Obj evalArrowFunctionExpression(ArrowFunctionExpression expr, Environment env) {
+        return new ArrowFunctionObj(expr, env);
+    }
+
+    private static Obj evalCallExpression(CallExpression expr, Environment env) {
+        Obj result = eval(expr.target, env);
+        if (result.isError()) {
+            return result;
+        }
+
+        if (!(result instanceof InvokeableObj)) {
+            return uninvokeableTypeError(result);
+        }
+        InvokeableObj func = (InvokeableObj) result;
+
+        List<Obj> args = Lists.newArrayList();
+        for (Expression argument : expr.arguments) {
+            Obj arg = eval(argument, env);
+            if (arg.isError()) {
+                return arg;
+            }
+            args.add(arg);
+        }
+
+        List<Identifier> funcParams = func.getParams();
+
+        if (args.size() != funcParams.size()) {
+            return functionArityError(funcParams.size(), args.size());
+        }
+
+        Environment fnEnv = func.getEnvironment().createChildEnvironment();
+        for (int i = 0; i < args.size(); i++) {
+            Obj arg = args.get(i);
+            Identifier param = funcParams.get(i);
+            fnEnv.set(param.value, arg);
+        }
+
+        return eval(func.getBody(), fnEnv);
     }
 }

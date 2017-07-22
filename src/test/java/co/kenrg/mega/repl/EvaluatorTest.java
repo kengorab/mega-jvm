@@ -220,7 +220,57 @@ class EvaluatorTest {
         return testCases.stream()
             .map(testCase -> {
                 String name = String.format(
-                    "'%s' should have error '%s'",
+                    "'%s' should evaluate to '%d'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new IntegerObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testFunctionApplication() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("let identity = x => x; identity(5);", 5),
+            Pair.of("let identity = (x) => x; identity(5);", 5),
+            Pair.of("let add = (a, b) => a + b; add(add(1, 2), add(1, 1))", 5),
+            Pair.of("((a, b) => a + b)(1 + 1, 4 - 1)", 5),
+
+            Pair.of("func sum(a, b) { a + b }; sum(4, 1)", 5)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%d'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new IntegerObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testFunctionClosures() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("let adder = x => n => x + n; let addOne = adder(1); addOne(4)", 5),
+            Pair.of("let a = 2; let addA = x => x + a; addA(3)", 5)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%d'",
                     testCase.getKey(),
                     testCase.getValue()
                 );
