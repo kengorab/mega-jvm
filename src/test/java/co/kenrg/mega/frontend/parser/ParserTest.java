@@ -5,6 +5,7 @@ import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
 import static co.kenrg.mega.frontend.token.TokenType.IDENT;
 import static co.kenrg.mega.frontend.token.TokenType.INT;
 import static co.kenrg.mega.frontend.token.TokenType.PLUS;
+import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static co.kenrg.mega.frontend.token.TokenType.TRUE;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,6 +27,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -160,6 +162,12 @@ class ParserTest {
                 new BooleanLiteral(token, value),
                 expr
             );
+        } else if (expectedValue instanceof String) {
+            String value = (String) expectedValue;
+            assertEquals(
+                new StringLiteral(new Token(STRING, value), value),
+                expr
+            );
         } else {
             fail("Cannot assert literal expr equivalence for type: " + expectedValue.getClass().getName());
         }
@@ -226,6 +234,26 @@ class ParserTest {
                 Boolean value = testCase.getRight();
 
                 String name = String.format("'%s' should parse to '%b'", input, value);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertLiteralExpression(statement.expression, value);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testStringLiteralExpression() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("\"hello\"", "hello")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String value = testCase.getRight();
+
+                String name = String.format("'%s' should parse to '%s'", input, value);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
                     assertLiteralExpression(statement.expression, value);

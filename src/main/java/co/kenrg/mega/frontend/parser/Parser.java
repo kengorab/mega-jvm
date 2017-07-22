@@ -17,6 +17,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -28,6 +29,7 @@ import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class Parser {
     public final List<SyntaxError> errors = Lists.newArrayList();
@@ -54,6 +56,7 @@ public class Parser {
         this.registerPrefix(TokenType.FLOAT, this::parseFloatLiteral);
         this.registerPrefix(TokenType.TRUE, this::parseBooleanLiteral);
         this.registerPrefix(TokenType.FALSE, this::parseBooleanLiteral);
+        this.registerPrefix(TokenType.STRING, this::parseStringLiteral);
         this.registerPrefix(TokenType.BANG, this::parsePrefixExpression);
         this.registerPrefix(TokenType.MINUS, this::parsePrefixExpression);
         this.registerPrefix(TokenType.LPAREN, this::parseParenExpression);
@@ -85,7 +88,11 @@ public class Parser {
         // Since peekTok is null on initialization, allow for setting peekAheadTok when peekTok is null, since this
         // method will be called 3 times on initialization to saturate all the lookahead tokens.
         if (this.peekTok == null || this.peekTok.type != TokenType.EOF) {
-            this.peekAheadTok = this.lexer.nextToken();
+            Pair<Token, SyntaxError> token = this.lexer.nextToken();
+            if (token.getRight() != null) {
+                this.addParserError(token.getRight().message);
+            }
+            this.peekAheadTok = token.getLeft();
         }
     }
 
@@ -261,6 +268,11 @@ public class Parser {
     // [true|false]
     private Expression parseBooleanLiteral() {
         return new BooleanLiteral(this.curTok, this.curTok.type == TokenType.TRUE);
+    }
+
+    // "<chars>"
+    private Expression parseStringLiteral() {
+        return new StringLiteral(this.curTok, this.curTok.literal);
     }
 
     // <operator><expr>

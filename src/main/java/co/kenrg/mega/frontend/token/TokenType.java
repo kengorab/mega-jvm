@@ -11,6 +11,7 @@ public enum TokenType {
     IDENT("IDENT"),
     INT("INT"),
     FLOAT("FLOAT"),
+    STRING("STRING"),
 
     ASSIGN("="),
     BANG("!"),

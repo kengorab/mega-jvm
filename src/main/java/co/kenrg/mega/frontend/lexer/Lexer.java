@@ -23,10 +23,13 @@ import static co.kenrg.mega.frontend.token.TokenType.RPAREN;
 import static co.kenrg.mega.frontend.token.TokenType.SEMICOLON;
 import static co.kenrg.mega.frontend.token.TokenType.SLASH;
 import static co.kenrg.mega.frontend.token.TokenType.STAR;
+import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static java.lang.Character.isDigit;
 
+import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class Lexer {
     private final String input;
@@ -58,8 +61,9 @@ public class Lexer {
         return this.input.charAt(this.readPosition);
     }
 
-    public Token nextToken() {
+    public Pair<Token, SyntaxError> nextToken() {
         Token token;
+        SyntaxError error = null;
 
         this.skipWhitespace();
 
@@ -129,27 +133,36 @@ public class Lexer {
                     token = new Token(RANGLE, this.ch);
                 }
                 break;
+            case '"':
+                Pair<String, SyntaxError> str = this.readString();
+                if (str.getRight() != null) {
+                    token = new Token(ILLEGAL, this.ch);
+                    error = str.getRight();
+                } else {
+                    token = new Token(STRING, str.getLeft());
+                }
+                break;
             case 0:
                 token = new Token(EOF, "");
                 break;
             default:
                 if (Character.isLetter(this.ch)) {
                     String ident = this.readIdentifier();
-                    return new Token(TokenType.lookupIdent(ident), ident);
+                    return Pair.of(new Token(TokenType.lookupIdent(ident), ident), null);
                 } else if (isDigit(this.ch)) {
                     String number = this.readNumber();
                     if (number.endsWith(".")) {
                         number = number.replace(".", "");
                     }
                     TokenType type = number.contains(".") ? FLOAT : INT;
-                    return new Token(type, number);
+                    return Pair.of(new Token(type, number), null);
                 } else {
                     token = new Token(ILLEGAL, this.ch);
                 }
         }
 
         this.readChar();
-        return token;
+        return Pair.of(token, error);
     }
 
     private String readNumber() {
@@ -193,6 +206,23 @@ public class Lexer {
             this.readChar();
         }
         return this.input.substring(position, this.position);
+    }
+
+    private Pair<String, SyntaxError> readString() {
+        int position = this.position + 1;   // Skip quote char
+
+        while (true) {
+            this.readChar();
+            if (this.ch == '"') {
+                break;
+            }
+            if (this.ch == 0) {
+                SyntaxError error = new SyntaxError("Expected \", saw EOF");
+                return Pair.of("", error);
+            }
+        }
+
+        return Pair.of(this.input.substring(position, this.position), null);
     }
 
     private void skipWhitespace() {
