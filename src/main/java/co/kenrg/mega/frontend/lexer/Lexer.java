@@ -209,20 +209,67 @@ public class Lexer {
     }
 
     private Pair<String, SyntaxError> readString() {
-        int position = this.position + 1;   // Skip quote char
+        StringBuilder sb = new StringBuilder();
 
         while (true) {
             this.readChar();
-            if (this.ch == '"') {
+            char ch = this.ch;
+            if (ch == '"') {
                 break;
             }
-            if (this.ch == 0) {
+            if (ch == '\\') {
+                char peekCh = this.peekChar();
+                switch (peekCh) {
+                    case '"':
+                        this.readChar();
+                        ch = '"';
+                        break;
+                    case 'u':
+                        this.readChar();
+
+                        int base = 16;
+                        int value = 0;
+                        for (int length = 4; length > 0; length--) {
+                            this.readChar();
+                            if (this.ch == '"') {
+                                SyntaxError error = new SyntaxError("Invalid unicode value");
+                                return Pair.of("", error);
+                            }
+                            if (this.ch == 0) {
+                                SyntaxError error = new SyntaxError("Expected \", saw EOF");
+                                return Pair.of("", error);
+                            }
+
+                            int digitVal = digitValue(this.ch);
+                            if (digitVal >= base) {
+                                SyntaxError error = new SyntaxError("Invalid unicode value");
+                                return Pair.of("", error);
+                            }
+
+                            value = value * base + digitVal;
+                        }
+                        ch = (char) value;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            if (ch == 0) {
                 SyntaxError error = new SyntaxError("Expected \", saw EOF");
                 return Pair.of("", error);
             }
+
+            sb.append(ch);
         }
 
-        return Pair.of(this.input.substring(position, this.position), null);
+        return Pair.of(sb.toString(), null);
+    }
+
+    private int digitValue(char ch) {
+        if ('0' <= ch && ch <= '9') return ch - '0';
+        if ('a' <= ch && ch <= 'f') return ch - 'a' + 10;
+        if ('A' <= ch && ch <= 'F') return ch - 'A' + 10;
+        return 16; // Larger than any legal digit value
     }
 
     private void skipWhitespace() {

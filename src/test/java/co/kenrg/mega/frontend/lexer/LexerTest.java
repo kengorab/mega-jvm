@@ -128,37 +128,52 @@ class LexerTest {
             .collect(toList());
     }
 
-//    @TestFactory
-//    public List<DynamicTest> testNextToken_stringsWithEscapes() {
-//        List<Pair<String, String>> testCases = Lists.newArrayList(
-//            Pair.of("\\'", ""),
-//            Pair.of("123", ""),
-//            Pair.of("咊 ⧻", ""),
-//            Pair.of("🙌💯", "")
-//        );
-//
-//        return testCases.stream()
-//            .map(testCase -> {
-//                String input = "\"" + testCase + "\"";
-//                String name = String.format("'%s' should lex to a string token, with literal '%s'", input, testCase);
-//                return dynamicTest(name, () -> {
-//                    List<Token> expectedTokens = Lists.newArrayList(
-//                        new Token(TokenType.STRING, testCase)
-//                    );
-//
-//                    assertTokensForInput(expectedTokens, input);
-//                });
-//            })
-//            .collect(toList());
-//    }
+    @TestFactory
+    public List<DynamicTest> testNextToken_stringsWithEscapes() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("\\\"", "\""),
+            Pair.of("\\u1215", "ሕ"),
+            Pair.of("\\u09A3", "ণ"),
+            Pair.of("\\uCAFE", "쫾"),
+            Pair.of("\\uBABE", "몾")
+        );
 
-    @Test
-    public void testNextToken_stringsWithMissingClosingQuote_syntaxError() {
-        String input = "\"hello world";
+        return testCases.stream()
+            .map(testCase -> {
+                String input = "\"" + testCase.getLeft() + "\"";
+                String name = String.format("'%s' should lex to a string token, with literal '%s'", input, testCase);
+                return dynamicTest(name, () -> {
+                    List<Token> expectedTokens = Lists.newArrayList(
+                        new Token(TokenType.STRING, testCase.getRight())
+                    );
 
-        Lexer l = new Lexer(input);
-        Pair<Token, SyntaxError> t = l.nextToken();
-        assertEquals("Expected \", saw EOF", t.getRight().message);
+                    assertTokensForInput(expectedTokens, input);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testNextToken_stringsWithSyntaxErrors() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("\"hello world", "Expected \", saw EOF"),
+            Pair.of("\"\\u378\"", "Invalid unicode value"),
+            Pair.of("\"\\uA37Q\"", "Invalid unicode value")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String errorMessage = testCase.getRight();
+
+                String name = String.format("Lexing '%s' should raise error with message: '%s'", input, errorMessage);
+                return dynamicTest(name, () -> {
+                    Lexer l = new Lexer(input);
+                    Pair<Token, SyntaxError> t = l.nextToken();
+                    assertEquals(errorMessage, t.getRight().message);
+                });
+            })
+            .collect(toList());
     }
 
     @Test

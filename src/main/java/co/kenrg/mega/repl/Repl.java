@@ -8,13 +8,16 @@ import co.kenrg.mega.repl.evaluator.Evaluator;
 import co.kenrg.mega.repl.object.iface.Obj;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
+import org.jline.reader.LineReader.Option;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
 
 public class Repl {
 
     public static void start() {
-        LineReader reader = LineReaderBuilder.builder().build();
+        LineReader reader = LineReaderBuilder.builder()
+            .build();
+        reader.setOpt(Option.DISABLE_EVENT_EXPANSION);
         String prompt = ">> ";
 
         Environment env = new Environment();
