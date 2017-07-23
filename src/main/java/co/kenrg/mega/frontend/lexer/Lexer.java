@@ -244,6 +244,7 @@ public class Lexer {
                     case '"':
                     case '\'':
                     case '\\':
+                    case '$':
                         this.readChar();
                         ch = this.ch;
                         break;
