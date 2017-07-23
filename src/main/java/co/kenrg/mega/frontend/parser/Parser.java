@@ -15,6 +15,7 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -77,6 +78,7 @@ public class Parser {
         this.registerInfix(TokenType.GTE, this::parseInfixExpression);
         this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
+        this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
     }
 
     private void addParserError(String message) {
@@ -452,5 +454,18 @@ public class Parser {
     // <expr>([<expr> [, <expr>]*])
     private Expression parseCallExpression(Expression leftExpr) {
         return new CallExpression(this.curTok, leftExpr, this.parseExpressionList(TokenType.RPAREN));
+    }
+
+    // <expr>[<expr>]
+    private Expression parseIndexExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '[' token
+        this.nextToken();   // Consume '['
+
+        Expression index = this.parseExpression(LOWEST);
+        if (!this.expectPeek(TokenType.RBRACK)) {
+            return null;
+        }
+
+        return new IndexExpression(t, leftExpr, index);
     }
 }

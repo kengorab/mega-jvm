@@ -10,7 +10,8 @@ enum Precedence {
     SUM,
     PRODUCT,
     PREFIX,
-    CALL;
+    CALL,
+    INDEX;
 
     public static Precedence forTokenType(TokenType tokenType) {
         switch (tokenType) {
@@ -22,6 +23,8 @@ enum Precedence {
             case LTE:
             case GTE:
                 return LESSGREATER;
+            case LBRACK:
+                return INDEX;
             case PLUS:
             case MINUS:
                 return SUM;

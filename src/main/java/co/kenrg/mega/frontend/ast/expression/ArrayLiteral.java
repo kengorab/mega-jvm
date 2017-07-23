@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.ast.expression;
 import static java.util.stream.Collectors.joining;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.token.Token;
@@ -19,11 +20,20 @@ public class ArrayLiteral extends Expression {
 
     @Override
     public String repr(boolean debug, int indentLevel) {
-        String indentation = Strings.repeat("  ", indentLevel + 1);
-        String elements = this.elements.stream()
-            .map(el -> el.repr(debug, indentLevel))
-            .collect(joining(",\n" + indentation));
-        return String.format("[\n%s%s]", indentation, elements);
+        String repr;
+        Stream<String> elementsStream = this.elements.stream()
+            .map(el -> el.repr(debug, indentLevel));
+
+        String elemsOnOneLine = elementsStream.collect(joining(", "));
+        if (elemsOnOneLine.length() < 80) {
+            repr = String.format("[%s]", elemsOnOneLine);
+        } else {
+            String indentation = Strings.repeat("  ", indentLevel + 1);
+            String elements = elementsStream.collect(joining(",\n" + indentation));
+            repr = String.format("[\n%s%s]", indentation, elements);
+        }
+
+        return repr;
     }
 
     @Override

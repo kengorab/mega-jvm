@@ -25,6 +25,7 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -404,7 +405,8 @@ class ParserTest {
             new TestCase("-(5 + 5)", "(-(5 + 5))"),
             new TestCase("!(true == true)", "(!(true == true))"),
 
-            new TestCase("add(a, 1 + add(b, 2))", "add(a, (1 + add(b, 2)))")
+            new TestCase("add(a, 1 + add(b, 2))", "add(a, (1 + add(b, 2)))"),
+            new TestCase("a * [1, 2, 3][b * c] * d", "((a * ([1, 2, 3][(b * c)])) * d)")
         );
 
         return testCases.stream()
@@ -626,6 +628,44 @@ class ParserTest {
                             .map(arg -> arg.repr(true, 0))
                             .collect(toList())
                     );
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testIndexExpression() {
+        class TestCase {
+            public final String input;
+            public final String targetRepr;
+            public final String index;
+
+            public TestCase(String input, String targetRepr, String index) {
+                this.input = input;
+                this.targetRepr = targetRepr;
+                this.index = index;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("arr[1]", "arr", "1"),
+            new TestCase("[1, 2, 3][1]", "[1, 2, 3]", "1")
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                String targetRepr = testCase.targetRepr;
+                String index = testCase.index;
+
+                String name = String.format("'%s', should be an IndexExpression, indexing into %s via '%s'", input, targetRepr, index);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertTrue(statement.expression instanceof IndexExpression);
+                    IndexExpression expr = (IndexExpression) statement.expression;
+
+                    assertEquals(targetRepr, expr.target.repr(true, 0));
+                    assertEquals(index, expr.index.repr(true, 0));
                 });
             })
             .collect(toList());
