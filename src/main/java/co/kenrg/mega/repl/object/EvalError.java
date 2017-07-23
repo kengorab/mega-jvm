@@ -32,6 +32,14 @@ public class EvalError extends Obj {
         return new EvalError(String.format("incorrect number of arguments for function: expected %d, got %d", numExpected, numReceived));
     }
 
+    public static EvalError unsupportedIndexTargetError(Obj target) {
+        return new EvalError(String.format("cannot index into type: %s", target.getType()));
+    }
+
+    public static EvalError unsupportedIndexOperationError(Obj index) {
+        return new EvalError(String.format("cannot use type as index: %s", index.getType()));
+    }
+
     @Override
     public ObjectType getType() {
         return EVAL_ERROR;

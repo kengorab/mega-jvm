@@ -5,10 +5,13 @@ import static co.kenrg.mega.repl.object.EvalError.uninvokeableTypeError;
 import static co.kenrg.mega.repl.object.EvalError.unknownIdentifierError;
 import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperatorError;
 import static co.kenrg.mega.repl.object.EvalError.unknownPrefixOperatorError;
+import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexOperationError;
+import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexTargetError;
 
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
@@ -16,6 +19,7 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -26,6 +30,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.repl.object.ArrayObj;
 import co.kenrg.mega.repl.object.ArrowFunctionObj;
 import co.kenrg.mega.repl.object.BooleanObj;
 import co.kenrg.mega.repl.object.FloatObj;
@@ -64,6 +69,8 @@ public class Evaluator {
             return nativeBoolToBoolObj(((BooleanLiteral) node).value);
         } else if (node instanceof StringLiteral) {
             return new StringObj(((StringLiteral) node).value);
+        } else if (node instanceof ArrayLiteral) {
+            return evalArrayLiteral((ArrayLiteral) node, env);
         } else if (node instanceof PrefixExpression) {
             return evalPrefixExpression((PrefixExpression) node, env);
         } else if (node instanceof InfixExpression) {
@@ -78,6 +85,8 @@ public class Evaluator {
             return evalArrowFunctionExpression((ArrowFunctionExpression) node, env);
         } else if (node instanceof CallExpression) {
             return evalCallExpression((CallExpression) node, env);
+        } else if (node instanceof IndexExpression) {
+            return evalIndexExpression((IndexExpression) node, env);
         } else {
             return NullObj.NULL;
         }
@@ -130,6 +139,18 @@ public class Evaluator {
             return unknownIdentifierError(ident.value);
         }
         return value;
+    }
+
+    private static Obj evalArrayLiteral(ArrayLiteral array, Environment env) {
+        List<Obj> elems = Lists.newArrayList();
+        for (Expression element : array.elements) {
+            Obj elem = eval(element, env);
+            if (elem.isError()) {
+                return elem;
+            }
+            elems.add(elem);
+        }
+        return new ArrayObj(elems);
     }
 
     private static Obj evalPrefixExpression(PrefixExpression expr, Environment env) {
@@ -398,4 +419,33 @@ public class Evaluator {
 
         return eval(func.getBody(), fnEnv);
     }
+
+    private static Obj evalIndexExpression(IndexExpression expr, Environment env) {
+        Obj target = eval(expr.target, env);
+        if (target.isError()) {
+            return target;
+        }
+        if (target.getType() != ObjectType.ARRAY) {
+            return unsupportedIndexTargetError(target);
+        }
+
+        Obj index = eval(expr.index, env);
+        if (index.isError()) {
+            return index;
+        }
+        if (index.getType() != ObjectType.INTEGER) {
+            return unsupportedIndexOperationError(index);
+        }
+
+        ArrayObj array = (ArrayObj) target;
+        int indexVal = ((IntegerObj) index).value;
+        int maxVal = array.elems.size();
+
+        if (indexVal < 0 || indexVal >= maxVal) {
+            return NullObj.NULL;
+        } else {
+            return array.elems.get(indexVal);
+        }
+    }
+
 }

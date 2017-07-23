@@ -12,6 +12,7 @@ import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.parser.Parser;
 import co.kenrg.mega.repl.evaluator.Environment;
 import co.kenrg.mega.repl.evaluator.Evaluator;
+import co.kenrg.mega.repl.object.ArrayObj;
 import co.kenrg.mega.repl.object.BooleanObj;
 import co.kenrg.mega.repl.object.EvalError;
 import co.kenrg.mega.repl.object.FloatObj;
@@ -22,6 +23,7 @@ import co.kenrg.mega.repl.object.iface.Obj;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 class EvaluatorTest {
@@ -155,6 +157,20 @@ class EvaluatorTest {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    public void testEvalArrayLiteral() {
+        String input = "[1 + 1, 2 * 2, 3 + 3]";
+        Obj result = testEval(input);
+        assertEquals(
+            new ArrayObj(Lists.newArrayList(
+                new IntegerObj(2),
+                new IntegerObj(4),
+                new IntegerObj(6)
+            )),
+            result
+        );
     }
 
     @TestFactory
@@ -314,6 +330,38 @@ class EvaluatorTest {
                 return dynamicTest(name, () -> {
                     Obj result = testEval(testCase.getKey());
                     assertEquals(new IntegerObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testArrayIndexing() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("[1, 2, 3][0]", 1),
+            Pair.of("[1, 2, 3][1]", 2),
+            Pair.of("[1, 2, 3][2]", 3),
+            Pair.of("[1, 2, 3][3]", null),
+            Pair.of("[1, 2, 3][-1]", null),
+
+            Pair.of("let i = 0; [1, 2, 3][i]", 1),
+            Pair.of("let arr = [1, 2, 3]; arr[arr[0]]", 2)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%d'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    Obj expected = testCase.getValue() == null
+                        ? NullObj.NULL
+                        : new IntegerObj(testCase.getValue());
+                    assertEquals(expected, result);
                 });
             })
             .collect(toList());
