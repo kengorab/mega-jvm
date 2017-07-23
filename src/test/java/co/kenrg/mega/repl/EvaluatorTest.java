@@ -92,7 +92,9 @@ class EvaluatorTest {
     @TestFactory
     public List<DynamicTest> testEvalStringLiteral() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
-            Pair.of("\"hello\"", "hello")
+            Pair.of("\"hello\"", "hello"),
+            Pair.of("\"hello \\u1215!\"", "hello ሕ!"),
+            Pair.of("\"Meet me at\n the \\uCAFE?\"", "Meet me at\n the 쫾?")
         );
 
         return testCases.stream()
