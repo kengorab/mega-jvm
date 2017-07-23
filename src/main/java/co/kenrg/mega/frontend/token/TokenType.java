@@ -34,6 +34,8 @@ public enum TokenType {
     RBRACE("}"),
     LANGLE("<"),
     RANGLE(">"),
+    LBRACK("["),
+    RBRACK("]"),
 
     ARROW("=>"),
 

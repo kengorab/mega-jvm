@@ -22,7 +22,7 @@ class LexerTest {
 
     @Test
     public void testNextToken_singleCharSymbols() {
-        String input = "( ) { } , ; \n" +
+        String input = "( ) { } [ ], ; \n" +
             "+ - / * = ! < >";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -30,6 +30,8 @@ class LexerTest {
             new Token(TokenType.RPAREN, ")"),
             new Token(TokenType.LBRACE, "{"),
             new Token(TokenType.RBRACE, "}"),
+            new Token(TokenType.LBRACK, "["),
+            new Token(TokenType.RBRACK, "]"),
             new Token(TokenType.COMMA, ","),
             new Token(TokenType.SEMICOLON, ";"),
             new Token(TokenType.PLUS, "+"),

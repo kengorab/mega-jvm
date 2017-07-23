@@ -12,6 +12,7 @@ import static co.kenrg.mega.frontend.token.TokenType.ILLEGAL;
 import static co.kenrg.mega.frontend.token.TokenType.INT;
 import static co.kenrg.mega.frontend.token.TokenType.LANGLE;
 import static co.kenrg.mega.frontend.token.TokenType.LBRACE;
+import static co.kenrg.mega.frontend.token.TokenType.LBRACK;
 import static co.kenrg.mega.frontend.token.TokenType.LPAREN;
 import static co.kenrg.mega.frontend.token.TokenType.LTE;
 import static co.kenrg.mega.frontend.token.TokenType.MINUS;
@@ -19,6 +20,7 @@ import static co.kenrg.mega.frontend.token.TokenType.NEQ;
 import static co.kenrg.mega.frontend.token.TokenType.PLUS;
 import static co.kenrg.mega.frontend.token.TokenType.RANGLE;
 import static co.kenrg.mega.frontend.token.TokenType.RBRACE;
+import static co.kenrg.mega.frontend.token.TokenType.RBRACK;
 import static co.kenrg.mega.frontend.token.TokenType.RPAREN;
 import static co.kenrg.mega.frontend.token.TokenType.SEMICOLON;
 import static co.kenrg.mega.frontend.token.TokenType.SLASH;
@@ -127,6 +129,12 @@ public class Lexer {
                 break;
             case '}':
                 token = new Token(RBRACE, this.ch);
+                break;
+            case '[':
+                token = new Token(LBRACK, this.ch);
+                break;
+            case ']':
+                token = new Token(RBRACK, this.ch);
                 break;
             case '<':
                 if (peekChar() == '=') {

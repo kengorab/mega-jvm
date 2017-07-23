@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
@@ -257,6 +258,35 @@ class ParserTest {
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
                     assertLiteralExpression(statement.expression, value);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testArrayLiteralExpression_elementsAreLiterals() {
+        List<Pair<String, List<Object>>> testCases = Lists.newArrayList(
+            Pair.of("[]", Lists.newArrayList()),
+            Pair.of("[\"hello\", 1]", Lists.newArrayList("hello", 1)),
+            Pair.of("[\"hello\", 1.2, true]", Lists.newArrayList("hello", 1.2f, true))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                List<Object> elements = testCase.getRight();
+
+                String name = String.format("'%s' should parse to an array of elements", input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    ArrayLiteral expr = (ArrayLiteral) statement.expression;
+                    assertEquals(elements.size(), expr.elements.size());
+
+                    for (int i = 0; i < elements.size(); i++) {
+                        Object elem = elements.get(i);
+                        Expression expression = expr.elements.get(i);
+                        assertLiteralExpression(expression, elem);
+                    }
                 });
             })
             .collect(toList());

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
@@ -61,6 +62,7 @@ public class Parser {
         this.registerPrefix(TokenType.MINUS, this::parsePrefixExpression);
         this.registerPrefix(TokenType.LPAREN, this::parseParenExpression);
         this.registerPrefix(TokenType.IF, this::parseIfExpression);
+        this.registerPrefix(TokenType.LBRACK, this::parseArrayLiteral);
 
         // Register infix parser functions
         this.registerInfix(TokenType.PLUS, this::parseInfixExpression);
@@ -275,6 +277,34 @@ public class Parser {
         return new StringLiteral(this.curTok, this.curTok.literal);
     }
 
+    // [[<expr> [,<expr>]*]*]
+    public Expression parseArrayLiteral() {
+        return new ArrayLiteral(this.curTok, this.parseExpressionList(TokenType.RBRACK));
+    }
+
+    private List<Expression> parseExpressionList(TokenType endToken) {
+        List<Expression> expressions = Lists.newArrayList();
+
+        if (this.peekTokenIs(endToken)) {
+            this.nextToken();
+            return expressions;
+        }
+
+        this.nextToken();
+        expressions.add(this.parseExpression(LOWEST));
+
+        while (this.peekTokenIs(TokenType.COMMA)) {
+            this.nextToken();   // Skip ','
+            this.nextToken();
+            expressions.add(this.parseExpression(LOWEST));
+        }
+
+        if (!this.expectPeek(endToken)) {
+            return null;
+        }
+        return expressions;
+    }
+
     // <operator><expr>
     private Expression parsePrefixExpression() {
         Token operator = this.curTok;
@@ -421,30 +451,6 @@ public class Parser {
 
     // <expr>([<expr> [, <expr>]*])
     private Expression parseCallExpression(Expression leftExpr) {
-        Token t = this.curTok;  // The '(' token
-        return new CallExpression(t, leftExpr, this.parseCallArguments());
-    }
-
-    private List<Expression> parseCallArguments() {
-        List<Expression> args = Lists.newArrayList();
-
-        if (this.peekTokenIs(TokenType.RPAREN)) {
-            this.nextToken();
-            return args;
-        }
-
-        this.nextToken();
-        args.add(this.parseExpression(LOWEST));
-
-        while (this.peekTokenIs(TokenType.COMMA)) {
-            this.nextToken();
-            this.nextToken();
-            args.add(this.parseExpression(LOWEST));
-        }
-
-        if (!this.expectPeek(TokenType.RPAREN)) {
-            return null;
-        }
-        return args;
+        return new CallExpression(this.curTok, leftExpr, this.parseExpressionList(TokenType.RPAREN));
     }
 }
