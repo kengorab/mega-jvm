@@ -94,7 +94,16 @@ class EvaluatorTest {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("\"hello\"", "hello"),
             Pair.of("\"hello \\u1215!\"", "hello ሕ!"),
-            Pair.of("\"Meet me at\n the \\uCAFE?\"", "Meet me at\n the 쫾?")
+            Pair.of("\"Meet me at\n the \\uCAFE?\"", "Meet me at\n the 쫾?"),
+
+            // Test concatenation
+            Pair.of("\"string 1\" + \" \" + \"string 2\"", "string 1 string 2"),
+            Pair.of("\"string \" + 1", "string 1"),
+            Pair.of("\"string \" + 2.0", "string 2.0"),
+            Pair.of("\"string \" + true", "string true"),
+            Pair.of("1 + \" string\"", "1 string"),
+            Pair.of("2.0 + \" string\"", "2.0 string"),
+            Pair.of("false + \" string\"", "false string")
         );
 
         return testCases.stream()

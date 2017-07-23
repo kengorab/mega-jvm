@@ -184,6 +184,8 @@ public class Evaluator {
 
         if (leftType.isNumeric() && rightType.isNumeric()) {
             return evalNumericInfixExpression(expr.operator, leftResult, rightResult);
+        } else if (leftType == ObjectType.STRING || rightType == ObjectType.STRING) {
+            return evalStringInfixExpression(expr.operator, leftResult, rightResult);
         }
 
         return unknownInfixOperatorError(expr.operator, leftResult, rightResult);
@@ -200,6 +202,28 @@ public class Evaluator {
             }
         } else {
             return nativeBoolToBoolObj(eq);
+        }
+    }
+
+    private static Obj evalStringInfixExpression(String operator, Obj left, Obj right) {
+        switch (operator) {
+            case "+":
+                StringBuilder concatenation = new StringBuilder();
+                if (left.getType() == ObjectType.STRING) {
+                    concatenation.append(((StringObj) left).value);
+                } else {
+                    concatenation.append(left.inspect());
+                }
+
+                if (right.getType() == ObjectType.STRING) {
+                    concatenation.append(((StringObj) right).value);
+                } else {
+                    concatenation.append(right.inspect());
+                }
+
+                return new StringObj(concatenation.toString());
+            default:
+                return unknownInfixOperatorError(operator, left, right);
         }
     }
 
