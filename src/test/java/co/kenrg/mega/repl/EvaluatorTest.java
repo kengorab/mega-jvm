@@ -103,7 +103,10 @@ class EvaluatorTest {
             Pair.of("\"string \" + true", "string true"),
             Pair.of("1 + \" string\"", "1 string"),
             Pair.of("2.0 + \" string\"", "2.0 string"),
-            Pair.of("false + \" string\"", "false string")
+            Pair.of("false + \" string\"", "false string"),
+
+            Pair.of("3 * \"str\"", "strstrstr"),
+            Pair.of("\"abc\" * 2", "abcabc")
         );
 
         return testCases.stream()
@@ -213,6 +216,8 @@ class EvaluatorTest {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("5 + true;", "unknown operator: INTEGER + BOOLEAN"),
             Pair.of("5 + true; 5;", "unknown operator: INTEGER + BOOLEAN"),
+            Pair.of("5.0 * \"abc\"", "unknown operator: FLOAT * STRING"),
+            Pair.of("\"abc\" * 5.0", "unknown operator: STRING * FLOAT"),
             Pair.of("-true", "unknown operator: -BOOLEAN"),
             Pair.of("true + false", "unknown operator: BOOLEAN + BOOLEAN"),
             Pair.of("5; true * 2; 5;", "unknown operator: BOOLEAN * INTEGER"),

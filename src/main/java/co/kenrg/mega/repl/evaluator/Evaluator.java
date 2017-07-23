@@ -36,6 +36,7 @@ import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.InvokeableObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 public class Evaluator {
@@ -207,7 +208,7 @@ public class Evaluator {
 
     private static Obj evalStringInfixExpression(String operator, Obj left, Obj right) {
         switch (operator) {
-            case "+":
+            case "+": {
                 StringBuilder concatenation = new StringBuilder();
                 if (left.getType() == ObjectType.STRING) {
                     concatenation.append(((StringObj) left).value);
@@ -222,6 +223,28 @@ public class Evaluator {
                 }
 
                 return new StringObj(concatenation.toString());
+            }
+            case "*": {
+                if (left.getType() == ObjectType.STRING) {
+                    String str = ((StringObj) left).value;
+                    if (right.getType().isNumeric() && right.getType() == ObjectType.INTEGER) {
+                        int times = ((IntegerObj) right).value;
+                        return new StringObj(Strings.repeat(str, times));
+                    } else {
+                        return unknownInfixOperatorError("*", left, right);
+                    }
+                } else if (right.getType() == ObjectType.STRING) {
+                    String str = ((StringObj) right).value;
+                    if (left.getType().isNumeric() && left.getType() == ObjectType.INTEGER) {
+                        int times = ((IntegerObj) left).value;
+                        return new StringObj(Strings.repeat(str, times));
+                    } else {
+                        return unknownInfixOperatorError("*", left, right);
+                    }
+                } else {
+                    return unknownInfixOperatorError("*", left, right);
+                }
+            }
             default:
                 return unknownInfixOperatorError(operator, left, right);
         }
