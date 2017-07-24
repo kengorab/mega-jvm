@@ -2,9 +2,12 @@ package co.kenrg.mega.frontend.parser;
 
 import static co.kenrg.mega.frontend.parser.Precedence.LOWEST;
 import static co.kenrg.mega.frontend.parser.Precedence.PREFIX;
+import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -19,6 +22,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -276,7 +280,37 @@ public class Parser {
 
     // "<chars>"
     private Expression parseStringLiteral() {
-        return new StringLiteral(this.curTok, this.curTok.literal);
+        Token t = this.curTok;
+        String str = this.curTok.literal;
+
+        Pattern interpolationRegex = Pattern.compile("(?:[^\\\\]|^)\\$(\\{([^}]*)}|(\\w*))");
+        Matcher m = interpolationRegex.matcher(str);
+
+        List<String> interpolatedExpressions = Lists.newArrayList();
+        while (m.find()) {
+            interpolatedExpressions.add(m.group(1));
+        }
+        if (interpolatedExpressions.isEmpty()) {
+            return new StringLiteral(this.curTok, this.curTok.literal);
+        }
+        return parseStringInterpolationExpression(t, str, interpolatedExpressions);
+    }
+
+    private Expression parseStringInterpolationExpression(Token token, String str, List<String> interpolatedExpressions) {
+        Map<String, Expression> exprs = interpolatedExpressions.stream()
+            .collect(toMap(
+                exprStr -> "$" + exprStr,
+                exprStr -> {
+                    // This is a little janky... There's GOT to be a way to make the regex above do this for me
+                    if (exprStr.startsWith("{") && exprStr.endsWith("}")) {
+                        exprStr = exprStr.substring(1, exprStr.length() - 1);
+                    }
+
+                    Parser p = new Parser(new Lexer(exprStr));
+                    return p.parseExpression(LOWEST);
+                }
+            ));
+        return new StringInterpolationExpression(token, str, exprs);
     }
 
     // [[<expr> [,<expr>]*]*]

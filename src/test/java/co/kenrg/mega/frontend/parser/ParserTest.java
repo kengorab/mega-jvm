@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
+import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -29,6 +30,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -37,6 +39,7 @@ import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -259,6 +262,49 @@ class ParserTest {
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
                     assertLiteralExpression(statement.expression, value);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testStringInterpolationExpression() {
+        List<Pair<String, Map<String, Expression>>> testCases = Lists.newArrayList(
+            Pair.of("\"$a bc\"", ImmutableMap.of(
+                "$a", new Identifier(new Token(IDENT, "a"), "a")
+            )),
+            Pair.of("\"$a $bc\"", ImmutableMap.of(
+                "$a", new Identifier(new Token(IDENT, "a"), "a"),
+                "$bc", new Identifier(new Token(IDENT, "bc"), "bc")
+            )),
+            Pair.of("\"$a ${bc}\"", ImmutableMap.of(
+                "$a", new Identifier(new Token(IDENT, "a"), "a"),
+                "${bc}", new Identifier(new Token(IDENT, "bc"), "bc")
+            )),
+            Pair.of("\"${a} ${bc}\"", ImmutableMap.of(
+                "${a}", new Identifier(new Token(IDENT, "a"), "a"),
+                "${bc}", new Identifier(new Token(IDENT, "bc"), "bc")
+            )),
+            Pair.of("\"1 + 1 = ${1 + 1}\"", ImmutableMap.of(
+                "${1 + 1}", new InfixExpression(
+                    new Token(PLUS, "+"),
+                    "+",
+                    new IntegerLiteral(new Token(INT, "1"), 1),
+                    new IntegerLiteral(new Token(INT, "1"), 1)
+                )
+            ))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                Map<String, Expression> interpolatedExprs = testCase.getRight();
+
+                String name = String.format("'%s' should contain proper interpolated expressions", input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    StringInterpolationExpression expr = (StringInterpolationExpression) statement.expression;
+                    assertEquals(interpolatedExprs, expr.interpolatedExpressions);
                 });
             })
             .collect(toList());

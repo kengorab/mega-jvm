@@ -22,6 +22,7 @@ import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -108,7 +109,39 @@ class EvaluatorTest {
             Pair.of("false + \" string\"", "false string"),
 
             Pair.of("3 * \"str\"", "strstrstr"),
-            Pair.of("\"abc\" * 2", "abcabc")
+            Pair.of("\"abc\" * 2", "abcabc"),
+
+            // Test single-quote strings too
+            Pair.of("'hello'", "hello"),
+            Pair.of("'hello \\u1215!'", "hello ሕ!"),
+            Pair.of("'Meet me at\n the \\uCAFE?'", "Meet me at\n the 쫾?"),
+
+            Pair.of("let a = 24; \"$a hrs\"", "24 hrs"),
+            Pair.of("let a = 24; \"${a} hrs\"", "24 hrs"),
+            Pair.of("let a = [24]; \"${a[0]} hrs\"", "24 hrs"),
+            Pair.of("let a = [24]; \"$a[0] hrs\"", "[24][0] hrs")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should evaluate to '%s'", testCase.getKey(), testCase.getValue());
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new StringObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    @Disabled
+    public List<DynamicTest> testEvalStringLiteral_withInterpolations() {
+        List<Pair<String, String>> testCases = Lists.newArrayList(
+            Pair.of("let a = 24; \"$a hrs\"", "24 hrs"),
+            Pair.of("let a = 24; \"${a} hrs\"", "24 hrs"),
+            Pair.of("let a = [24]; \"${a[0]} hrs\"", "24 hrs"),
+            Pair.of("let a = [24]; \"$a[0] hrs\"", "[24][0] hrs"),
+            Pair.of("let a = \"24\"; \"$a hrs\"", "24 hrs")
         );
 
         return testCases.stream()
@@ -240,7 +273,8 @@ class EvaluatorTest {
             Pair.of("if 10 > 1 { true + false; 5 }", "unknown operator: BOOLEAN + BOOLEAN"),
             Pair.of("if 10 > 1 { if 10 > 1 { true + false } }", "unknown operator: BOOLEAN + BOOLEAN"),
 
-            Pair.of("foobar", "unknown identifier: foobar")
+            Pair.of("foobar", "unknown identifier: foobar"),
+            Pair.of("\"$a\"", "unknown identifier: a")
         );
 
         return testCases.stream()

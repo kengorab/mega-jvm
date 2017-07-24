@@ -9,6 +9,7 @@ import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexOperationError
 import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexTargetError;
 
 import java.util.List;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -23,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -69,6 +71,8 @@ public class Evaluator {
             return nativeBoolToBoolObj(((BooleanLiteral) node).value);
         } else if (node instanceof StringLiteral) {
             return new StringObj(((StringLiteral) node).value);
+        } else if (node instanceof StringInterpolationExpression) {
+            return evalStringInterpolationExpression((StringInterpolationExpression) node, env);
         } else if (node instanceof ArrayLiteral) {
             return evalArrayLiteral((ArrayLiteral) node, env);
         } else if (node instanceof PrefixExpression) {
@@ -139,6 +143,25 @@ public class Evaluator {
             return unknownIdentifierError(ident.value);
         }
         return value;
+    }
+
+    private static Obj evalStringInterpolationExpression(StringInterpolationExpression expr, Environment env) {
+        String str = expr.value;
+        for (Entry<String, Expression> entry : expr.interpolatedExpressions.entrySet()) {
+            Obj result = eval(entry.getValue(), env);
+            if (result.isError()) {
+                return result;
+            }
+            String replacement;
+            if (result.getType() == ObjectType.STRING) {
+                replacement = ((StringObj) result).value;
+            } else {
+                replacement = result.inspect();
+            }
+            str = str.replace(entry.getKey(), replacement);
+        }
+
+        return new StringObj(str);
     }
 
     private static Obj evalArrayLiteral(ArrayLiteral array, Environment env) {
