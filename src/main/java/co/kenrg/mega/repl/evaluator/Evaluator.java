@@ -9,6 +9,7 @@ import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexOperationError
 import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexTargetError;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -23,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -39,12 +41,14 @@ import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.FunctionObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
+import co.kenrg.mega.repl.object.ObjectObj;
 import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.InvokeableObj;
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 public class Evaluator {
 
@@ -75,6 +79,8 @@ public class Evaluator {
             return evalStringInterpolationExpression((StringInterpolationExpression) node, env);
         } else if (node instanceof ArrayLiteral) {
             return evalArrayLiteral((ArrayLiteral) node, env);
+        } else if (node instanceof ObjectLiteral) {
+            return evalObjectLiteral((ObjectLiteral) node, env);
         } else if (node instanceof PrefixExpression) {
             return evalPrefixExpression((PrefixExpression) node, env);
         } else if (node instanceof InfixExpression) {
@@ -174,6 +180,17 @@ public class Evaluator {
             elems.add(elem);
         }
         return new ArrayObj(elems);
+    }
+
+    private static Obj evalObjectLiteral(ObjectLiteral obj, Environment env) {
+        Map<String, Obj> pairs = Maps.newHashMap();
+
+        for (Entry<Identifier, Expression> entry : obj.pairs.entrySet()) {
+            Obj value = eval(entry.getValue(), env);
+            pairs.put(entry.getKey().value, value);
+        }
+
+        return new ObjectObj(pairs);
     }
 
     private static Obj evalPrefixExpression(PrefixExpression expr, Environment env) {

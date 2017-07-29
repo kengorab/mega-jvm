@@ -18,8 +18,10 @@ import co.kenrg.mega.repl.object.EvalError;
 import co.kenrg.mega.repl.object.FloatObj;
 import co.kenrg.mega.repl.object.IntegerObj;
 import co.kenrg.mega.repl.object.NullObj;
+import co.kenrg.mega.repl.object.ObjectObj;
 import co.kenrg.mega.repl.object.StringObj;
 import co.kenrg.mega.repl.object.iface.Obj;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Disabled;
@@ -201,6 +203,20 @@ class EvaluatorTest {
                 new IntegerObj(2),
                 new IntegerObj(4),
                 new IntegerObj(6)
+            )),
+            result
+        );
+    }
+
+    @Test
+    public void testEvalObjectLiteral() {
+        String input = "{ prop1: \"hello\", prop2: \"world\", prop3: 1234 }";
+        Obj result = testEval(input);
+        assertEquals(
+            new ObjectObj(ImmutableMap.of(
+                "prop1", new StringObj("hello"),
+                "prop2", new StringObj("world"),
+                "prop3", new IntegerObj(1234)
             )),
             result
         );

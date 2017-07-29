@@ -8,6 +8,7 @@ public enum ObjectType {
 
     FUNCTION,
     ARRAY,
+    OBJECT,
 
     NULL,
     EVAL_ERROR;
