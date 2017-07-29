@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.lexer;
 import static co.kenrg.mega.frontend.token.TokenType.ARROW;
 import static co.kenrg.mega.frontend.token.TokenType.ASSIGN;
 import static co.kenrg.mega.frontend.token.TokenType.BANG;
+import static co.kenrg.mega.frontend.token.TokenType.COLON;
 import static co.kenrg.mega.frontend.token.TokenType.COMMA;
 import static co.kenrg.mega.frontend.token.TokenType.EOF;
 import static co.kenrg.mega.frontend.token.TokenType.EQ;
@@ -117,6 +118,9 @@ public class Lexer {
                 break;
             case ',':
                 token = new Token(COMMA, this.ch);
+                break;
+            case ':':
+                token = new Token(COLON, this.ch);
                 break;
             case '(':
                 token = new Token(LPAREN, this.ch);

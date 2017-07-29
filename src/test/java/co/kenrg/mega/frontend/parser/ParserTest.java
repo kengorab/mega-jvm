@@ -14,8 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -29,6 +31,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -333,6 +336,51 @@ class ParserTest {
                         Object elem = elements.get(i);
                         Expression expression = expr.elements.get(i);
                         assertLiteralExpression(expression, elem);
+                    }
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testObjectLiteralExpression() {
+        List<Pair<String, List<Pair<String, String>>>> testCases = Lists.newArrayList(
+            Pair.of("{}", Lists.newArrayList()),
+            Pair.of("{prop1:1}", Lists.newArrayList(
+                Pair.of("prop1", "1")
+            )),
+            Pair.of("{prop1:1, prop2:\"two\"}", Lists.newArrayList(
+                Pair.of("prop1", "1"),
+                Pair.of("prop2", "\"two\"")
+            )),
+            Pair.of("{prop1:1 + 1, prop2:\"two\" + \"two\"}", Lists.newArrayList(
+                Pair.of("prop1", "(1 + 1)"),
+                Pair.of("prop2", "(\"two\" + \"two\")")
+            ))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                List<Pair<String, String>> elements = testCase.getRight();
+
+                String name = String.format("'%s' should parse to an object literal", input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    ObjectLiteral expr = (ObjectLiteral) statement.expression;
+                    assertEquals(elements.size(), expr.pairs.size());
+
+                    // Sorting expected and actual by alphabetical order helps ensure non-flaky tests, since objects'
+                    // key/value pairs aren't always ordered the same.
+                    List<Entry<Identifier, Expression>> elems = Lists.newArrayList(expr.pairs.entrySet());
+                    elems.sort(Comparator.comparing(e -> e.getKey().value));
+
+                    for (int i = 0; i < elems.size(); i++) {
+                        Pair<String, String> elem = elements.get(i);
+                        Entry<Identifier, Expression> pair = elems.get(i);
+
+                        assertIdentifier(pair.getKey(), elem.getKey());
+                        assertEquals(elem.getValue(), pair.getValue().repr(true, 0));
                     }
                 });
             })

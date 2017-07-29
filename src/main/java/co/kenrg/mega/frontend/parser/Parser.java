@@ -21,6 +21,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -68,6 +69,7 @@ public class Parser {
         this.registerPrefix(TokenType.LPAREN, this::parseParenExpression);
         this.registerPrefix(TokenType.IF, this::parseIfExpression);
         this.registerPrefix(TokenType.LBRACK, this::parseArrayLiteral);
+        this.registerPrefix(TokenType.LBRACE, this::parseObjectLiteral);
 
         // Register infix parser functions
         this.registerInfix(TokenType.PLUS, this::parseInfixExpression);
@@ -339,6 +341,35 @@ public class Parser {
             return null;
         }
         return expressions;
+    }
+
+    // { [<ident>: <expr>] [,<ident>: <expr>]* }
+    public Expression parseObjectLiteral() {
+        Token t = this.curTok;
+        Map<Identifier, Expression> pairs = Maps.newHashMap();
+
+        while (!this.peekTokenIs(TokenType.RBRACE)) {
+            this.nextToken();
+            Identifier key = (Identifier) this.parseIdentifier();
+
+            if (!this.expectPeek(TokenType.COLON)) {
+                return null;
+            }
+            this.nextToken();
+
+            Expression value = this.parseExpression(LOWEST);
+            pairs.put(key, value);
+
+            if (!this.peekTokenIs(TokenType.RBRACE) && !this.expectPeek(TokenType.COMMA)) {
+                return null;
+            }
+        }
+
+        if (!this.expectPeek(TokenType.RBRACE)) {
+            return null;
+        }
+
+        return new ObjectLiteral(t, pairs);
     }
 
     // <operator><expr>

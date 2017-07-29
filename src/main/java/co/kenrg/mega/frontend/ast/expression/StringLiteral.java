@@ -14,7 +14,7 @@ public class StringLiteral extends Expression {
 
     @Override
     public String repr(boolean debug, int indentLevel) {
-        return this.value;
+        return "\"" + this.value + "\"";
     }
 
     @Override
