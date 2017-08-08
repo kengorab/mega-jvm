@@ -1,0 +1,11 @@
+let sum = (a, b) => a + b
+
+let numbers = [1, 2, 3]
+
+func calculateSum(numbers) {
+  let sum1 = sum(numbers[0], numbers[1])
+  let sum2 = sum(sum1, numbers[1])
+  sum(sum2, numbers[2])
+}
+
+calculateSum(numbers)
