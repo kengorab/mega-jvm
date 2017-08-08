@@ -162,7 +162,7 @@ public class Evaluator {
             if (result.getType() == ObjectType.STRING) {
                 replacement = ((StringObj) result).value;
             } else {
-                replacement = result.inspect();
+                replacement = result.inspect(0);
             }
             str = str.replace(entry.getKey(), replacement);
         }
@@ -274,13 +274,13 @@ public class Evaluator {
                 if (left.getType() == ObjectType.STRING) {
                     concatenation.append(((StringObj) left).value);
                 } else {
-                    concatenation.append(left.inspect());
+                    concatenation.append(left.inspect(0));
                 }
 
                 if (right.getType() == ObjectType.STRING) {
                     concatenation.append(((StringObj) right).value);
                 } else {
-                    concatenation.append(right.inspect());
+                    concatenation.append(right.inspect(0));
                 }
 
                 return new StringObj(concatenation.toString());

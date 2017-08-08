@@ -12,7 +12,7 @@ public class NullObj extends Obj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         return "nil";
     }
 }

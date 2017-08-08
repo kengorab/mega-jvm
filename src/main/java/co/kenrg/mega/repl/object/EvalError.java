@@ -25,7 +25,7 @@ public class EvalError extends Obj {
     }
 
     public static EvalError uninvokeableTypeError(Obj target) {
-        return new EvalError(String.format("cannot invoke %s as a function: incompatible type %s", target.inspect(), target.getType()));
+        return new EvalError(String.format("cannot invoke %s as a function: incompatible type %s", target.inspect(0), target.getType()));
     }
 
     public static EvalError functionArityError(int numExpected, int numReceived) {
@@ -46,7 +46,7 @@ public class EvalError extends Obj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         return "Error: " + this.message;
     }
 }

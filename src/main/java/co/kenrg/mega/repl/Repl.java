@@ -35,7 +35,7 @@ public class Repl {
 
                 Obj evaluated = Evaluator.eval(module, env);
                 if (evaluated != null) {
-                    System.out.println(evaluated.inspect());
+                    System.out.println(evaluated.inspect(0));
                 }
             } catch (UserInterruptException | EndOfFileException e) {
                 System.out.println("Bye for now!");

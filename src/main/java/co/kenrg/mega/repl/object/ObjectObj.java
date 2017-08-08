@@ -2,13 +2,11 @@ package co.kenrg.mega.repl.object;
 
 import static java.util.stream.Collectors.joining;
 
-import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
 public class ObjectObj extends Obj {
     public final Map<String, Obj> pairs;
@@ -23,33 +21,28 @@ public class ObjectObj extends Obj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         if (this.pairs.isEmpty()) {
             return "{}";
         }
 
-        List<String> pairs = Lists.newArrayList();
-        for (Map.Entry<String, Obj> pair : this.pairs.entrySet()) {
-            pairs.add(String.format(
-                "%s: %s",
-                pair.getKey(),
-                pair.getValue().inspect()
-            ));
-        }
-
-        String pairsOnOneLine = pairs.stream().collect(joining(", "));
+        String pairsOnOneLine = this.pairs.entrySet().stream()
+            .map(pair -> String.format("%s: %s", pair.getKey(), pair.getValue().inspect(0)))
+            .collect(joining(", "));
         if (pairsOnOneLine.length() <= 76 && pairs.size() < 3) { // Counting {, }, and two spaces
             return String.format("{ %s }", pairsOnOneLine);
         }
 
-        String indentation = Strings.repeat("  ", 1);
+        String indentation = Strings.repeat("  ", indentLevel + 1);
 
+        String pairsOnMultipleLines = this.pairs.entrySet().stream()
+            .map(pair -> String.format("%s: %s", pair.getKey(), pair.getValue().inspect(indentLevel + 1)))
+            .collect(joining(",\n" + indentation));
         return String.format(
-            "%s{\n%s%s\n%s}",
-            Strings.repeat("  ", 0),
+            "{\n%s%s\n%s}",
             indentation,
-            pairs.stream().collect(joining(",\n" + indentation)),
-            Strings.repeat("  ", 0)
+            pairsOnMultipleLines,
+            Strings.repeat("  ", indentLevel)
         );
     }
 }

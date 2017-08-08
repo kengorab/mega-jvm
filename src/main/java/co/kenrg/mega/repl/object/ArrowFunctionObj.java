@@ -42,7 +42,7 @@ public class ArrowFunctionObj extends Obj implements InvokeableObj {
     }
 
     @Override
-    public String inspect() {
-        return this.function.repr(false, 0);
+    public String inspect(int indentLevel) {
+        return this.function.repr(false, indentLevel);
     }
 }

@@ -7,7 +7,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public abstract class Obj {
     public abstract ObjectType getType();
-    public abstract String inspect();
+    public abstract String inspect(int indentLevel);
 
     public boolean isError() {
         return this instanceof EvalError;

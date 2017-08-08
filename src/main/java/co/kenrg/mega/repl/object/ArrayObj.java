@@ -4,10 +4,10 @@ import static co.kenrg.mega.repl.object.iface.ObjectType.ARRAY;
 import static java.util.stream.Collectors.joining;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 import co.kenrg.mega.repl.object.iface.Obj;
 import co.kenrg.mega.repl.object.iface.ObjectType;
+import com.google.common.base.Strings;
 
 public class ArrayObj extends Obj {
     public final List<Obj> elems;
@@ -22,9 +22,23 @@ public class ArrayObj extends Obj {
     }
 
     @Override
-    public String inspect() {
-        Stream<String> elemsStream = this.elems.stream().map(Obj::inspect);
-        String elems = elemsStream.collect(joining(", "));
-        return String.format("[%s]", elems);
+    public String inspect(int indentLevel) {
+        String elemsOnOneLine = this.elems.stream()
+            .map(el -> el.inspect(indentLevel))
+            .collect(joining(", "));
+        if (elemsOnOneLine.length() < 80) {
+            return String.format("[%s]", elemsOnOneLine);
+        }
+
+        String indentation = Strings.repeat("  ", indentLevel + 1);
+        String elemsOnMultipleLines = this.elems.stream()
+            .map(el -> el.inspect(indentLevel + 1))
+            .collect(joining(",\n" + indentation));
+        return String.format(
+            "[\n%s%s\n%s]",
+            indentation,
+            elemsOnMultipleLines,
+            Strings.repeat("  ", indentLevel)
+        );
     }
 }

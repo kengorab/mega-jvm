@@ -19,7 +19,7 @@ public class BooleanObj extends Obj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         return String.valueOf(this.value);
     }
 }

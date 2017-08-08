@@ -47,14 +47,14 @@ public class FunctionObj extends Obj implements InvokeableObj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         return String.format(
             "func %s(%s) %s",
             this.name,
             this.params.stream()
-                .map(param -> param.repr(false, 0))
+                .map(param -> param.repr(false, indentLevel))
                 .collect(joining(", ")),
-            this.body.repr(false, 0)
+            this.body.repr(false, indentLevel)
         );
     }
 }

@@ -16,7 +16,7 @@ public class StringObj extends Obj {
     }
 
     @Override
-    public String inspect() {
+    public String inspect(int indentLevel) {
         return "\"" + this.value + "\"";
     }
 }
