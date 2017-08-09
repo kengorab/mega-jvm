@@ -45,7 +45,9 @@ public enum TokenType {
     FALSE("FALSE"),
     IF("IF"),
     ELSE("ELSE"),
-    LET("LET");
+    LET("LET"),
+    FOR("FOR"),
+    IN("IN");
 
     public final String literal;
 
@@ -54,13 +56,15 @@ public enum TokenType {
     }
 
     private static Map<String, TokenType> KEYWORDS = ImmutableMap.<String, TokenType>builder()
-            .put("func", FUNCTION)
-            .put("let", LET)
-            .put("true", TRUE)
-            .put("false", FALSE)
-            .put("if", IF)
-            .put("else", ELSE)
-            .build();
+        .put("func", FUNCTION)
+        .put("let", LET)
+        .put("true", TRUE)
+        .put("false", FALSE)
+        .put("if", IF)
+        .put("else", ELSE)
+        .put("for", FOR)
+        .put("in", IN)
+        .build();
 
     public static TokenType lookupIdent(String ident) {
         return KEYWORDS.getOrDefault(ident, IDENT);

@@ -28,6 +28,7 @@ import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.error.SyntaxError;
@@ -164,6 +165,8 @@ public class Parser {
                 return this.parseLetStatement();
             case FUNCTION:
                 return this.parseFunctionDeclarationStatement();
+            case FOR:
+                return this.parseForInLoopStatement();
             default:
                 return this.parseExpressionStatement();
         }
@@ -215,6 +218,31 @@ public class Parser {
 
         BlockExpression body = (BlockExpression) this.parseBlockExpression();
         return new FunctionDeclarationStatement(t, name, params, body);
+    }
+
+    // for <ident> in <expr> { <stmts> }
+    private Statement parseForInLoopStatement() {
+        Token t = this.curTok;  // The 'for' token
+
+        if (!this.expectPeek(TokenType.IDENT)) {
+            return null;
+        }
+
+        Identifier iterator = new Identifier(this.curTok, this.curTok.literal);
+
+        if (!this.expectPeek(TokenType.IN)) {
+            return null;
+        }
+        this.nextToken();
+
+        Expression iteratee = this.parseExpression(LOWEST);
+
+        if (!this.expectPeek(TokenType.LBRACE)) {
+            return null;
+        }
+
+        BlockExpression block = (BlockExpression) this.parseBlockExpression();
+        return new ForLoopStatement(t, iterator, iteratee, block);
     }
 
     // Wrapper to allow top-level expressions

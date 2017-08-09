@@ -38,6 +38,7 @@ import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.lexer.Lexer;
@@ -763,5 +764,29 @@ class ParserTest {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    public void testForInLoop() {
+        String input = "for x in arr { x + 1 }";
+
+        Lexer lexer = new Lexer(input);
+        Parser parser = new Parser(lexer);
+        Module module = parser.parseModule();
+        assertEquals(1, module.statements.size());
+
+        Statement statement = module.statements.get(0);
+        assertTrue(statement instanceof ForLoopStatement);
+
+        ForLoopStatement forLoop = (ForLoopStatement) statement;
+
+        assertIdentifier(forLoop.iterator, "x");
+        assertIdentifier(forLoop.iteratee, "arr");
+
+        assertEquals(1, forLoop.block.statements.size());
+        InfixExpression body = (InfixExpression) ((ExpressionStatement) forLoop.block.statements.get(0)).expression;
+        assertEquals("+", body.operator);
+        assertIdentifier(body.left, "x");
+        assertEquals(new IntegerLiteral(new Token(INT, "1"), 1), body.right);
     }
 }
