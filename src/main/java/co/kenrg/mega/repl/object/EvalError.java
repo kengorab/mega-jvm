@@ -12,6 +12,10 @@ public class EvalError extends Obj {
         this.message = message;
     }
 
+    public static EvalError typeMismatchError(ObjectType expected, ObjectType actual) {
+        return new EvalError(String.format("type mismatch: expected %s, got %s", expected, actual));
+    }
+
     public static EvalError unknownPrefixOperatorError(String operator, Obj right) {
         return new EvalError(String.format("unknown operator: %s%s", operator, right.getType()));
     }

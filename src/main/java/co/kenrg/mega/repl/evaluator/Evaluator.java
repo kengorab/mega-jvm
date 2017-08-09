@@ -1,6 +1,7 @@
 package co.kenrg.mega.repl.evaluator;
 
 import static co.kenrg.mega.repl.object.EvalError.functionArityError;
+import static co.kenrg.mega.repl.object.EvalError.typeMismatchError;
 import static co.kenrg.mega.repl.object.EvalError.uninvokeableTypeError;
 import static co.kenrg.mega.repl.object.EvalError.unknownIdentifierError;
 import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperatorError;
@@ -32,6 +33,7 @@ import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.repl.object.ArrayObj;
@@ -64,6 +66,8 @@ public class Evaluator {
             return evalLetStatement((LetStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
             return evalFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
+        } else if (node instanceof ForLoopStatement) {
+            return evalForLoopStatement((ForLoopStatement) node, env);
         }
 
         // Expressions
@@ -121,6 +125,26 @@ public class Evaluator {
             env
         );
         env.set(statement.name.value, function);
+        return NullObj.NULL;
+    }
+
+    private static Obj evalForLoopStatement(ForLoopStatement statement, Environment env) {
+        Obj iteratee = eval(statement.iteratee, env);
+        if (iteratee.getType() != ObjectType.ARRAY) {
+            return typeMismatchError(ObjectType.ARRAY, iteratee.getType());
+        }
+
+        ArrayObj array = (ArrayObj) iteratee;
+        for (Obj elem : array.elems) {
+            Environment blockEnv = env.createChildEnvironment();
+            blockEnv.set(statement.iterator.value, elem);
+
+            Obj blockResult = evalBlockExpression(statement.block, blockEnv);
+            if (blockResult.isError()) {
+                return blockResult;
+            }
+        }
+
         return NullObj.NULL;
     }
 
