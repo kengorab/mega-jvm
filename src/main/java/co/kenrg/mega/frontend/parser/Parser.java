@@ -30,6 +30,7 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
@@ -162,6 +163,8 @@ public class Parser {
         switch (this.curTok.type) {
             case LET:
                 return this.parseLetStatement();
+            case VAR:
+                return this.parseVarStatement();
             case FUNCTION:
                 return this.parseFunctionDeclarationStatement();
             default:
@@ -173,6 +176,25 @@ public class Parser {
     private Statement parseLetStatement() {
         Token t = this.curTok;  // The 'let' token
 
+        Pair<Identifier, Expression> binding = this.parseBinding();
+        if (binding == null) {
+            return null;
+        }
+        return new LetStatement(t, binding.getLeft(), binding.getRight());
+    }
+
+    // var <ident> = <expr>
+    private Statement parseVarStatement() {
+        Token t = this.curTok;  // The 'var' token
+
+        Pair<Identifier, Expression> binding = this.parseBinding();
+        if (binding == null) {
+            return null;
+        }
+        return new VarStatement(t, binding.getLeft(), binding.getRight());
+    }
+
+    private Pair<Identifier, Expression> parseBinding() {
         if (!this.expectPeek(TokenType.IDENT)) {
             return null;
         }
@@ -189,8 +211,7 @@ public class Parser {
         if (this.peekTokenIs(TokenType.SEMICOLON)) {
             this.nextToken();
         }
-
-        return new LetStatement(t, name, expression);
+        return Pair.of(name, expression);
     }
 
     // func <name>([<param> [, <param>]*]) { <stmts> }
