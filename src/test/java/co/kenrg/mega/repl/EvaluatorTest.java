@@ -336,6 +336,31 @@ class EvaluatorTest {
     }
 
     @TestFactory
+    public List<DynamicTest> testVarStatementBinding() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("var a = 5; a;", 5),
+            Pair.of("var a = 5 * 5; a", 25),
+            Pair.of("var a = 5; var b = a; b;", 5),
+            Pair.of("var a = 5; var b = a; var c = a + b + 5; c;", 15)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%d'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new IntegerObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
     public List<DynamicTest> testFunctionApplication() {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
             Pair.of("let identity = x => x; identity(5);", 5),

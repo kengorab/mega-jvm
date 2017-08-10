@@ -6,8 +6,25 @@ import co.kenrg.mega.repl.object.iface.Obj;
 import com.google.common.collect.Maps;
 
 public class Environment {
+    public enum SetBindingStatus {
+        NO_ERROR,
+        E_IMMUTABLE,
+        E_DUPLICATE,
+        E_NOBINDING
+    }
+
+    private class Binding {
+        public final Obj object;
+        public final boolean isImmutable;
+
+        public Binding(Obj object, boolean isImmutable) {
+            this.object = object;
+            this.isImmutable = isImmutable;
+        }
+    }
+
     private Environment parent;
-    private final Map<String, Obj> store = Maps.newHashMap();
+    private final Map<String, Binding> store = Maps.newHashMap();
 
     public Environment createChildEnvironment() {
         Environment child = new Environment();
@@ -17,7 +34,7 @@ public class Environment {
 
     public Obj get(String name) {
         if (store.containsKey(name)) {
-            return store.get(name);
+            return store.get(name).object;
         }
 
         if (parent != null) {
@@ -27,7 +44,12 @@ public class Environment {
         return null;
     }
 
-    public void set(String name, Obj value) {
-        store.put(name, value);
+    public SetBindingStatus add(String name, Obj value, boolean isImmutable) {
+        if (store.containsKey(name)) {
+            return SetBindingStatus.E_DUPLICATE;
+        }
+
+        store.put(name, new Binding(value, isImmutable));
+        return SetBindingStatus.NO_ERROR;
     }
 }

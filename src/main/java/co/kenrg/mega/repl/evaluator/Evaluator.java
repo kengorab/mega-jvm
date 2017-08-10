@@ -34,6 +34,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.repl.object.ArrayObj;
 import co.kenrg.mega.repl.object.ArrowFunctionObj;
 import co.kenrg.mega.repl.object.BooleanObj;
@@ -62,6 +63,8 @@ public class Evaluator {
             return eval(((ExpressionStatement) node).expression, env);
         } else if (node instanceof LetStatement) {
             return evalLetStatement((LetStatement) node, env);
+        } else if (node instanceof VarStatement) {
+            return evalVarStatement((VarStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
             return evalFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
         }
@@ -108,8 +111,17 @@ public class Evaluator {
             return value;
         }
 
-        env.set(statement.name.value, value);
+        env.add(statement.name.value, value, true);
+        return NullObj.NULL;
+    }
 
+    private static Obj evalVarStatement(VarStatement statement, Environment env) {
+        Obj value = eval(statement.value, env);
+        if (value.isError()) {
+            return value;
+        }
+
+        env.add(statement.name.value, value, true);
         return NullObj.NULL;
     }
 
@@ -120,7 +132,7 @@ public class Evaluator {
             statement.body,
             env
         );
-        env.set(statement.name.value, function);
+        env.add(statement.name.value, function, true);
         return NullObj.NULL;
     }
 
@@ -454,7 +466,7 @@ public class Evaluator {
         for (int i = 0; i < args.size(); i++) {
             Obj arg = args.get(i);
             Identifier param = funcParams.get(i);
-            fnEnv.set(param.value, arg);
+            fnEnv.add(param.value, arg, true);
         }
 
         return eval(func.getBody(), fnEnv);
