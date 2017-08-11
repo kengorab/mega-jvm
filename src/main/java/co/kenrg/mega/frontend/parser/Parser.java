@@ -24,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
@@ -89,6 +90,7 @@ public class Parser {
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
         this.registerInfix(TokenType.ASSIGN, this::parseAssignmentExpression);
+        this.registerInfix(TokenType.DOTDOT, this::parseRangeExpression);
     }
 
     private void addParserError(String message) {
@@ -598,5 +600,14 @@ public class Parser {
 
         Expression right = this.parseExpression(LOWEST);
         return new AssignmentExpression(t, name, right);
+    }
+
+    // <expr>..<expr>
+    private Expression parseRangeExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '..' token
+        this.nextToken();   // Consume '..'
+
+        Expression rightExpr = this.parseExpression(LOWEST);
+        return new RangeExpression(t, leftExpr, rightExpr);
     }
 }

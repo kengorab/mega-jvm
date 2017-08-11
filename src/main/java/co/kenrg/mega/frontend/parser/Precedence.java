@@ -18,6 +18,7 @@ enum Precedence {
             case EQ:
             case NEQ:
             case ASSIGN:
+            case DOTDOT:
                 return EQUALS;
             case LANGLE:
             case RANGLE:

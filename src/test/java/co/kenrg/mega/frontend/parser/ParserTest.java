@@ -34,6 +34,7 @@ import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
@@ -814,6 +815,7 @@ class ParserTest {
 
         List<TestCase> tests = Lists.newArrayList(
             new TestCase("arr[1]", "arr", "1"),
+            new TestCase("(arr)[1]", "(arr)", "1"),
             new TestCase("[1, 2, 3][1]", "[1, 2, 3]", "1")
         );
 
@@ -858,5 +860,46 @@ class ParserTest {
         assertEquals("+", body.operator);
         assertIdentifier(body.left, "x");
         assertEquals(new IntegerLiteral(new Token(INT, "1"), 1), body.right);
+    }
+
+    @TestFactory
+    public List<DynamicTest> testRangeExpression() {
+        class TestCase {
+            public final String input;
+            public final String lRepr;
+            public final String rRepr;
+
+            public TestCase(String input, String lRepr, String rRepr) {
+                this.input = input;
+                this.lRepr = lRepr;
+                this.rRepr = rRepr;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("1..3", "1", "3"),
+            new TestCase("x..3", "x", "3"),
+            new TestCase("x..3 - 1", "x", "(3 - 1)"),
+            new TestCase("x + 1..x - 1", "(x + 1)", "(x - 1)"),
+            new TestCase("x + 1..(x..5)[4]", "(x + 1)", "(x - 5)[4]")
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                String lRepr = testCase.lRepr;
+                String rRepr = testCase.rRepr;
+
+                String name = String.format("'%s', should be RangeExpression, from %s to %s", input, lRepr, rRepr);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertTrue(statement.expression instanceof RangeExpression);
+                    RangeExpression expr = (RangeExpression) statement.expression;
+
+                    assertEquals(lRepr, expr.leftBound.repr(true, 0));
+                    assertEquals(rRepr, expr.rightBound.repr(true, 0));
+                });
+            })
+            .collect(toList());
     }
 }

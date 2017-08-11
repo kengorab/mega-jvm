@@ -22,7 +22,7 @@ class LexerTest {
 
     @Test
     public void testNextToken_singleCharSymbols() {
-        String input = "( ) { } [ ], ; : \n" +
+        String input = "( ) { } [ ], ; : . \n" +
             "+ - / * = ! < >";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -35,6 +35,7 @@ class LexerTest {
             new Token(TokenType.COMMA, ","),
             new Token(TokenType.SEMICOLON, ";"),
             new Token(TokenType.COLON, ":"),
+            new Token(TokenType.DOT, "."),
             new Token(TokenType.PLUS, "+"),
             new Token(TokenType.MINUS, "-"),
             new Token(TokenType.SLASH, "/"),
@@ -50,14 +51,15 @@ class LexerTest {
 
     @Test
     public void testNextToken_multiCharSymbols() {
-        String input = "== != <= >= =>";
+        String input = "== != <= >= => ..";
 
         List<Token> expectedTokens = Lists.newArrayList(
             new Token(TokenType.EQ, "=="),
             new Token(TokenType.NEQ, "!="),
             new Token(TokenType.LTE, "<="),
             new Token(TokenType.GTE, ">="),
-            new Token(TokenType.ARROW, "=>")
+            new Token(TokenType.ARROW, "=>"),
+            new Token(TokenType.DOTDOT, "..")
         );
 
         assertTokensForInput(expectedTokens, input);

@@ -19,6 +19,8 @@ public enum TokenType {
     NEQ("!="),
     GTE(">="),
     LTE("<="),
+    DOTDOT(".."),
+    ARROW("=>"),
 
     PLUS("+"),
     MINUS("-"),
@@ -28,6 +30,7 @@ public enum TokenType {
     COMMA(","),
     SEMICOLON(";"),
     COLON(":"),
+    DOT("."),
 
     LPAREN("("),
     RPAREN(")"),
@@ -38,8 +41,7 @@ public enum TokenType {
     LBRACK("["),
     RBRACK("]"),
 
-    ARROW("=>"),
-
+    // Keywords
     FUNCTION("FUNCTION"),
     TRUE("TRUE"),
     FALSE("FALSE"),

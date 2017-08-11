@@ -5,6 +5,8 @@ import static co.kenrg.mega.frontend.token.TokenType.ASSIGN;
 import static co.kenrg.mega.frontend.token.TokenType.BANG;
 import static co.kenrg.mega.frontend.token.TokenType.COLON;
 import static co.kenrg.mega.frontend.token.TokenType.COMMA;
+import static co.kenrg.mega.frontend.token.TokenType.DOT;
+import static co.kenrg.mega.frontend.token.TokenType.DOTDOT;
 import static co.kenrg.mega.frontend.token.TokenType.EOF;
 import static co.kenrg.mega.frontend.token.TokenType.EQ;
 import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
@@ -119,6 +121,15 @@ public class Lexer {
             case ',':
                 token = new Token(COMMA, this.ch);
                 break;
+            case '.':
+                if (peekChar() == '.') {
+                    this.readChar();
+                    token = new Token(DOTDOT, "..");
+                } else {
+                    // This is unused (for now)
+                    token = new Token(DOT, this.ch);
+                }
+                break;
             case ':':
                 token = new Token(COLON, this.ch);
                 break;
@@ -174,12 +185,12 @@ public class Lexer {
                     String ident = this.readIdentifier();
                     return Pair.of(new Token(TokenType.lookupIdent(ident), ident), null);
                 } else if (isDigit(this.ch)) {
-                    String number = this.readNumber();
-                    if (number.endsWith(".")) {
-                        number = number.replace(".", "");
-                    }
-                    TokenType type = number.contains(".") ? FLOAT : INT;
-                    return Pair.of(new Token(type, number), null);
+                    Pair<String, TokenType> number = this.readNumber();
+//                    if (number.endsWith(".")) {
+//                        number = number.replace(".", "");
+//                    }
+//                    TokenType type = number.contains(".") ? FLOAT : INT;
+                    return Pair.of(new Token(number.getRight(), number.getLeft()), null);
                 } else {
                     token = new Token(ILLEGAL, this.ch);
                 }
@@ -189,7 +200,7 @@ public class Lexer {
         return Pair.of(token, error);
     }
 
-    private String readNumber() {
+    private Pair<String, TokenType> readNumber() {
         boolean isDecimal = false;
         int position = this.position;
 
@@ -201,13 +212,18 @@ public class Lexer {
             char ch = this.ch;
             if (ch == '.') {
                 if (isDecimal) {
-                    return this.input.substring(position, this.position);
+                    return Pair.of(this.input.substring(position, this.position), FLOAT);
                 }
 
                 char peekCh = this.peekChar();
-                if (!isDigit(peekCh)) {
+                if (peekCh == '.') {
+                    // We're in a range operator call; don't consume first dot
+                    return Pair.of(this.input.substring(position, this.position), INT);
+                } else if (!isDigit(peekCh)) {
+                    // We're in a trailing-dot case like `1.`, which should be treated as the integer 1
+                    // Consume the trailing dot, but only return the substring containing the number
                     this.readChar();
-                    return this.input.substring(position, this.position);
+                    return Pair.of(this.input.substring(position, this.position - 1), INT);
                 }
 
                 isDecimal = true;
@@ -216,7 +232,8 @@ public class Lexer {
             this.readChar();
         }
 
-        return this.input.substring(position, this.position);
+        TokenType type = isDecimal ? FLOAT : INT;
+        return Pair.of(this.input.substring(position, this.position), type);
     }
 
     private String readIdentifier() {
