@@ -480,4 +480,17 @@ class EvaluatorTest {
             })
             .collect(toList());
     }
+
+    @Test
+    public void testForInLoop() {
+        String input = "" +
+            "let arr = [1, 2, 3]\n" +
+            "var a = 1\n" +
+            "for x in arr {\n" +
+            "  a = a * x\n" +
+            "}\n" +
+            "a";
+        Obj result = testEval(input);
+        assertEquals(new IntegerObj(6), result);
+    }
 }

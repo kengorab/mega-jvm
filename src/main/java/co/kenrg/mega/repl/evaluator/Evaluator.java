@@ -168,7 +168,7 @@ public class Evaluator {
         ArrayObj array = (ArrayObj) iteratee;
         for (Obj elem : array.elems) {
             Environment blockEnv = env.createChildEnvironment();
-            blockEnv.set(statement.iterator.value, elem);
+            blockEnv.add(statement.iterator.value, elem, true);
 
             Obj blockResult = evalBlockExpression(statement.block, blockEnv);
             if (blockResult.isError()) {
