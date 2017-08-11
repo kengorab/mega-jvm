@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -131,6 +132,34 @@ class ParserTest {
         parser.parseModule();
 
         assertEquals(1, parser.errors.size());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testAssignmentExpression() {
+        List<Triple<String, String, Object>> tests = Lists.newArrayList(
+            Triple.of("x = 4", "x", 4),
+            Triple.of("y = 10", "y", 10),
+            Triple.of("foobar = \"str\"", "foobar", "str")
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String ident = testCase.getMiddle();
+                    Object value = testCase.getRight();
+
+                    String testName = String.format("The assign-expr `%s` should have ident `%s` and value `%s`", input, ident, value);
+                    return dynamicTest(testName, () -> {
+                        ExpressionStatement statement = parseExpressionStatement(input);
+                        assertTrue(statement.expression instanceof AssignmentExpression);
+                        AssignmentExpression assignment = (AssignmentExpression) statement.expression;
+
+                        assertEquals(ident, assignment.name.value);
+                        assertLiteralExpression(assignment.right, value);
+                    });
+                }
+            )
+            .collect(toList());
     }
 
     @Test

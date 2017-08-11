@@ -17,6 +17,7 @@ enum Precedence {
         switch (tokenType) {
             case EQ:
             case NEQ:
+            case ASSIGN:
                 return EQUALS;
             case LANGLE:
             case RANGLE:

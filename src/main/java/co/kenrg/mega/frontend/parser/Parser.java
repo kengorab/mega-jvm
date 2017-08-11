@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -86,6 +87,7 @@ public class Parser {
         this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
+        this.registerInfix(TokenType.ASSIGN, this::parseAssignmentExpression);
     }
 
     private void addParserError(String message) {
@@ -553,5 +555,20 @@ public class Parser {
         }
 
         return new IndexExpression(t, leftExpr, index);
+    }
+
+    // <ident> = <expr>
+    private Expression parseAssignmentExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '=' token
+        this.nextToken();   // Consume '='
+
+        if (!(leftExpr instanceof Identifier)) {
+            this.addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, this.peekTok.type));
+            return null;
+        }
+        Identifier name = (Identifier) leftExpr;
+
+        Expression right = this.parseExpression(LOWEST);
+        return new AssignmentExpression(t, name, right);
     }
 }

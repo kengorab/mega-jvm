@@ -52,4 +52,19 @@ public class Environment {
         store.put(name, new Binding(value, isImmutable));
         return SetBindingStatus.NO_ERROR;
     }
+
+    public SetBindingStatus set(String name, Obj value) {
+        if (store.containsKey(name) && store.get(name).isImmutable) {
+            return SetBindingStatus.E_IMMUTABLE;
+        } else if (!store.containsKey(name)) {
+            if (this.parent != null) {
+                return this.parent.set(name, value);
+            } else {
+                return SetBindingStatus.E_NOBINDING;
+            }
+        }
+
+        store.put(name, new Binding(value, false));
+        return SetBindingStatus.NO_ERROR;
+    }
 }
