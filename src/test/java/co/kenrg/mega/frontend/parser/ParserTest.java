@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -41,6 +42,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
 import com.google.common.collect.ImmutableMap;
@@ -91,6 +93,74 @@ class ParserTest {
         parser.parseModule();
 
         assertEquals(1, parser.errors.size());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testVarStatements() {
+        List<Pair<String, String>> tests = Lists.newArrayList(
+            Pair.of("var x = 4", "x"),
+            Pair.of("var y = 10", "y"),
+            Pair.of("var foobar = 12.45", "foobar")
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                    String varStmt = testCase.getLeft();
+                    String ident = testCase.getRight();
+
+                    String testName = String.format("The var-stmt `%s` should have ident `%s`", varStmt, ident);
+                    return dynamicTest(testName, () -> {
+                        Lexer lexer = new Lexer(varStmt);
+                        Parser parser = new Parser(lexer);
+                        Module module = parser.parseModule();
+
+                        assertEquals(1, module.statements.size());
+
+                        Statement statement = module.statements.get(0);
+                        assertTrue(statement instanceof VarStatement);
+
+                        assertEquals(ident, ((VarStatement) statement).name.value);
+                    });
+                }
+            )
+            .collect(toList());
+    }
+
+    @Test
+    public void testVarStatement_syntaxErrors() {
+        String input = "var x 4";
+        Parser parser = new Parser(new Lexer(input));
+        parser.parseModule();
+
+        assertEquals(1, parser.errors.size());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testAssignmentExpression() {
+        List<Triple<String, String, Object>> tests = Lists.newArrayList(
+            Triple.of("x = 4", "x", 4),
+            Triple.of("y = 10", "y", 10),
+            Triple.of("foobar = \"str\"", "foobar", "str")
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String ident = testCase.getMiddle();
+                    Object value = testCase.getRight();
+
+                    String testName = String.format("The assign-expr `%s` should have ident `%s` and value `%s`", input, ident, value);
+                    return dynamicTest(testName, () -> {
+                        ExpressionStatement statement = parseExpressionStatement(input);
+                        assertTrue(statement.expression instanceof AssignmentExpression);
+                        AssignmentExpression assignment = (AssignmentExpression) statement.expression;
+
+                        assertEquals(ident, assignment.name.value);
+                        assertLiteralExpression(assignment.right, value);
+                    });
+                }
+            )
+            .collect(toList());
     }
 
     @Test

@@ -1,7 +1,9 @@
 package co.kenrg.mega.repl.evaluator;
 
+import static co.kenrg.mega.repl.object.EvalError.duplicateBindingError;
 import static co.kenrg.mega.repl.object.EvalError.functionArityError;
 import static co.kenrg.mega.repl.object.EvalError.typeMismatchError;
+import static co.kenrg.mega.repl.object.EvalError.reassigningImmutableBindingError;
 import static co.kenrg.mega.repl.object.EvalError.uninvokeableTypeError;
 import static co.kenrg.mega.repl.object.EvalError.unknownIdentifierError;
 import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperatorError;
@@ -16,6 +18,7 @@ import java.util.Map.Entry;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -36,6 +39,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.repl.object.ArrayObj;
 import co.kenrg.mega.repl.object.ArrowFunctionObj;
 import co.kenrg.mega.repl.object.BooleanObj;
@@ -64,6 +68,8 @@ public class Evaluator {
             return eval(((ExpressionStatement) node).expression, env);
         } else if (node instanceof LetStatement) {
             return evalLetStatement((LetStatement) node, env);
+        } else if (node instanceof VarStatement) {
+            return evalVarStatement((VarStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
             return evalFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
         } else if (node instanceof ForLoopStatement) {
@@ -101,6 +107,8 @@ public class Evaluator {
             return evalCallExpression((CallExpression) node, env);
         } else if (node instanceof IndexExpression) {
             return evalIndexExpression((IndexExpression) node, env);
+        } else if (node instanceof AssignmentExpression) {
+            return evalAssignmentExpression((AssignmentExpression) node, env);
         } else {
             return NullObj.NULL;
         }
@@ -112,9 +120,18 @@ public class Evaluator {
             return value;
         }
 
-        env.set(statement.name.value, value);
+        String name = statement.name.value;
+        return addDeclarationToEnvironment(name, value, env, true);
+    }
 
-        return NullObj.NULL;
+    private static Obj evalVarStatement(VarStatement statement, Environment env) {
+        Obj value = eval(statement.value, env);
+        if (value.isError()) {
+            return value;
+        }
+
+        String name = statement.name.value;
+        return addDeclarationToEnvironment(name, value, env, false);
     }
 
     private static Obj evalFunctionDeclarationStatement(FunctionDeclarationStatement statement, Environment env) {
@@ -124,8 +141,22 @@ public class Evaluator {
             statement.body,
             env
         );
-        env.set(statement.name.value, function);
-        return NullObj.NULL;
+        String name = statement.name.value;
+        return addDeclarationToEnvironment(name, function, env, true);
+    }
+
+    private static Obj addDeclarationToEnvironment(String name, Obj value, Environment env, boolean isImmutable) {
+        switch (env.add(name, value, isImmutable)) {
+            case E_DUPLICATE:
+                return duplicateBindingError(name);
+            case E_NOBINDING:
+                // This should not happen
+            case E_IMMUTABLE:
+                // This should also not happen
+            case NO_ERROR:
+            default:
+                return NullObj.NULL;
+        }
     }
 
     private static Obj evalForLoopStatement(ForLoopStatement statement, Environment env) {
@@ -478,7 +509,7 @@ public class Evaluator {
         for (int i = 0; i < args.size(); i++) {
             Obj arg = args.get(i);
             Identifier param = funcParams.get(i);
-            fnEnv.set(param.value, arg);
+            fnEnv.add(param.value, arg, true);
         }
 
         return eval(func.getBody(), fnEnv);
@@ -512,4 +543,23 @@ public class Evaluator {
         }
     }
 
+    private static Obj evalAssignmentExpression(AssignmentExpression expr, Environment env) {
+        String name = expr.name.value;
+        Obj value = eval(expr.right, env);
+        if (value.isError()) {
+            return value;
+        }
+
+        switch (env.set(name, value)) {
+            case E_IMMUTABLE:
+                return reassigningImmutableBindingError(name);
+            case E_NOBINDING:
+                return unknownIdentifierError(name);
+            case E_DUPLICATE:
+                // This should not happen
+            case NO_ERROR:
+            default:
+                return NullObj.NULL;
+        }
+    }
 }

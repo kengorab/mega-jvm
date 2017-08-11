@@ -201,10 +201,11 @@ class LexerTest {
 
     @Test
     public void testNextToken_keywords() {
-        String input = "let func if else for in";
+        String input = "let var func if else for in";
 
         List<Token> expectedTokens = Lists.newArrayList(
             new Token(TokenType.LET, "let"),
+            new Token(TokenType.VAR, "var"),
             new Token(TokenType.FUNCTION, "func"),
             new Token(TokenType.IF, "if"),
             new Token(TokenType.ELSE, "else"),

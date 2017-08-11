@@ -44,6 +44,14 @@ public class EvalError extends Obj {
         return new EvalError(String.format("cannot use type as index: %s", index.getType()));
     }
 
+    public static EvalError reassigningImmutableBindingError(String name) {
+        return new EvalError(String.format("cannot reassign to immutable binding: %s", name));
+    }
+
+    public static EvalError duplicateBindingError(String name) {
+        return new EvalError(String.format("duplicate binding: %s already defined in this context", name));
+    }
+
     @Override
     public ObjectType getType() {
         return EVAL_ERROR;

@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -31,6 +32,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
@@ -86,6 +88,7 @@ public class Parser {
         this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
+        this.registerInfix(TokenType.ASSIGN, this::parseAssignmentExpression);
     }
 
     private void addParserError(String message) {
@@ -163,6 +166,8 @@ public class Parser {
         switch (this.curTok.type) {
             case LET:
                 return this.parseLetStatement();
+            case VAR:
+                return this.parseVarStatement();
             case FUNCTION:
                 return this.parseFunctionDeclarationStatement();
             case FOR:
@@ -176,6 +181,25 @@ public class Parser {
     private Statement parseLetStatement() {
         Token t = this.curTok;  // The 'let' token
 
+        Pair<Identifier, Expression> binding = this.parseBinding();
+        if (binding == null) {
+            return null;
+        }
+        return new LetStatement(t, binding.getLeft(), binding.getRight());
+    }
+
+    // var <ident> = <expr>
+    private Statement parseVarStatement() {
+        Token t = this.curTok;  // The 'var' token
+
+        Pair<Identifier, Expression> binding = this.parseBinding();
+        if (binding == null) {
+            return null;
+        }
+        return new VarStatement(t, binding.getLeft(), binding.getRight());
+    }
+
+    private Pair<Identifier, Expression> parseBinding() {
         if (!this.expectPeek(TokenType.IDENT)) {
             return null;
         }
@@ -192,8 +216,7 @@ public class Parser {
         if (this.peekTokenIs(TokenType.SEMICOLON)) {
             this.nextToken();
         }
-
-        return new LetStatement(t, name, expression);
+        return Pair.of(name, expression);
     }
 
     // func <name>([<param> [, <param>]*]) { <stmts> }
@@ -560,5 +583,20 @@ public class Parser {
         }
 
         return new IndexExpression(t, leftExpr, index);
+    }
+
+    // <ident> = <expr>
+    private Expression parseAssignmentExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '=' token
+        this.nextToken();   // Consume '='
+
+        if (!(leftExpr instanceof Identifier)) {
+            this.addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, this.peekTok.type));
+            return null;
+        }
+        Identifier name = (Identifier) leftExpr;
+
+        Expression right = this.parseExpression(LOWEST);
+        return new AssignmentExpression(t, name, right);
     }
 }
