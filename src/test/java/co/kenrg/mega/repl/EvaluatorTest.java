@@ -290,7 +290,22 @@ class EvaluatorTest {
             Pair.of("if 10 > 1 { if 10 > 1 { true + false } }", "unknown operator: BOOLEAN + BOOLEAN"),
 
             Pair.of("foobar", "unknown identifier: foobar"),
-            Pair.of("\"$a\"", "unknown identifier: a")
+            Pair.of("\"$a\"", "unknown identifier: a"),
+
+            Pair.of("1()", "cannot invoke 1 as a function: incompatible type INTEGER"),
+            Pair.of("[]()", "cannot invoke [] as a function: incompatible type ARRAY"),
+            Pair.of("{}()", "cannot invoke {} as a function: incompatible type OBJECT"),
+
+            Pair.of("let s = \"asdf\"; let s = 3", "duplicate binding: s already defined in this context"),
+
+            Pair.of("let a = \"asdf\"; a = \"qwer\"", "cannot reassign to immutable binding: a"),
+            Pair.of("b = \"qwer\"", "unknown identifier: b"),
+
+            Pair.of("var s = \"asdf\"; var s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("let s = \"asdf\"; var s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("let s = \"asdf\"; let s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("func abc(x) { x }; let abc = 3", "duplicate binding: abc already defined in this context"),
+            Pair.of("let abc = 3; func abc(x) { x }", "duplicate binding: abc already defined in this context")
         );
 
         return testCases.stream()
@@ -342,6 +357,30 @@ class EvaluatorTest {
             Pair.of("var a = 5 * 5; a", 25),
             Pair.of("var a = 5; var b = a; b;", 5),
             Pair.of("var a = 5; var b = a; var c = a + b + 5; c;", 15)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "'%s' should evaluate to '%d'",
+                    testCase.getKey(),
+                    testCase.getValue()
+                );
+
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(new IntegerObj(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testAssignmentExpression() {
+        List<Pair<String, Integer>> testCases = Lists.newArrayList(
+            Pair.of("var a = 5; a = 6; a", 6),
+            Pair.of("var a = 5; a = a * 5; a", 25),
+            Pair.of("let a = 5; var b = a + 1; b + a;", 11)
         );
 
         return testCases.stream()
