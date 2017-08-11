@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
@@ -450,9 +452,11 @@ public class Parser {
         if (this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW) ||
             this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.COMMA) ||
             this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.RPAREN)) {
-            return this.parseArrowFunctionExpression();
+            Optional<Expression> possibleArrowFunc = this.parseArrowFunctionExpression();
+            if (possibleArrowFunc.isPresent())
         }
 
+        Token t = this.curTok;
         this.nextToken();   // Skip '('
         Expression expr = this.parseExpression(LOWEST);
 
@@ -460,7 +464,7 @@ public class Parser {
             return null;
         }
 
-        return expr;
+        return new ParenthesizedExpression(t, expr);
     }
 
     // if <condition> <expr> [else <expr>]
@@ -516,17 +520,17 @@ public class Parser {
     }
 
     // ([<param> [, <param>]*]) => <expr>
-    private Expression parseArrowFunctionExpression() {
+    private Optional<Expression> parseArrowFunctionExpression() {
         Token t = this.curTok;
         List<Identifier> parameters = this.parseFunctionParameters();
 
         if (!this.expectPeek(TokenType.ARROW)) {
-            return null;
+            return Optional.empty();
         }
         this.nextToken();   // Consume '=>'
 
         Expression body = this.parseBlockOrSingleExpression();
-        return new ArrowFunctionExpression(t, parameters, body);
+        return Optional.of(new ArrowFunctionExpression(t, parameters, body));
     }
 
     // <param> => <expr>
