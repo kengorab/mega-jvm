@@ -186,10 +186,6 @@ public class Lexer {
                     return Pair.of(new Token(TokenType.lookupIdent(ident), ident), null);
                 } else if (isDigit(this.ch)) {
                     Pair<String, TokenType> number = this.readNumber();
-//                    if (number.endsWith(".")) {
-//                        number = number.replace(".", "");
-//                    }
-//                    TokenType type = number.contains(".") ? FLOAT : INT;
                     return Pair.of(new Token(number.getRight(), number.getLeft()), null);
                 } else {
                     token = new Token(ILLEGAL, this.ch);

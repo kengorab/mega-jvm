@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -73,16 +74,66 @@ class ParserTest {
 
                     String testName = String.format("The let-stmt `%s` should have ident `%s`", letStmt, ident);
                     return dynamicTest(testName, () -> {
-                        Lexer lexer = new Lexer(letStmt);
-                        Parser parser = new Parser(lexer);
-                        Module module = parser.parseModule();
-
-                        assertEquals(1, module.statements.size());
-
-                        Statement statement = module.statements.get(0);
+                        Statement statement = this.parseStatement(letStmt);
                         assertTrue(statement instanceof LetStatement);
 
                         assertEquals(ident, ((LetStatement) statement).name.value);
+                    });
+                }
+            )
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testIdentifierWithTypeAnnotations_bindingDeclarations() {
+        class TestCase {
+            private final String input;
+            private final String identName;
+            private final String identType;
+            private final Function<Statement, Identifier> getIdentifier;
+
+            private TestCase(String input, String identName, String identType, Function<Statement, Identifier> getIdentifier) {
+                this.input = input;
+                this.identName = identName;
+                this.identType = identType;
+                this.getIdentifier = getIdentifier;
+            }
+        }
+
+        Function<Statement, Identifier> getLetStmtIdent = s -> ((LetStatement) s).name;
+        Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
+        Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
+        Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i);
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("let x: Int = 4", "x", "Int", getLetStmtIdent),
+            new TestCase("let s: String = \"asdf\"", "s", "String", getLetStmtIdent),
+
+            new TestCase("var x: Int = 4", "x", "Int", getVarStmtIdent),
+            new TestCase("var s: String = \"asdf\"", "s", "String", getVarStmtIdent),
+
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "a", "Int", getFuncStmtParamIdent.apply(0)),
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "b", "Int", getFuncStmtParamIdent.apply(1)),
+
+            new TestCase("(a: String, b: String) => a + b", "a", "String", getArrowFuncExprParamIdent.apply(0)),
+            new TestCase("(a: String, b: String) => a + b", "b", "String", getArrowFuncExprParamIdent.apply(1)),
+            new TestCase("(a, b: String) => a + b", "a", null, getArrowFuncExprParamIdent.apply(0)),
+            new TestCase("(a: String, b) => a + b", "b", null, getArrowFuncExprParamIdent.apply(1))
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                    String input = testCase.input;
+                    Function<Statement, Identifier> getIdentifier = testCase.getIdentifier;
+                    String identName = testCase.identName;
+                    String identType = testCase.identType;
+
+                    String testName = String.format("The identifier `%s` should have type `%s` in %s", identName, identType, input);
+                    return dynamicTest(testName, () -> {
+                        Statement statement = this.parseStatement(input);
+                        Identifier identifier = getIdentifier.apply(statement);
+
+                        assertEquals(identName, identifier.value);
+                        assertEquals(identType, identifier.typeAnnotation);
                     });
                 }
             )
@@ -113,13 +164,7 @@ class ParserTest {
 
                     String testName = String.format("The var-stmt `%s` should have ident `%s`", varStmt, ident);
                     return dynamicTest(testName, () -> {
-                        Lexer lexer = new Lexer(varStmt);
-                        Parser parser = new Parser(lexer);
-                        Module module = parser.parseModule();
-
-                        assertEquals(1, module.statements.size());
-
-                        Statement statement = module.statements.get(0);
+                        Statement statement = this.parseStatement(varStmt);
                         assertTrue(statement instanceof VarStatement);
 
                         assertEquals(ident, ((VarStatement) statement).name.value);
@@ -235,8 +280,16 @@ class ParserTest {
     }
 
     private ExpressionStatement parseExpressionStatement(String input) {
-        Parser p = new Parser(new Lexer(input));
+        Statement statement = this.parseStatement(input);
+        assertTrue(statement instanceof ExpressionStatement);
+        return (ExpressionStatement) statement;
+    }
+
+    private Statement parseStatement(String input) {
+        Lexer l = new Lexer(input);
+        Parser p = new Parser(l);
         Module module = p.parseModule();
+
         int numErrs = p.errors.size();
         if (numErrs != 0) {
             System.out.println("Parser errors:");
@@ -246,10 +299,7 @@ class ParserTest {
         }
         assertEquals(0, p.errors.size(), "There should be 0 parser errors");
 
-        assertEquals(1, module.statements.size(), "There should be 1 statement parsed");
-        Statement statement = module.statements.get(0);
-        assertTrue(statement instanceof ExpressionStatement);
-        return (ExpressionStatement) statement;
+        return module.statements.get(0);
     }
 
     @Test
@@ -884,12 +934,7 @@ class ParserTest {
     public void testForInLoop() {
         String input = "for x in arr { x + 1 }";
 
-        Lexer lexer = new Lexer(input);
-        Parser parser = new Parser(lexer);
-        Module module = parser.parseModule();
-        assertEquals(1, module.statements.size());
-
-        Statement statement = module.statements.get(0);
+        Statement statement = this.parseStatement(input);
         assertTrue(statement instanceof ForLoopStatement);
 
         ForLoopStatement forLoop = (ForLoopStatement) statement;

@@ -209,7 +209,7 @@ public class Parser {
             return null;
         }
 
-        Identifier name = new Identifier(this.curTok, this.curTok.literal);
+        Identifier name = this.parsePossiblyTypeAnnotatedIdentifier();
 
         if (!this.expectPeek(TokenType.ASSIGN)) {
             return null;
@@ -222,6 +222,25 @@ public class Parser {
             this.nextToken();
         }
         return Pair.of(name, expression);
+    }
+
+    // <ident>[: <type>]
+    private Identifier parsePossiblyTypeAnnotatedIdentifier() {
+        Token t = this.curTok;
+        String ident = this.curTok.literal;
+
+        if (!this.peekTokenIs(TokenType.COLON)) {
+            return new Identifier(t, ident);
+        }
+        this.nextToken();
+        this.nextToken();
+
+        String type = this.parseTypeAnnotation();
+        return new Identifier(t, ident, type);
+    }
+
+    private String parseTypeAnnotation() {
+        return this.curTok.literal;
     }
 
     // func <name>([<param> [, <param>]*]) { <stmts> }
@@ -402,7 +421,7 @@ public class Parser {
     }
 
     // { [<ident>: <expr>] [,<ident>: <expr>]* }
-    public Expression parseObjectLiteral() {
+    private Expression parseObjectLiteral() {
         Token t = this.curTok;
         Map<Identifier, Expression> pairs = Maps.newHashMap();
 
@@ -455,8 +474,14 @@ public class Parser {
         Token t = this.curTok;  // The '(' token
         this.nextToken();   // Consume '('
 
+        // When presented with a '(' token, parse an arrow function under the following conditions:
+        //   - Next 2 tokens are ')' and '=>'               Arrow fn w/ no-args
+        //   - Next 2 tokens are <ident> and ','            Arrow fn w/ multiple, type-annotation-free args
+        //   - Next 2 tokens are <ident> and ':'            Arrow fn w/ at least 1 type-annotated arg
+        //   - Next 3 tokens are <ident>, ')', and '=>'     Arrow fn with single arg
         if (this.curTokenIs(TokenType.RPAREN) && this.peekTokenIs(TokenType.ARROW) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COMMA) ||
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COLON) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW)) {
             return this.parseArrowFunctionExpression();
         }
@@ -561,13 +586,14 @@ public class Parser {
             return params;
         }
 
-        Identifier param1 = new Identifier(this.curTok, this.curTok.literal);
+        Identifier param1 = this.parsePossiblyTypeAnnotatedIdentifier();
         params.add(param1);
 
         while (this.peekTokenIs(TokenType.COMMA)) {
             this.nextToken();   // Consume ','
             this.nextToken();
-            Identifier param = new Identifier(this.curTok, this.curTok.literal);
+
+            Identifier param = this.parsePossiblyTypeAnnotatedIdentifier();
             params.add(param);
         }
 

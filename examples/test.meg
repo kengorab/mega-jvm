@@ -9,3 +9,13 @@ func calculateSum(numbers) {
 }
 
 calculateSum(numbers)
+
+type Person {
+  age: Integer
+  name: {
+    firstName: String
+    lastName: String
+  }
+}
+
+let sum = (a: Int, b: Int) => a + b
