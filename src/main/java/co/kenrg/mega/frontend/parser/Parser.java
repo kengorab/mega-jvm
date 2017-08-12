@@ -261,11 +261,21 @@ public class Parser {
         this.nextToken();
         List<Identifier> params = this.parseFunctionParameters();
 
+        String typeAnnotation = null;
+        if (this.peekTokenIs(TokenType.COLON)) {
+            this.nextToken();
+            this.nextToken();
+            typeAnnotation = this.curTok.literal;
+        }
+
         if (!this.expectPeek(TokenType.LBRACE)) {
             return null;
         }
 
         BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        if (typeAnnotation != null) {
+            return new FunctionDeclarationStatement(t, name, params, body, typeAnnotation);
+        }
         return new FunctionDeclarationStatement(t, name, params, body);
     }
 

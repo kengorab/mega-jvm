@@ -85,7 +85,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testIdentifierWithTypeAnnotations_bindingDeclarations() {
+    public List<DynamicTest> testTypeAnnotations_identifiers() {
         class TestCase {
             private final String input;
             private final String identName;
@@ -138,6 +138,14 @@ class ParserTest {
                 }
             )
             .collect(toList());
+    }
+
+    @Test
+    public void testTypeAnnotations_functionDeclarationReturnType() {
+        String input = "func sum(a: Int, b: Int): Int { a + b }";
+        Statement statement = this.parseStatement(input);
+        FunctionDeclarationStatement functionDeclarationStatement = (FunctionDeclarationStatement) statement;
+        assertEquals("Int", functionDeclarationStatement.typeAnnotation);
     }
 
     @Test
