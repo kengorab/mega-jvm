@@ -169,7 +169,17 @@ class ParserTest {
     @TestFactory
     public List<DynamicTest> testParenthesizedExpressions() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
-            Pair.of("(5)", "5")
+            Pair.of("(5)", "5"),
+            Pair.of("(5.3)", "5.3"),
+            Pair.of("(\"asdf\")", "\"asdf\""),
+
+            Pair.of("(1 + 3)", "1 + 3"),
+            Pair.of("(1 + (3 + 4))", "1 + (3 + 4)"),
+            Pair.of("(someFunc(1, 2, 3))", "someFunc(1, 2, 3)"),
+
+            Pair.of("((a, b) => a + b)", "(a, b) => a + b"),
+            Pair.of("((a) => a + 1)", "a => a + 1"),
+            Pair.of("(a => a + 1)", "a => a + 1")
         );
 
         return testCases.stream()
@@ -181,8 +191,8 @@ class ParserTest {
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
                     assertEquals(
-                        ((ParenthesizedExpression) statement.expression).expr.repr(false, 0),
-                        valueRepr
+                        valueRepr,
+                        ((ParenthesizedExpression) statement.expression).expr.repr(false, 0)
                     );
                 });
             })
@@ -846,9 +856,9 @@ class ParserTest {
         }
 
         List<TestCase> tests = Lists.newArrayList(
-//            new TestCase("arr[1]", "arr", "1"),
-            new TestCase("(arr)[1]", "(arr)", "1")
-//            new TestCase("[1, 2, 3][1]", "[1, 2, 3]", "1")
+            new TestCase("arr[1]", "arr", "1"),
+            new TestCase("(arr)[1]", "(arr)", "1"),
+            new TestCase("[1, 2, 3][1]", "[1, 2, 3]", "1")
         );
 
         return tests.stream()
@@ -913,7 +923,7 @@ class ParserTest {
             new TestCase("x..3", "x", "3"),
             new TestCase("x..3 - 1", "x", "(3 - 1)"),
             new TestCase("x + 1..x - 1", "(x + 1)", "(x - 1)"),
-            new TestCase("x + 1..(x..5)[4]", "(x + 1)", "(x - 5)[4]")
+            new TestCase("x + 1..(x..5)[4]", "(x + 1)", "((x..5)[4])")
         );
 
         return tests.stream()

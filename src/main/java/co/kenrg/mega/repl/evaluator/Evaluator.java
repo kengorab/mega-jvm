@@ -29,6 +29,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -91,6 +92,8 @@ public class Evaluator {
             return evalArrayLiteral((ArrayLiteral) node, env);
         } else if (node instanceof ObjectLiteral) {
             return evalObjectLiteral((ObjectLiteral) node, env);
+        } else if (node instanceof ParenthesizedExpression) {
+            return eval(((ParenthesizedExpression) node).expr, env);
         } else if (node instanceof PrefixExpression) {
             return evalPrefixExpression((PrefixExpression) node, env);
         } else if (node instanceof InfixExpression) {

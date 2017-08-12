@@ -6,7 +6,6 @@ import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -458,7 +457,7 @@ public class Parser {
 
         if (this.curTokenIs(TokenType.RPAREN) && this.peekTokenIs(TokenType.ARROW) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COMMA) ||
-            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN)) {
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW)) {
             return this.parseArrowFunctionExpression();
         }
 
