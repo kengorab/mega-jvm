@@ -2,8 +2,8 @@ package co.kenrg.mega.repl.evaluator;
 
 import static co.kenrg.mega.repl.object.EvalError.duplicateBindingError;
 import static co.kenrg.mega.repl.object.EvalError.functionArityError;
-import static co.kenrg.mega.repl.object.EvalError.typeMismatchError;
 import static co.kenrg.mega.repl.object.EvalError.reassigningImmutableBindingError;
+import static co.kenrg.mega.repl.object.EvalError.typeMismatchError;
 import static co.kenrg.mega.repl.object.EvalError.uninvokeableTypeError;
 import static co.kenrg.mega.repl.object.EvalError.unknownIdentifierError;
 import static co.kenrg.mega.repl.object.EvalError.unknownInfixOperatorError;
@@ -31,6 +31,7 @@ import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
@@ -112,6 +113,8 @@ public class Evaluator {
             return evalIndexExpression((IndexExpression) node, env);
         } else if (node instanceof AssignmentExpression) {
             return evalAssignmentExpression((AssignmentExpression) node, env);
+        } else if (node instanceof RangeExpression) {
+            return evalRangeExpression((RangeExpression) node, env);
         } else {
             return NullObj.NULL;
         }
@@ -564,5 +567,35 @@ public class Evaluator {
             default:
                 return NullObj.NULL;
         }
+    }
+
+    private static Obj evalRangeExpression(RangeExpression expression, Environment env) {
+        Obj lBound = eval(expression.leftBound, env);
+        if (lBound.isError()) {
+            return lBound;
+        }
+        if (lBound.getType() != ObjectType.INTEGER) {
+            return typeMismatchError(ObjectType.INTEGER, lBound.getType());
+        }
+
+        Obj rBound = eval(expression.rightBound, env);
+        if (rBound.isError()) {
+            return rBound;
+        }
+        if (rBound.getType() != ObjectType.INTEGER) {
+            return typeMismatchError(ObjectType.INTEGER, rBound.getType());
+        }
+
+        int lValue = ((IntegerObj) lBound).value;
+        int rValue = ((IntegerObj) rBound).value;
+        if (rValue <= lValue) {
+            return new ArrayObj(Lists.newArrayList());
+        }
+
+        List<Obj> elems = Lists.newArrayList();
+        for (int i = lValue; i < rValue; i++) {
+            elems.add(new IntegerObj(i));
+        }
+        return new ArrayObj(elems);
     }
 }

@@ -492,5 +492,45 @@ class EvaluatorTest {
             "a";
         Obj result = testEval(input);
         assertEquals(new IntegerObj(6), result);
+
+        String input2 = "" +
+            "var a = 1\n" +
+            "for x in 1..4 {\n" +
+            "  a = a * x\n" +
+            "}\n" +
+            "a";
+        Obj result2 = testEval(input2);
+        assertEquals(new IntegerObj(6), result2);
+    }
+
+    @TestFactory
+    public List<DynamicTest> testRangeExpression() {
+        List<Pair<String, List<Integer>>> testCases = Lists.newArrayList(
+            Pair.of("1..1", Lists.newArrayList()),
+            Pair.of("5..2", Lists.newArrayList()),
+
+            Pair.of("1..2", Lists.newArrayList(1)),
+            Pair.of("1..3", Lists.newArrayList(1, 2)),
+            Pair.of("1..3", Lists.newArrayList(1, 2)),
+
+            Pair.of("let x = 1; x..3", Lists.newArrayList(1, 2)),
+            Pair.of("let x = 1; (x - 1)..3", Lists.newArrayList(0, 1, 2)),
+            Pair.of("let x = 1; (x)..4-1", Lists.newArrayList(1, 2)),
+
+            Pair.of("(1..5)[0]..(4..7)[1]", Lists.newArrayList(1, 2, 3, 4))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getKey();
+                List<Integer> expectedValues = testCase.getValue();
+                String name = String.format("'%s' should evaluate to '%s'", input, expectedValues);
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(input);
+                    List<IntegerObj> expectedVals = expectedValues.stream().map(IntegerObj::new).collect(toList());
+                    assertEquals(expectedVals, ((ArrayObj) result).elems);
+                });
+            })
+            .collect(toList());
     }
 }
