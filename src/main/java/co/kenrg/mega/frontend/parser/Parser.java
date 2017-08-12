@@ -51,6 +51,7 @@ public class Parser {
     private final Map<TokenType, InfixParseFunction> infixParseFns = Maps.newHashMap();
     private final Lexer lexer;
 
+    private Token prevTok;
     private Token curTok;
     private Token peekTok;
     private Token peekAheadTok;
@@ -100,6 +101,7 @@ public class Parser {
     }
 
     private void nextToken() {
+        this.prevTok = this.curTok;
         this.curTok = this.peekTok;
         this.peekTok = this.peekAheadTok;
 
@@ -237,6 +239,8 @@ public class Parser {
             return null;
         }
 
+        // The parseFunctionParameters method assumes that the leading '(' token has already been consumed
+        this.nextToken();
         List<Identifier> params = this.parseFunctionParameters();
 
         if (!this.expectPeek(TokenType.LBRACE)) {
@@ -449,15 +453,15 @@ public class Parser {
 
     // (<expr>)
     private Expression parseParenExpression() {
-        if (this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW) ||
-            this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.COMMA) ||
-            this.peekTokenIs(TokenType.IDENT) && this.peekAheadTokenIs(TokenType.RPAREN)) {
-            Optional<Expression> possibleArrowFunc = this.parseArrowFunctionExpression();
-            if (possibleArrowFunc.isPresent())
+        Token t = this.curTok;  // The '(' token
+        this.nextToken();   // Consume '('
+
+        if (this.curTokenIs(TokenType.RPAREN) && this.peekTokenIs(TokenType.ARROW) ||
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COMMA) ||
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN)) {
+            return this.parseArrowFunctionExpression();
         }
 
-        Token t = this.curTok;
-        this.nextToken();   // Skip '('
         Expression expr = this.parseExpression(LOWEST);
 
         if (!this.expectPeek(TokenType.RPAREN)) {
@@ -520,17 +524,19 @@ public class Parser {
     }
 
     // ([<param> [, <param>]*]) => <expr>
-    private Optional<Expression> parseArrowFunctionExpression() {
-        Token t = this.curTok;
+    private Expression parseArrowFunctionExpression() {
+        // The '(' token was consumed prior to entering this method, in order to simplify the parsing of parenthesized
+        // and arrow function expressions.
+        Token t = this.prevTok;
         List<Identifier> parameters = this.parseFunctionParameters();
 
         if (!this.expectPeek(TokenType.ARROW)) {
-            return Optional.empty();
+            return null;
         }
         this.nextToken();   // Consume '=>'
 
         Expression body = this.parseBlockOrSingleExpression();
-        return Optional.of(new ArrowFunctionExpression(t, parameters, body));
+        return new ArrowFunctionExpression(t, parameters, body);
     }
 
     // <param> => <expr>
@@ -550,12 +556,11 @@ public class Parser {
     // ([<param> [, <param>]*])
     private List<Identifier> parseFunctionParameters() {
         List<Identifier> params = Lists.newArrayList();
-        if (this.peekTokenIs(TokenType.RPAREN)) {
-            this.nextToken();
+        // This method assumes that the leading '(' has already been consumed. This is a consequence of how parenthesized
+        // expressions and arrow function expressions are parsed.
+        if (this.curTokenIs(TokenType.RPAREN)) {
             return params;
         }
-
-        this.nextToken();
 
         Identifier param1 = new Identifier(this.curTok, this.curTok.literal);
         params.add(param1);
