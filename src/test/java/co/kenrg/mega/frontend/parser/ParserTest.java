@@ -7,6 +7,8 @@ import static co.kenrg.mega.frontend.token.TokenType.INT;
 import static co.kenrg.mega.frontend.token.TokenType.PLUS;
 import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static co.kenrg.mega.frontend.token.TokenType.TRUE;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -46,7 +48,6 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
-import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
 import com.google.common.collect.ImmutableMap;
@@ -74,7 +75,7 @@ class ParserTest {
 
                     String testName = String.format("The let-stmt `%s` should have ident `%s`", letStmt, ident);
                     return dynamicTest(testName, () -> {
-                        Statement statement = this.parseStatement(letStmt);
+                        Statement statement = parseStatement(letStmt);
                         assertTrue(statement instanceof LetStatement);
 
                         assertEquals(ident, ((LetStatement) statement).name.value);
@@ -129,7 +130,7 @@ class ParserTest {
 
                     String testName = String.format("The identifier `%s` should have type `%s` in %s", identName, identType, input);
                     return dynamicTest(testName, () -> {
-                        Statement statement = this.parseStatement(input);
+                        Statement statement = parseStatement(input);
                         Identifier identifier = getIdentifier.apply(statement);
 
                         assertEquals(identName, identifier.value);
@@ -143,7 +144,7 @@ class ParserTest {
     @Test
     public void testTypeAnnotations_functionDeclarationReturnType() {
         String input = "func sum(a: Int, b: Int): Int { a + b }";
-        Statement statement = this.parseStatement(input);
+        Statement statement = parseStatement(input);
         FunctionDeclarationStatement functionDeclarationStatement = (FunctionDeclarationStatement) statement;
         assertEquals("Int", functionDeclarationStatement.typeAnnotation);
     }
@@ -172,7 +173,7 @@ class ParserTest {
 
                     String testName = String.format("The var-stmt `%s` should have ident `%s`", varStmt, ident);
                     return dynamicTest(testName, () -> {
-                        Statement statement = this.parseStatement(varStmt);
+                        Statement statement = parseStatement(varStmt);
                         assertTrue(statement instanceof VarStatement);
 
                         assertEquals(ident, ((VarStatement) statement).name.value);
@@ -285,29 +286,6 @@ class ParserTest {
             ),
             body.statements
         );
-    }
-
-    private ExpressionStatement parseExpressionStatement(String input) {
-        Statement statement = this.parseStatement(input);
-        assertTrue(statement instanceof ExpressionStatement);
-        return (ExpressionStatement) statement;
-    }
-
-    private Statement parseStatement(String input) {
-        Lexer l = new Lexer(input);
-        Parser p = new Parser(l);
-        Module module = p.parseModule();
-
-        int numErrs = p.errors.size();
-        if (numErrs != 0) {
-            System.out.println("Parser errors:");
-            for (SyntaxError error : p.errors) {
-                System.out.println("  " + error.message);
-            }
-        }
-        assertEquals(0, p.errors.size(), "There should be 0 parser errors");
-
-        return module.statements.get(0);
     }
 
     @Test
@@ -942,7 +920,7 @@ class ParserTest {
     public void testForInLoop() {
         String input = "for x in arr { x + 1 }";
 
-        Statement statement = this.parseStatement(input);
+        Statement statement = parseStatement(input);
         assertTrue(statement instanceof ForLoopStatement);
 
         ForLoopStatement forLoop = (ForLoopStatement) statement;
