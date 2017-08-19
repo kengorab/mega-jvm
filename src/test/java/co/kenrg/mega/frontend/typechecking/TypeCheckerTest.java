@@ -10,11 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
+import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -245,5 +248,70 @@ class TypeCheckerTest {
                 });
             })
             .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckObjectLiteral() {
+        List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
+            Pair.of("{ }", ImmutableMap.of()),
+
+            Pair.of("{ a: 1 }", ImmutableMap.of("a", PrimitiveTypes.INTEGER)),
+            Pair.of("{ a: 1.2 }", ImmutableMap.of("a", PrimitiveTypes.FLOAT)),
+            Pair.of("{ a: true }", ImmutableMap.of("a", PrimitiveTypes.BOOLEAN)),
+            Pair.of("{ a: \"a\" }", ImmutableMap.of("a", PrimitiveTypes.STRING)),
+
+            Pair.of("{ a: [1] }", ImmutableMap.of("a", new ArrayType(PrimitiveTypes.INTEGER))),
+            Pair.of("{ a: [1.2] }", ImmutableMap.of("a", new ArrayType(PrimitiveTypes.FLOAT))),
+            Pair.of("{ a: [true] }", ImmutableMap.of("a", new ArrayType(PrimitiveTypes.BOOLEAN))),
+            Pair.of("{ a: [\"a\"] }", ImmutableMap.of("a", new ArrayType(PrimitiveTypes.STRING))),
+
+            Pair.of("{ a: 1, b: 2 }", ImmutableMap.of(
+                "a", PrimitiveTypes.INTEGER,
+                "b", PrimitiveTypes.INTEGER
+            )),
+            Pair.of("{ a: 1, b: 2.2 }", ImmutableMap.of(
+                "a", PrimitiveTypes.INTEGER,
+                "b", PrimitiveTypes.FLOAT
+            )),
+            Pair.of("{ a: \"asdf\", b: 2.2 }", ImmutableMap.of(
+                "a", PrimitiveTypes.STRING,
+                "b", PrimitiveTypes.FLOAT
+            )),
+            Pair.of("{ a: true, b: [2.2] }", ImmutableMap.of(
+                "a", PrimitiveTypes.BOOLEAN,
+                "b", new ArrayType(PrimitiveTypes.FLOAT)
+            ))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                Map<String, MegaType> objProps = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to an Object with appropriate props", input);
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(new ObjectType(objProps), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @Test
+    public void testTypecheckObjectLiteral_nestedObjects() {
+        String input = "" +
+            "{\n" +
+            "  a: { a1: \"asdf\", a2: false },\n" +
+            "  b: [1, 2, 3, 4]\n" +
+            "}";
+        MegaType type = testTypecheckExpression(input);
+        MegaType expected = new ObjectType(ImmutableMap.of(
+            "a", new ObjectType(ImmutableMap.of(
+                "a1", PrimitiveTypes.STRING,
+                "a2", PrimitiveTypes.BOOLEAN
+            )),
+            "b", new ArrayType(PrimitiveTypes.INTEGER)
+        ));
+        assertEquals(expected, type);
     }
 }

@@ -1,6 +1,9 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static java.util.stream.Collectors.toMap;
+
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -8,6 +11,7 @@ import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -20,6 +24,7 @@ import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 
@@ -67,6 +72,8 @@ public class TypeChecker {
             type = PrimitiveTypes.STRING;
         } else if (node instanceof ArrayLiteral) {
             type = this.typecheckArrayLiteral((ArrayLiteral) node, env);
+        } else if (node instanceof ObjectLiteral) {
+            type = this.typecheckObjectLiteral((ObjectLiteral) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -152,5 +159,14 @@ public class TypeChecker {
         }
 
         return new ArrayType(type);
+    }
+
+    private MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env) {
+        Map<String, MegaType> objectPropertyTypes = object.pairs.entrySet().stream()
+            .collect(toMap(
+                entry -> entry.getKey().value,
+                entry -> typecheckNode(entry.getValue(), env).type
+            ));
+        return new ObjectType(objectPropertyTypes);
     }
 }
