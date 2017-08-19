@@ -12,6 +12,8 @@ import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
+import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -26,10 +28,11 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.Lists;
 
 public class TypeChecker {
-    private static final MegaType unknownType = new MegaType() {
+    static final MegaType unknownType = new MegaType() {
         @Override
         public String displayName() {
             return "<unknown>";
@@ -74,6 +77,10 @@ public class TypeChecker {
             type = this.typecheckArrayLiteral((ArrayLiteral) node, env);
         } else if (node instanceof ObjectLiteral) {
             type = this.typecheckObjectLiteral((ObjectLiteral) node, env);
+        } else if (node instanceof ParenthesizedExpression) {
+            type = this.typecheckNode(((ParenthesizedExpression) node).expr, env).type;
+        } else if (node instanceof PrefixExpression) {
+            type = this.typecheckPrefixExpression((PrefixExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -168,5 +175,24 @@ public class TypeChecker {
                 entry -> typecheckNode(entry.getValue(), env).type
             ));
         return new ObjectType(objectPropertyTypes);
+    }
+
+    private MegaType typecheckPrefixExpression(PrefixExpression expr, TypeEnvironment env) {
+        switch (expr.operator) {
+            case "!":
+                return PrimitiveTypes.BOOLEAN;
+            case "-": {
+                MegaType exprType = typecheckNode(expr.expression, env).type;
+                if (exprType.equals(PrimitiveTypes.INTEGER) || exprType.equals(PrimitiveTypes.FLOAT)) {
+                    return exprType;
+                } else {
+                    MegaType type = new UnionType(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT);
+                    this.errors.add(new TypeMismatchError(type, exprType));
+                    return unknownType;
+                }
+            }
+            default:
+                return unknownType;
+        }
     }
 }

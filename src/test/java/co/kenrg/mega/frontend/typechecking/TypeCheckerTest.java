@@ -17,6 +17,7 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -313,5 +314,65 @@ class TypeCheckerTest {
             "b", new ArrayType(PrimitiveTypes.INTEGER)
         ));
         assertEquals(expected, type);
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckPrefixOperator() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("!1", PrimitiveTypes.BOOLEAN),
+            Pair.of("!1.3", PrimitiveTypes.BOOLEAN),
+            Pair.of("!true", PrimitiveTypes.BOOLEAN),
+            Pair.of("!\"asdf\"", PrimitiveTypes.BOOLEAN),
+            Pair.of("![1, 2, 3]", PrimitiveTypes.BOOLEAN),
+            Pair.of("!{ a: 1 }", PrimitiveTypes.BOOLEAN),
+            Pair.of("!!\"asdf\"", PrimitiveTypes.BOOLEAN),
+
+            Pair.of("-1", PrimitiveTypes.INTEGER),
+            Pair.of("-1.3", PrimitiveTypes.FLOAT)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckPrefixOperator_dash_errors() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("-\"asdf\"", PrimitiveTypes.STRING),
+            Pair.of("-true", PrimitiveTypes.BOOLEAN),
+            Pair.of("-[1, 2, 3]", new ArrayType(PrimitiveTypes.INTEGER)),
+            Pair.of("-{ a: 1 }", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
+        );
+
+        MegaType numericType = new UnionType(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT);
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should fail to typecheck", input);
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(input);
+                    assertEquals(TypeChecker.unknownType, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(
+                        new TypeMismatchError(numericType, type),
+                        result.errors.get(0)
+                    );
+                });
+            })
+            .collect(toList());
     }
 }

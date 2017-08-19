@@ -1,5 +1,7 @@
 package co.kenrg.mega.frontend.typechecking.types;
 
+import static java.util.stream.Collectors.joining;
+
 import java.util.Map;
 
 public class ObjectType extends MegaType {
@@ -11,6 +13,8 @@ public class ObjectType extends MegaType {
 
     @Override
     public String displayName() {
-        return "Object";
+        return this.properties.entrySet().stream()
+            .map(entry -> entry.getKey() + ": " + entry.getValue().signature())
+            .collect(joining(", ", "{ ", " }"));
     }
 }
