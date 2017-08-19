@@ -8,6 +8,11 @@ public abstract class TypeCheckerError {
     public abstract String message();
 
     @Override
+    public String toString() {
+        return message();
+    }
+
+    @Override
     public boolean equals(Object o) {
         return EqualsBuilder.reflectionEquals(this, o);
     }

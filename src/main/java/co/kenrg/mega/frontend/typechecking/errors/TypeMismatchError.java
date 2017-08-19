@@ -13,6 +13,6 @@ public class TypeMismatchError extends TypeCheckerError {
 
     @Override
     public String message() {
-        return String.format("Expected %s, got %s", this.expected.displayName(), this.actual.displayName());
+        return String.format("Expected %s, got %s", this.expected, this.actual);
     }
 }

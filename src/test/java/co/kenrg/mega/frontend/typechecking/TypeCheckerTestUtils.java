@@ -9,6 +9,10 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class TypeCheckerTestUtils {
     public static MegaType testTypecheckExpression(String input) {
+        return testTypecheckExpressionAndGetResult(input).node.type;
+    }
+
+    public static TypeCheckResult testTypecheckExpressionAndGetResult(String input) {
         TypeEnvironment env = new TypeEnvironment();
         ExpressionStatement expressionStatement = parseExpressionStatement(input);
         TypeChecker typeChecker = new TypeChecker();
@@ -18,7 +22,7 @@ public class TypeCheckerTestUtils {
             System.out.println("Typechecker errors:");
             typecheckResult.errors.forEach(e -> System.out.println("  " + e.message()));
         }
-        return typecheckResult.node.type;
+        return typecheckResult;
     }
 
     public static MegaType testTypecheckStatement(String input) {
