@@ -2,7 +2,7 @@ package co.kenrg.mega.frontend.typechecking;
 
 import java.util.Map;
 
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import com.google.common.collect.Maps;
 
 public class TypeEnvironment {
@@ -14,10 +14,10 @@ public class TypeEnvironment {
     }
 
     private class Binding {
-        public final ObjectType type;
+        public final MegaType type;
         public final boolean isImmutable;
 
-        public Binding(ObjectType type, boolean isImmutable) {
+        public Binding(MegaType type, boolean isImmutable) {
             this.type = type;
             this.isImmutable = isImmutable;
         }
@@ -32,7 +32,7 @@ public class TypeEnvironment {
         return child;
     }
 
-    public ObjectType get(String name) {
+    public MegaType get(String name) {
         if (store.containsKey(name)) {
             return store.get(name).type;
         }
@@ -44,7 +44,7 @@ public class TypeEnvironment {
         return null;
     }
 
-    public SetBindingStatus add(String name, ObjectType type, boolean isImmutable) {
+    public SetBindingStatus add(String name, MegaType type, boolean isImmutable) {
         if (store.containsKey(name)) {
             return SetBindingStatus.E_DUPLICATE;
         }
@@ -53,7 +53,7 @@ public class TypeEnvironment {
         return SetBindingStatus.NO_ERROR;
     }
 
-    public SetBindingStatus set(String name, ObjectType type) {
+    public SetBindingStatus set(String name, MegaType type) {
         if (store.containsKey(name) && store.get(name).isImmutable) {
             return SetBindingStatus.E_IMMUTABLE;
         } else if (!store.containsKey(name)) {

@@ -5,50 +5,45 @@ import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
-import co.kenrg.mega.frontend.typechecking.TypeChecker.TypecheckResult;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class TypeCheckerTestUtils {
-    public static ObjectType testTypecheckExpression(String input) {
+    public static MegaType testTypecheckExpression(String input) {
         TypeEnvironment env = new TypeEnvironment();
         ExpressionStatement expressionStatement = parseExpressionStatement(input);
         TypeChecker typeChecker = new TypeChecker();
-        TypecheckResult<ExpressionStatement> typecheckResult = typeChecker.typecheck(expressionStatement, env);
+        TypeCheckResult<ExpressionStatement> typecheckResult = typeChecker.typecheck(expressionStatement, env);
 
         if (typecheckResult.hasErrors()) {
             System.out.println("Typechecker errors:");
-            for (TypeError error : typecheckResult.errors) {
-                System.out.println("  Expected " + error.expected.displayName + ", got " + error.actual.displayName);
-            }
+            typecheckResult.errors.forEach(e -> System.out.println("  " + e.message()));
         }
         return typecheckResult.node.type;
     }
 
-    public static ObjectType testTypecheckStatement(String input) {
+    public static MegaType testTypecheckStatement(String input) {
         TypeEnvironment env = new TypeEnvironment();
         return testTypecheckStatement(input, env);
     }
 
-    public static ObjectType testTypecheckStatement(String input, TypeEnvironment env) {
-        TypecheckResult typecheckResult = testTypecheckStatementAndGetResult(input, env);
+    public static MegaType testTypecheckStatement(String input, TypeEnvironment env) {
+        TypeCheckResult typecheckResult = testTypecheckStatementAndGetResult(input, env);
         return typecheckResult.node.type;
     }
 
-    public static TypecheckResult testTypecheckStatementAndGetResult(String input) {
+    public static TypeCheckResult testTypecheckStatementAndGetResult(String input) {
         TypeEnvironment env = new TypeEnvironment();
         return testTypecheckStatementAndGetResult(input, env);
     }
 
-    public static TypecheckResult testTypecheckStatementAndGetResult(String input, TypeEnvironment env) {
+    public static TypeCheckResult testTypecheckStatementAndGetResult(String input, TypeEnvironment env) {
         Statement statement = parseStatement(input);
         TypeChecker typeChecker = new TypeChecker();
-        TypecheckResult<Statement> typecheckResult = typeChecker.typecheck(statement, env);
+        TypeCheckResult<Statement> typecheckResult = typeChecker.typecheck(statement, env);
 
         if (typecheckResult.hasErrors()) {
             System.out.println("Typechecker errors:");
-            for (TypeError error : typecheckResult.errors) {
-                System.out.println("  Expected " + error.expected.displayName + ", got " + error.actual.displayName);
-            }
+            typecheckResult.errors.forEach(e -> System.out.println("  " + e.message()));
         }
         return typecheckResult;
     }

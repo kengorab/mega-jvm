@@ -1,13 +1,13 @@
 package co.kenrg.mega.frontend.typechecking;
 
 import co.kenrg.mega.frontend.ast.iface.Node;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class TypedNode<T extends Node> {
     public final T node;
-    public final ObjectType type;
+    public final MegaType type;
 
-    public TypedNode(T node, ObjectType type) {
+    public TypedNode(T node, MegaType type) {
         this.node = node;
         this.type = type;
     }

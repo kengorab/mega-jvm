@@ -10,8 +10,9 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
 
-import co.kenrg.mega.frontend.typechecking.TypeChecker.TypecheckResult;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.DynamicTest;
@@ -30,8 +31,8 @@ class TypeCheckerTest {
             .map(testCase -> {
                 String name = String.format("'%s' should typecheck to Int", testCase);
                 return dynamicTest(name, () -> {
-                    ObjectType result = testTypecheckExpression(testCase);
-                    assertEquals(ObjectType.INTEGER, result);
+                    MegaType result = testTypecheckExpression(testCase);
+                    assertEquals(PrimitiveTypes.INTEGER, result);
                 });
             })
             .collect(toList());
@@ -49,8 +50,8 @@ class TypeCheckerTest {
             .map(testCase -> {
                 String name = String.format("'%s' should typecheck to Float", testCase);
                 return dynamicTest(name, () -> {
-                    ObjectType result = testTypecheckExpression(testCase);
-                    assertEquals(ObjectType.FLOAT, result);
+                    MegaType result = testTypecheckExpression(testCase);
+                    assertEquals(PrimitiveTypes.FLOAT, result);
                 });
             })
             .collect(toList());
@@ -66,8 +67,8 @@ class TypeCheckerTest {
             .map(testCase -> {
                 String name = String.format("'%s' should typecheck to Bool", testCase);
                 return dynamicTest(name, () -> {
-                    ObjectType result = testTypecheckExpression(testCase);
-                    assertEquals(ObjectType.BOOLEAN, result);
+                    MegaType result = testTypecheckExpression(testCase);
+                    assertEquals(PrimitiveTypes.BOOLEAN, result);
                 });
             })
             .collect(toList());
@@ -85,8 +86,8 @@ class TypeCheckerTest {
             .map(testCase -> {
                 String name = String.format("'%s' should typecheck to String", testCase);
                 return dynamicTest(name, () -> {
-                    ObjectType result = testTypecheckExpression(testCase);
-                    assertEquals(ObjectType.STRING, result);
+                    MegaType result = testTypecheckExpression(testCase);
+                    assertEquals(PrimitiveTypes.STRING, result);
                 });
             })
             .collect(toList());
@@ -94,24 +95,24 @@ class TypeCheckerTest {
 
     @TestFactory
     public List<DynamicTest> testTypecheckBindingDeclarationStatements_letAndVar() {
-        List<Triple<String, String, ObjectType>> testCases = Lists.newArrayList(
-            Triple.of("let s = \"asdf\"", "s", ObjectType.STRING),
-            Triple.of("let s: String = \"asdf\"", "s", ObjectType.STRING),
-            Triple.of("let i = 123", "i", ObjectType.INTEGER),
-            Triple.of("let i: Int = 123", "i", ObjectType.INTEGER),
-            Triple.of("let f = 12.34", "f", ObjectType.FLOAT),
-            Triple.of("let f: Float = 12.34", "f", ObjectType.FLOAT),
-            Triple.of("let b = true", "b", ObjectType.BOOLEAN),
-            Triple.of("let b: Bool = false", "b", ObjectType.BOOLEAN),
+        List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("let s = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("let s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("let i = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("let i: Int = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("let f = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("let f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("let b = true", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("let b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
 
-            Triple.of("var s = \"asdf\"", "s", ObjectType.STRING),
-            Triple.of("var s: String = \"asdf\"", "s", ObjectType.STRING),
-            Triple.of("var i = 123", "i", ObjectType.INTEGER),
-            Triple.of("var i: Int = 123", "i", ObjectType.INTEGER),
-            Triple.of("var f = 12.34", "f", ObjectType.FLOAT),
-            Triple.of("var f: Float = 12.34", "f", ObjectType.FLOAT),
-            Triple.of("var b = true", "b", ObjectType.BOOLEAN),
-            Triple.of("var b: Bool = false", "b", ObjectType.BOOLEAN)
+            Triple.of("var s = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("var s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("var i = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("var i: Int = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("var f = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("var f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("var b = true", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("var b: Bool = false", "b", PrimitiveTypes.BOOLEAN)
         );
 
         return testCases.stream()
@@ -119,10 +120,10 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getRight());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    ObjectType result = testTypecheckStatement(testCase.getLeft(), env);
-                    assertEquals(ObjectType.UNIT, result);
+                    MegaType result = testTypecheckStatement(testCase.getLeft(), env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
 
-                    ObjectType bindingType = env.get(testCase.getMiddle());
+                    MegaType bindingType = env.get(testCase.getMiddle());
                     assertEquals(testCase.getRight(), bindingType);
                 });
             })
@@ -131,28 +132,28 @@ class TypeCheckerTest {
 
     @TestFactory
     public List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
-        List<Triple<String, ObjectType, ObjectType>> testCases = Lists.newArrayList(
-            Triple.of("let s: String = 123", ObjectType.STRING, ObjectType.INTEGER),
-            Triple.of("let i: Int = \"asdf\"", ObjectType.INTEGER, ObjectType.STRING),
-            Triple.of("let f: Float = 123", ObjectType.FLOAT, ObjectType.INTEGER),
-            Triple.of("let b: Bool = 123", ObjectType.BOOLEAN, ObjectType.INTEGER),
+        List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("let s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+            Triple.of("let i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+            Triple.of("let f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
+            Triple.of("let b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
 
-            Triple.of("var s: String = 123", ObjectType.STRING, ObjectType.INTEGER),
-            Triple.of("var i: Int = \"asdf\"", ObjectType.INTEGER, ObjectType.STRING),
-            Triple.of("var f: Float = 123", ObjectType.FLOAT, ObjectType.INTEGER),
-            Triple.of("var b: Bool = 123", ObjectType.BOOLEAN, ObjectType.INTEGER)
+            Triple.of("var s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+            Triple.of("var i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+            Triple.of("var f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
+            Triple.of("var b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER)
         );
 
         return testCases.stream()
             .map(testCase -> {
                 String name = String.format("'%s' should typecheck to Unit, binding should fail to typecheck", testCase.getLeft());
                 return dynamicTest(name, () -> {
-                    TypecheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft());
-                    assertEquals(ObjectType.UNIT, result.node.type);
+                    TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft());
+                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeError(testCase.getMiddle(), testCase.getRight()),
+                        new TypeMismatchError(testCase.getMiddle(), testCase.getRight()),
                         result.errors.get(0)
                     );
                 });
