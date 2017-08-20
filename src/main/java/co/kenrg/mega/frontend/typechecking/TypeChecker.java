@@ -18,6 +18,7 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
@@ -36,6 +37,7 @@ import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
@@ -117,6 +119,8 @@ public class TypeChecker {
             type = this.typecheckArrowFunctionExpression((ArrowFunctionExpression) node, env);
         } else if (node instanceof CallExpression) {
             type = this.typecheckCallExpression((CallExpression) node, env);
+        } else if (node instanceof IndexExpression) {
+            type = this.typecheckIndexExpression((IndexExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -439,5 +443,22 @@ public class TypeChecker {
             .ifPresent(isMismatch -> this.errors.add(new FunctionTypeError(funcType.paramTypes, providedTypes)));
 
         return funcType.returnType;
+    }
+
+    private MegaType typecheckIndexExpression(IndexExpression expr, TypeEnvironment env) {
+        MegaType targetType = typecheckNode(expr.target, env).type;
+        if (!new ArrayType(PrimitiveTypes.ANY).isEquivalentTo(targetType)) {
+            this.errors.add(new UnindexableTypeError(targetType));
+            return unknownType;
+        } else {
+            ArrayType arrayType = (ArrayType) targetType;
+
+            MegaType indexType = typecheckNode(expr.index, env).type;
+            if (!PrimitiveTypes.INTEGER.isEquivalentTo(indexType)) {
+                this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, indexType));
+            }
+
+            return arrayType.typeArg;
+        }
     }
 }

@@ -16,6 +16,7 @@ import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -749,6 +750,53 @@ class TypeCheckerTest {
                 ),
                 new ArrayType(PrimitiveTypes.INTEGER)
             )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should fail to typecheck", testCase.getLeft());
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft());
+                    // Even though typechecking fails, there should still be some kind of overall type returned, even if it's <unknown>.
+                    assertEquals(testCase.getRight(), result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(testCase.getMiddle(), result.errors.get(0));
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckIndexExpression() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("[1, 2, 3][0]", PrimitiveTypes.INTEGER),
+            Pair.of("[1.2, 2.3, 3.4][1]", PrimitiveTypes.FLOAT),
+            Pair.of("[true, false, true][1]", PrimitiveTypes.BOOLEAN),
+            Pair.of("['asdf', 'qwer'][1]", PrimitiveTypes.STRING),
+            Pair.of("[['asdf', 'qwer'], ['zxcv']][1]", new ArrayType(PrimitiveTypes.STRING))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckIndexExpression_errors() {
+        List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("[1, 2, 3][1.3]", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT), PrimitiveTypes.INTEGER),
+            Triple.of("[1, 2, 3]['a']", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), PrimitiveTypes.INTEGER),
+            Triple.of("'abc'[0]", new UnindexableTypeError(PrimitiveTypes.STRING), TypeChecker.unknownType)
         );
 
         return testCases.stream()
