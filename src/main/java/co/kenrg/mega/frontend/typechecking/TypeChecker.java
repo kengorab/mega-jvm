@@ -265,7 +265,7 @@ public class TypeChecker {
         String iterator = statement.iterator.value;
 
         MegaType iterateeType = typecheckNode(statement.iteratee, env).type;
-        ArrayType arrayAnyType = new ArrayType(PrimitiveTypes.ANY);
+        ArrayType arrayAnyType = ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY);
         if (!arrayAnyType.isEquivalentTo(iterateeType)) {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
             childEnv.add(iterator, unknownType, true);
@@ -278,7 +278,7 @@ public class TypeChecker {
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
         if (array.elements.isEmpty()) {
-            return new ArrayType(PrimitiveTypes.NOTHING);
+            return ParametrizedTypes.arrayOf.apply(PrimitiveTypes.NOTHING);
         }
         List<Expression> elements = array.elements;
 
@@ -298,7 +298,7 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(type, firstMismatch));
         }
 
-        return new ArrayType(type);
+        return ParametrizedTypes.arrayOf.apply(type);
     }
 
     private MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env) {
@@ -484,7 +484,7 @@ public class TypeChecker {
 
     private MegaType typecheckIndexExpression(IndexExpression expr, TypeEnvironment env) {
         MegaType targetType = typecheckNode(expr.target, env).type;
-        if (!new ArrayType(PrimitiveTypes.ANY).isEquivalentTo(targetType)) {
+        if (!ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY).isEquivalentTo(targetType)) {
             this.errors.add(new UnindexableTypeError(targetType));
             return unknownType;
         } else {
@@ -533,6 +533,6 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightBoundType));
         }
 
-        return new ArrayType(PrimitiveTypes.INTEGER);
+        return ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER);
     }
 }

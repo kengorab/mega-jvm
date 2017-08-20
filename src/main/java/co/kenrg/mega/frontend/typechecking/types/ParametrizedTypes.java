@@ -8,10 +8,10 @@ import java.util.function.Function;
 import com.google.common.collect.ImmutableMap;
 
 public class ParametrizedTypes {
-    public static final Function<List<MegaType>, MegaType> arrayOf = (typeArgs) -> new ArrayType(typeArgs.get(0));
+    public static final Function<MegaType, ArrayType> arrayOf = ArrayType::new;
 
     private static final Map<String, Function<List<MegaType>, MegaType>> ALL = ImmutableMap.of(
-        "Array", arrayOf
+        "Array", (typeArgs) -> arrayOf.apply(typeArgs.get(0))
     );
 
     public static Optional<Function<List<MegaType>, MegaType>> byDisplayName(String name) {
