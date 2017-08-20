@@ -1,4 +1,4 @@
-let sum = (a, b) => a + b
+let sum = (a: Int, b: Int) => a + b
 
 let numbers = [1, 2, 3]
 
@@ -17,5 +17,3 @@ type Person {
     lastName: String
   }
 }
-
-let sum = (a: Int, b: Int) => a + b

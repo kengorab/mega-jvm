@@ -6,3 +6,5 @@
 - Field-wise type declaration (see Person type in test.meg)
 - Union type declaration (see PrimitiveTypes.NUMBER, which is a precursor to this)
 - Add line/col numbers to Tokens / Error messages
+- Single-line comments
+- Multi-line comments
