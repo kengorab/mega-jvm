@@ -14,6 +14,7 @@ import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -167,6 +168,46 @@ class TypeCheckerTest {
                 });
             })
             .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
+        List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String funcName = testCase.getMiddle();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    MegaType result = testTypecheckStatement(input, env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+
+                    MegaType funcType = env.get(funcName);
+                    assertEquals(type, funcType);
+                });
+            })
+            .collect(toList());
+    }
+
+    @Test
+    public void testTypecheckFunctionDeclarationStatement_declaredReturnTypeMismatch() {
+        String input = "func doSomething(a: Int): Int { a + '!' }";
+        TypeEnvironment env = new TypeEnvironment();
+        TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
+        assertEquals(PrimitiveTypes.UNIT, result.node.type);
+
+        assertTrue(result.hasErrors());
+        assertEquals(
+            new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+            result.errors.get(0)
+        );
     }
 
     @Test
@@ -585,6 +626,28 @@ class TypeCheckerTest {
                     environment.forEach((key, value) -> env.add(key, value, true));
 
                     MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckArrowFunction() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("(a: Int) => a + 1", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Pair.of("(a: Int, b: String) => a + b", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), PrimitiveTypes.STRING)),
+            Pair.of("() => 24", new FunctionType(Lists.newArrayList(), PrimitiveTypes.INTEGER))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
                     assertEquals(type, result);
                 });
             })

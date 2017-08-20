@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
@@ -23,12 +24,14 @@ import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -71,6 +74,8 @@ public class TypeChecker {
             this.typecheckLetStatement((LetStatement) node, env);
         } else if (node instanceof VarStatement) {
             this.typecheckVarStatement((VarStatement) node, env);
+        } else if (node instanceof FunctionDeclarationStatement) {
+            this.typecheckFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
         }
 
         if (node instanceof IntegerLiteral) {
@@ -97,6 +102,8 @@ public class TypeChecker {
             type = this.typecheckBlockExpression((BlockExpression) node, env);
         } else if (node instanceof Identifier) {
             type = this.typecheckIdentifier((Identifier) node, env);
+        } else if (node instanceof ArrowFunctionExpression) {
+            type = this.typecheckArrowFunctionExpression((ArrowFunctionExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -157,6 +164,47 @@ public class TypeChecker {
         }
 
         env.add(name, type, false);
+    }
+
+    private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
+        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(statement.parameters.size());
+
+        for (Identifier parameter : statement.parameters) {
+            if (parameter.typeAnnotation == null) {
+                this.errors.add(new TypeCheckerError() {
+                    @Override
+                    public String message() {
+                        return String.format("Missing type annotation on parameter: %s", parameter.value);
+                    }
+                });
+            } else {
+                Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(parameter.typeAnnotation);
+                if (declaredTypeOpt.isPresent()) {
+                    MegaType type = declaredTypeOpt.get();
+                    paramTypes.add(type);
+                    env.add(parameter.value, type, true);
+                } else {
+                    this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
+                }
+            }
+        }
+
+        MegaType returnType = typecheckNode(statement.body, env).type;
+
+        if (statement.typeAnnotation != null) {
+            Optional<MegaType> declaredReturnTypeOpt = PrimitiveTypes.byDisplayName(statement.typeAnnotation);
+            if (declaredReturnTypeOpt.isPresent()) {
+                MegaType declaredReturnType = declaredReturnTypeOpt.get();
+                if (!declaredReturnType.isEquivalentTo(returnType)) {
+                    this.errors.add(new TypeMismatchError(declaredReturnType, returnType));
+                }
+                env.add(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
+            } else {
+                this.errors.add(new UnknownTypeError(statement.typeAnnotation));
+            }
+        }
+
+        env.add(statement.name.value, new FunctionType(paramTypes, returnType), true);
     }
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
@@ -313,5 +361,32 @@ public class TypeChecker {
     private MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env) {
         MegaType identifierType = env.get(identifier.value);
         return identifierType == null ? unknownType : identifierType;
+    }
+
+    private MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env) {
+        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(expr.parameters.size());
+
+        for (Identifier parameter : expr.parameters) {
+            if (parameter.typeAnnotation == null) {
+                this.errors.add(new TypeCheckerError() {
+                    @Override
+                    public String message() {
+                        return String.format("Missing type annotation on parameter: %s", parameter.value);
+                    }
+                });
+            } else {
+                Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(parameter.typeAnnotation);
+                if (declaredTypeOpt.isPresent()) {
+                    MegaType type = declaredTypeOpt.get();
+                    paramTypes.add(type);
+                    env.add(parameter.value, type, true);
+                } else {
+                    this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
+                }
+            }
+        }
+
+        MegaType returnType = typecheckNode(expr.body, env).type;
+        return new FunctionType(paramTypes, returnType);
     }
 }
