@@ -192,6 +192,7 @@ public class TypeChecker {
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
+        TypeEnvironment childEnv = env.createChildEnvironment();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(statement.parameters.size());
 
         for (Identifier parameter : statement.parameters) {
@@ -207,14 +208,14 @@ public class TypeChecker {
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
-                    env.add(parameter.value, type, true);
+                    childEnv.add(parameter.value, type, true);
                 } else {
                     this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
                 }
             }
         }
 
-        MegaType returnType = typecheckNode(statement.body, env).type;
+        MegaType returnType = typecheckNode(statement.body, childEnv).type;
 
         if (statement.typeAnnotation != null) {
             Optional<MegaType> declaredReturnTypeOpt = PrimitiveTypes.byDisplayName(statement.typeAnnotation);
@@ -233,18 +234,19 @@ public class TypeChecker {
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
+        TypeEnvironment childEnv = env.createChildEnvironment();
         String iterator = statement.iterator.value;
 
         MegaType iterateeType = typecheckNode(statement.iteratee, env).type;
         ArrayType arrayAnyType = new ArrayType(PrimitiveTypes.ANY);
         if (!arrayAnyType.isEquivalentTo(iterateeType)) {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
-            env.add(iterator, unknownType, true);
+            childEnv.add(iterator, unknownType, true);
         } else {
-            env.add(iterator, ((ArrayType) iterateeType).typeArg, true);
+            childEnv.add(iterator, ((ArrayType) iterateeType).typeArg, true);
         }
 
-        typecheckNode(statement.block, env);
+        typecheckNode(statement.block, childEnv);
     }
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
@@ -384,13 +386,14 @@ public class TypeChecker {
     }
 
     private MegaType typecheckBlockExpression(BlockExpression expr, TypeEnvironment env) {
+        TypeEnvironment childEnv = env.createChildEnvironment();
         List<Statement> statements = expr.statements;
 
         // An empty block-expr should have type Unit
         MegaType blockType = PrimitiveTypes.UNIT;
 
         for (int i = 0; i < statements.size(); i++) {
-            MegaType type = typecheckNode(statements.get(i), env).type;
+            MegaType type = typecheckNode(statements.get(i), childEnv).type;
             if (i == statements.size() - 1) {
                 blockType = type;
             }
@@ -404,6 +407,7 @@ public class TypeChecker {
     }
 
     private MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env) {
+        TypeEnvironment childEnv = env.createChildEnvironment();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(expr.parameters.size());
 
         for (Identifier parameter : expr.parameters) {
@@ -419,14 +423,14 @@ public class TypeChecker {
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
-                    env.add(parameter.value, type, true);
+                    childEnv.add(parameter.value, type, true);
                 } else {
                     this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
                 }
             }
         }
 
-        MegaType returnType = typecheckNode(expr.body, env).type;
+        MegaType returnType = typecheckNode(expr.body, childEnv).type;
         return new FunctionType(paramTypes, returnType);
     }
 
