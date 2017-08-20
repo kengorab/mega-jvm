@@ -14,10 +14,12 @@ import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -809,6 +811,69 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getMiddle(), result.errors.get(0));
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckAssignmentExpression() {
+        List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
+            Pair.of("a = 1", ImmutableMap.of("a", PrimitiveTypes.INTEGER)),
+            Pair.of("a = 1.3", ImmutableMap.of("a", PrimitiveTypes.FLOAT)),
+            Pair.of("a = true", ImmutableMap.of("a", PrimitiveTypes.BOOLEAN)),
+
+            Pair.of("a = a + 'hello'", ImmutableMap.of("a", PrimitiveTypes.STRING))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                Map<String, MegaType> environment = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to Unit", input);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    environment.forEach((key, value) -> env.add(key, value, false));
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckAssignmentExpression_errors() {
+        List<Triple<String, Map<String, Pair<MegaType, Boolean>>, TypeCheckerError>> testCases = Lists.newArrayList(
+            Triple.of(
+                "a = 'hello'",
+                ImmutableMap.of("a", Pair.of(PrimitiveTypes.INTEGER, false)),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+            ),
+            Triple.of(
+                "a = 'world'",
+                ImmutableMap.of("a", Pair.of(PrimitiveTypes.STRING, true)),
+                new MutabilityError("a")
+            ),
+            Triple.of(
+                "a = 'world'",
+                ImmutableMap.of(),
+                new UnknownIdentifierError("a")
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should fail to typecheck", testCase.getLeft());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    testCase.getMiddle().forEach((key, value) -> env.add(key, value.getLeft(), value.getRight()));
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
+                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(testCase.getRight(), result.errors.get(0));
                 });
             })
             .collect(toList());

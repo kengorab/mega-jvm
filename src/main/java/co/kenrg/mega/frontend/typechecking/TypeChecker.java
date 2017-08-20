@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
@@ -35,10 +36,12 @@ import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -121,6 +124,8 @@ public class TypeChecker {
             type = this.typecheckCallExpression((CallExpression) node, env);
         } else if (node instanceof IndexExpression) {
             type = this.typecheckIndexExpression((IndexExpression) node, env);
+        } else if (node instanceof AssignmentExpression) {
+            type = this.typecheckAssignmentExpression((AssignmentExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -459,6 +464,29 @@ public class TypeChecker {
             }
 
             return arrayType.typeArg;
+        }
+    }
+
+    private MegaType typecheckAssignmentExpression(AssignmentExpression expr, TypeEnvironment env) {
+        String bindingName = expr.name.value;
+        MegaType rightType = typecheckNode(expr.right, env).type;
+
+        MegaType type = env.get(bindingName);
+
+        if (type != null && !type.isEquivalentTo(rightType)) {
+            this.errors.add(new TypeMismatchError(type, rightType));
+        }
+
+        switch (env.set(bindingName, rightType)) {
+            case E_IMMUTABLE:
+                this.errors.add(new MutabilityError(bindingName));
+            case E_NOBINDING:
+                this.errors.add(new UnknownIdentifierError(bindingName));
+            case E_DUPLICATE:
+                // This should not happen
+            case NO_ERROR:
+            default:
+                return PrimitiveTypes.UNIT;
         }
     }
 }
