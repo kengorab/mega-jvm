@@ -97,7 +97,7 @@ public class PrimitiveTypes {
     public static final MegaType NUMBER = new UnionType(INTEGER, FLOAT);
 
     public static final Map<String, MegaType> ALL =
-        Lists.newArrayList(INTEGER, FLOAT, BOOLEAN, STRING, UNIT, NOTHING).stream()
+        Lists.newArrayList(INTEGER, FLOAT, BOOLEAN, STRING, UNIT, NOTHING, ANY).stream()
             .collect(toMap(MegaType::displayName, identity()));
 
     public static Optional<MegaType> byDisplayName(String name) {

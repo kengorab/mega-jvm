@@ -35,6 +35,9 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
@@ -48,6 +51,7 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
+import co.kenrg.mega.frontend.typechecking.types.ParametrizedTypes;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -134,6 +138,35 @@ public class TypeChecker {
         return new TypedNode<>(node, type);
     }
 
+    private Optional<MegaType> resolveType(TypeExpression typeExpr) {
+        if (typeExpr instanceof BasicTypeExpression) {
+            return PrimitiveTypes.byDisplayName(((BasicTypeExpression) typeExpr).type);
+        } else if (typeExpr instanceof ParametrizedTypeExpression) {
+            return ParametrizedTypes.byDisplayName(((ParametrizedTypeExpression) typeExpr).type)
+                .flatMap(base -> {
+                    List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
+                    List<MegaType> argTypes = typeArgs.stream()
+                        .map(typeArg -> {
+                            Optional<MegaType> argType = resolveType(typeArg);
+                            if (!argType.isPresent()) {
+                                this.errors.add(new UnknownTypeError(typeArg.signature()));
+                            }
+                            return argType;
+                        })
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .collect(toList());
+                    if (argTypes.size() != typeArgs.size()) {
+                        return Optional.empty();
+                    } else {
+                        return Optional.of(base.apply(argTypes));
+                    }
+                });
+        } else {
+            return Optional.empty();
+        }
+    }
+
     private void typecheckStatements(List<Statement> statements, TypeEnvironment env) {
         for (Statement statement : statements) {
             //TODO: Record errors...
@@ -148,7 +181,7 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(statement.name.typeAnnotation);
+            Optional<MegaType> declaredTypeOpt = this.resolveType(statement.name.typeAnnotation);
             if (declaredTypeOpt.isPresent()) {
                 MegaType declaredType = declaredTypeOpt.get();
                 if (declaredType.equals(valueTypeResult.type)) {
@@ -156,8 +189,6 @@ public class TypeChecker {
                 } else {
                     this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
                 }
-            } else {
-                this.errors.add(new UnknownTypeError(statement.name.typeAnnotation));
             }
         } else {
             type = valueTypeResult.type;
@@ -173,7 +204,7 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(statement.name.typeAnnotation);
+            Optional<MegaType> declaredTypeOpt = this.resolveType(statement.name.typeAnnotation);
             if (declaredTypeOpt.isPresent()) {
                 MegaType declaredType = declaredTypeOpt.get();
                 if (declaredType.equals(valueTypeResult.type)) {
@@ -181,8 +212,6 @@ public class TypeChecker {
                 } else {
                     this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
                 }
-            } else {
-                this.errors.add(new UnknownTypeError(statement.name.typeAnnotation));
             }
         } else {
             type = valueTypeResult.type;
@@ -204,13 +233,11 @@ public class TypeChecker {
                     }
                 });
             } else {
-                Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(parameter.typeAnnotation);
+                Optional<MegaType> declaredTypeOpt = this.resolveType(parameter.typeAnnotation);
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
                     childEnv.add(parameter.value, type, true);
-                } else {
-                    this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
                 }
             }
         }
@@ -419,13 +446,11 @@ public class TypeChecker {
                     }
                 });
             } else {
-                Optional<MegaType> declaredTypeOpt = PrimitiveTypes.byDisplayName(parameter.typeAnnotation);
+                Optional<MegaType> declaredTypeOpt = this.resolveType(parameter.typeAnnotation);
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
                     childEnv.add(parameter.value, type, true);
-                } else {
-                    this.errors.add(new UnknownTypeError(parameter.typeAnnotation));
                 }
             }
         }

@@ -10,9 +10,11 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 public abstract class MegaType {
     abstract public String displayName();
+
     abstract public boolean isEquivalentTo(MegaType other);
 
-    public @Nullable List<MegaType> typeArgs() {
+    @Nullable
+    public List<MegaType> typeArgs() {
         return null;
     }
 
@@ -24,7 +26,7 @@ public abstract class MegaType {
 
         String typeArgsStr = typeArgs.stream()
             .map(MegaType::signature)
-            .collect(joining(", ", "<", ">"));
+            .collect(joining(", ", "[", "]"));
         return String.format("%s%s", displayName(), typeArgsStr);
     }
 

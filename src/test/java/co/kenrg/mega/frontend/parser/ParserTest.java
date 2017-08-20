@@ -1,5 +1,7 @@
 package co.kenrg.mega.frontend.parser;
 
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static co.kenrg.mega.frontend.token.TokenType.FALSE;
 import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
 import static co.kenrg.mega.frontend.token.TokenType.IDENT;
@@ -7,8 +9,6 @@ import static co.kenrg.mega.frontend.token.TokenType.INT;
 import static co.kenrg.mega.frontend.token.TokenType.PLUS;
 import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static co.kenrg.mega.frontend.token.TokenType.TRUE;
-import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
-import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -48,6 +48,10 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
+import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
 import com.google.common.collect.ImmutableMap;
@@ -90,10 +94,10 @@ class ParserTest {
         class TestCase {
             private final String input;
             private final String identName;
-            private final String identType;
+            private final TypeExpression identType;
             private final Function<Statement, Identifier> getIdentifier;
 
-            private TestCase(String input, String identName, String identType, Function<Statement, Identifier> getIdentifier) {
+            private TestCase(String input, String identName, TypeExpression identType, Function<Statement, Identifier> getIdentifier) {
                 this.input = input;
                 this.identName = identName;
                 this.identType = identType;
@@ -101,24 +105,74 @@ class ParserTest {
             }
         }
 
+        BasicTypeExpression intType = new BasicTypeExpression("Int");
+        BasicTypeExpression strType = new BasicTypeExpression("String");
+
         Function<Statement, Identifier> getLetStmtIdent = s -> ((LetStatement) s).name;
         Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
         Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
         Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i);
         List<TestCase> tests = Lists.newArrayList(
-            new TestCase("let x: Int = 4", "x", "Int", getLetStmtIdent),
-            new TestCase("let s: String = \"asdf\"", "s", "String", getLetStmtIdent),
+            new TestCase(
+                "let x: Int = 4",
+                "x",
+                intType,
+                getLetStmtIdent
+            ),
+            new TestCase(
+                "let s: String = \"asdf\"",
+                "s",
+                strType,
+                getLetStmtIdent
+            ),
+            new TestCase(
+                "let s: Array[String] = [\"asdf\"]",
+                "s",
+                new ParametrizedTypeExpression("Array", Lists.newArrayList(strType)),
+                getLetStmtIdent
+            ),
+            new TestCase(
+                "let s: Array[Array[String]] = [[\"asdf\"]]",
+                "s",
+                new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(strType)))),
+                getLetStmtIdent
+            ),
+            new TestCase(
+                "let s: SomeType[A, B] = [[\"asdf\"]]",
+                "s",
+                new ParametrizedTypeExpression("SomeType", Lists.newArrayList(new BasicTypeExpression("A"), new BasicTypeExpression("B"))),
+                getLetStmtIdent
+            ),
 
-            new TestCase("var x: Int = 4", "x", "Int", getVarStmtIdent),
-            new TestCase("var s: String = \"asdf\"", "s", "String", getVarStmtIdent),
+            new TestCase("var x: Int = 4", "x", intType, getVarStmtIdent),
+            new TestCase("var s: String = \"asdf\"", "s", strType, getVarStmtIdent),
 
-            new TestCase("func abc(a: Int, b: Int) { a + b }", "a", "Int", getFuncStmtParamIdent.apply(0)),
-            new TestCase("func abc(a: Int, b: Int) { a + b }", "b", "Int", getFuncStmtParamIdent.apply(1)),
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "a", intType, getFuncStmtParamIdent.apply(0)),
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "b", intType, getFuncStmtParamIdent.apply(1)),
 
-            new TestCase("(a: String, b: String) => a + b", "a", "String", getArrowFuncExprParamIdent.apply(0)),
-            new TestCase("(a: String, b: String) => a + b", "b", "String", getArrowFuncExprParamIdent.apply(1)),
+            new TestCase("(a: String, b: String) => a + b", "a", strType, getArrowFuncExprParamIdent.apply(0)),
+            new TestCase("(a: String, b: String) => a + b", "b", strType, getArrowFuncExprParamIdent.apply(1)),
             new TestCase("(a, b: String) => a + b", "a", null, getArrowFuncExprParamIdent.apply(0)),
-            new TestCase("(a: String, b) => a + b", "b", null, getArrowFuncExprParamIdent.apply(1))
+            new TestCase("(a: String, b) => a + b", "b", null, getArrowFuncExprParamIdent.apply(1)),
+
+            new TestCase(
+                "(a: (Int, Int) => String, b: Int, c: Int) => a(b, c)",
+                "a",
+                new FunctionTypeExpression(Lists.newArrayList(intType, intType), strType),
+                getArrowFuncExprParamIdent.apply(0)
+            ),
+            new TestCase(
+                "(a: (Int) => String, b: Int) => a(b)",
+                "a",
+                new FunctionTypeExpression(Lists.newArrayList(intType), strType),
+                getArrowFuncExprParamIdent.apply(0)
+            ),
+            new TestCase(
+                "(a: Int => String, b: Int) => a(b)",
+                "a",
+                new FunctionTypeExpression(Lists.newArrayList(intType), strType),
+                getArrowFuncExprParamIdent.apply(0)
+            )
         );
 
         return tests.stream()
@@ -126,7 +180,7 @@ class ParserTest {
                     String input = testCase.input;
                     Function<Statement, Identifier> getIdentifier = testCase.getIdentifier;
                     String identName = testCase.identName;
-                    String identType = testCase.identType;
+                    TypeExpression identType = testCase.identType;
 
                     String testName = String.format("The identifier `%s` should have type `%s` in %s", identName, identType, input);
                     return dynamicTest(testName, () -> {

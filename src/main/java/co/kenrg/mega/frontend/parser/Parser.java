@@ -4,6 +4,7 @@ import static co.kenrg.mega.frontend.parser.Precedence.LOWEST;
 import static co.kenrg.mega.frontend.parser.Precedence.PREFIX;
 import static java.util.stream.Collectors.toMap;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -35,6 +36,10 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
+import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
@@ -235,12 +240,79 @@ public class Parser {
         this.nextToken();
         this.nextToken();
 
-        String type = this.parseTypeAnnotation();
+        TypeExpression type = this.parseTypeAnnotation();
         return new Identifier(t, ident, type);
     }
 
-    private String parseTypeAnnotation() {
-        return this.curTok.literal;
+    @Nullable
+    private TypeExpression parseTypeAnnotation() {
+        // Type annotations can take one of 5 forms:
+        // 1. A single type:                           Int
+        // 2. A type w/ type arg(s):                   Array[Int] or Map[String, Int]
+        // 3. A function with 1 param (no parens):     Int => String
+        // 4. A function with 1 param (w/ parens):     (Int) => String
+        // 5. A function with many params:             (Int, String) => String
+
+        // Handle cases which begin with an identifier (1, 2, 3)
+        if (this.curTokenIs(TokenType.IDENT)) {
+            String baseType = this.curTok.literal;
+
+            if (this.peekTokenIs(TokenType.LBRACK)) {
+                this.nextToken();
+                this.nextToken();
+
+                List<TypeExpression> typeArgs = Lists.newArrayList();
+                typeArgs.add(this.parseTypeAnnotation());
+
+                while (this.peekTokenIs(TokenType.COMMA)) {
+                    this.nextToken();   // Consume ','
+                    this.nextToken();
+
+                    typeArgs.add(this.parseTypeAnnotation());
+                }
+
+                if (!expectPeek(TokenType.RBRACK)) {
+                    return null;
+                }
+                return new ParametrizedTypeExpression(baseType, typeArgs);
+            } else if (this.peekTokenIs(TokenType.ARROW)) {
+                this.nextToken();
+                this.nextToken();
+
+                TypeExpression returnTypeExpr = this.parseTypeAnnotation();
+                return new FunctionTypeExpression(Lists.newArrayList(new BasicTypeExpression(baseType)), returnTypeExpr);
+            }
+
+            return new BasicTypeExpression(baseType);
+        }
+
+        // Handle cases which begin with a left paren (4, 5)
+        if (this.curTokenIs(TokenType.LPAREN)) {
+            this.nextToken();
+
+            List<TypeExpression> typeArgs = Lists.newArrayList();
+            typeArgs.add(this.parseTypeAnnotation());
+
+            while (this.peekTokenIs(TokenType.COMMA)) {
+                this.nextToken();   // Consume ','
+                this.nextToken();
+
+                typeArgs.add(this.parseTypeAnnotation());
+            }
+
+            if (!expectPeek(TokenType.RPAREN)) {
+                return null;
+            }
+            if (!expectPeek(TokenType.ARROW)) {
+                return null;
+            }
+            this.nextToken();
+
+            TypeExpression returnType = this.parseTypeAnnotation();
+            return new FunctionTypeExpression(typeArgs, returnType);
+        }
+
+        return null;
     }
 
     // func <name>([<param> [, <param>]*]) { <stmts> }

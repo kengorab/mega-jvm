@@ -257,7 +257,7 @@ class TypeCheckerTest {
     @Test
     public void testTypecheckEmptyArray_arrayOfNothing() {
         MegaType type = testTypecheckExpression("[]");
-        assertEquals("Array<Nothing>", type.signature());
+        assertEquals("Array[Nothing]", type.signature());
         assertEquals(Lists.newArrayList(PrimitiveTypes.NOTHING), type.typeArgs());
     }
 
