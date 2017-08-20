@@ -25,6 +25,7 @@ import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -126,6 +127,8 @@ public class TypeChecker {
             type = this.typecheckIndexExpression((IndexExpression) node, env);
         } else if (node instanceof AssignmentExpression) {
             type = this.typecheckAssignmentExpression((AssignmentExpression) node, env);
+        } else if (node instanceof RangeExpression) {
+            type = this.typecheckRangeExpression((RangeExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -488,5 +491,19 @@ public class TypeChecker {
             default:
                 return PrimitiveTypes.UNIT;
         }
+    }
+
+    private MegaType typecheckRangeExpression(RangeExpression expr, TypeEnvironment env) {
+        MegaType leftBoundType = typecheckNode(expr.leftBound, env).type;
+        if (!PrimitiveTypes.INTEGER.isEquivalentTo(leftBoundType)) {
+            this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, leftBoundType));
+        }
+
+        MegaType rightBoundType = typecheckNode(expr.rightBound, env).type;
+        if (!PrimitiveTypes.INTEGER.isEquivalentTo(rightBoundType)) {
+            this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightBoundType));
+        }
+
+        return new ArrayType(PrimitiveTypes.INTEGER);
     }
 }

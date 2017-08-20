@@ -878,4 +878,80 @@ class TypeCheckerTest {
             })
             .collect(toList());
     }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckRangeExpression() {
+        List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
+            Pair.of("1..3", ImmutableMap.of()),
+            Pair.of("-1..3", ImmutableMap.of()),
+            Pair.of("a..c", ImmutableMap.of("a", PrimitiveTypes.INTEGER, "c", PrimitiveTypes.INTEGER))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                Map<String, MegaType> environment = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, new ArrayType(PrimitiveTypes.INTEGER).signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    environment.forEach((key, value) -> env.add(key, value, false));
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(new ArrayType(PrimitiveTypes.INTEGER), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckRangeExpression_errors() {
+        List<Triple<String, Map<String, MegaType>, TypeCheckerError>> testCases = Lists.newArrayList(
+            Triple.of(
+                "'a'..'z'",
+                ImmutableMap.of(),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+            ),
+            Triple.of(
+                "1.4..1.9",
+                ImmutableMap.of(),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)
+            ),
+            Triple.of(
+                "true..false",
+                ImmutableMap.of(),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.BOOLEAN)
+            ),
+            Triple.of(
+                "[1, 2]..[4, 5]",
+                ImmutableMap.of(),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, new ArrayType(PrimitiveTypes.INTEGER))
+            ),
+            Triple.of(
+                "a..d",
+                ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER))),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
+            ),
+            Triple.of(
+                "((a: Int) => a)..((b: Int) => b)",
+                ImmutableMap.of(),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should fail to typecheck", testCase.getLeft());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    testCase.getMiddle().forEach((key, value) -> env.add(key, value, true));
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
+                    assertEquals(new ArrayType(PrimitiveTypes.INTEGER), result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(testCase.getRight(), result.errors.get(0));
+                });
+            })
+            .collect(toList());
+    }
 }
