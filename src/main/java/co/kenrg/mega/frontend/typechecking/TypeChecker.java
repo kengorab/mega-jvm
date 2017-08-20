@@ -24,6 +24,7 @@ import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
@@ -76,6 +77,8 @@ public class TypeChecker {
             this.typecheckVarStatement((VarStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
             this.typecheckFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
+        } else if (node instanceof ForLoopStatement) {
+            this.typecheckForLoopStatement((ForLoopStatement) node, env);
         }
 
         if (node instanceof IntegerLiteral) {
@@ -205,6 +208,21 @@ public class TypeChecker {
         }
 
         env.add(statement.name.value, new FunctionType(paramTypes, returnType), true);
+    }
+
+    private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
+        String iterator = statement.iterator.value;
+
+        MegaType iterateeType = typecheckNode(statement.iteratee, env).type;
+        ArrayType arrayAnyType = new ArrayType(PrimitiveTypes.ANY);
+        if (!arrayAnyType.isEquivalentTo(iterateeType)) {
+            this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
+            env.add(iterator, unknownType, true);
+        } else {
+            env.add(iterator, ((ArrayType) iterateeType).typeArg, true);
+        }
+
+        typecheckNode(statement.block, env);
     }
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {

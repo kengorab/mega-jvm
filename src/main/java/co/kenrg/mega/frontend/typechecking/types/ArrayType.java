@@ -5,7 +5,7 @@ import java.util.List;
 import com.google.common.collect.Lists;
 
 public class ArrayType extends MegaType {
-    private final MegaType typeArg;
+    public final MegaType typeArg;
 
     public ArrayType(MegaType typeArg) {
         this.typeArg = typeArg;

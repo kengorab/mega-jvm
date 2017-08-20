@@ -211,6 +211,43 @@ class TypeCheckerTest {
     }
 
     @Test
+    public void testTypecheckForLoopStatement() {
+        String input = "for x in arr { let a: Int = x }";
+
+        TypeEnvironment env = new TypeEnvironment();
+        env.add("arr", new ArrayType(PrimitiveTypes.INTEGER), true);
+
+        TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
+        assertEquals(PrimitiveTypes.UNIT, result.node.type);
+        assertTrue(result.errors.isEmpty(), "There should be no typechecking errors");
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckForLoopStatement_errors() {
+        List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("for x in 123 { }", new ArrayType(PrimitiveTypes.ANY), PrimitiveTypes.INTEGER),
+            Triple.of("for x in \"asdf\" { }", new ArrayType(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
+            Triple.of("for x in [1, 2, 3] { let a: Float = x }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should typecheck to Unit, binding should fail to typecheck", testCase.getLeft());
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft());
+                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(
+                        new TypeMismatchError(testCase.getMiddle(), testCase.getRight()),
+                        result.errors.get(0)
+                    );
+                });
+            })
+            .collect(toList());
+    }
+
+    @Test
     public void testTypecheckEmptyArray_arrayOfNothing() {
         MegaType type = testTypecheckExpression("[]");
         assertEquals("Array<Nothing>", type.signature());

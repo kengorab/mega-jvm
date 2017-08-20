@@ -82,6 +82,18 @@ public class PrimitiveTypes {
         }
     };
 
+    public static final MegaType ANY = new MegaType() {
+        @Override
+        public String displayName() {
+            return "Any";
+        }
+
+        @Override
+        public boolean isEquivalentTo(MegaType other) {
+            return true;
+        }
+    };
+
     public static final MegaType NUMBER = new UnionType(INTEGER, FLOAT);
 
     public static final Map<String, MegaType> ALL =
