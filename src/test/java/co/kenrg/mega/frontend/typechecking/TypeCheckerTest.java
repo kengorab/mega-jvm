@@ -375,4 +375,193 @@ class TypeCheckerTest {
             })
             .collect(toList());
     }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckInfixOperator() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            //TODO: Implement lexing/parsing of boolean and/or (&&, ||) infix operators
+            // Boolean and/or
+            // Pair.of("true && false", PrimitiveTypes.BOOLEAN),
+            // Pair.of("true || false", PrimitiveTypes.BOOLEAN),
+
+            // Inequalities
+            Pair.of("1 < 2", PrimitiveTypes.BOOLEAN),
+            Pair.of("1.2 > 3", PrimitiveTypes.BOOLEAN),
+            Pair.of("1 <= 2", PrimitiveTypes.BOOLEAN),
+            Pair.of("1.2 >= 3", PrimitiveTypes.BOOLEAN),
+
+            // Equalities
+            Pair.of("1 == 1", PrimitiveTypes.BOOLEAN),
+            Pair.of("1.3 == 1", PrimitiveTypes.BOOLEAN),
+            Pair.of("'asdf' == 'qwer'", PrimitiveTypes.BOOLEAN),
+            Pair.of("[1, 2, 3] == [2, 3, 4]", PrimitiveTypes.BOOLEAN),
+            Pair.of("{ a: 1, b: 2 } == { b: 1, c: 2 }", PrimitiveTypes.BOOLEAN),
+            Pair.of("1 != 1", PrimitiveTypes.BOOLEAN),
+            Pair.of("1.3 != 1", PrimitiveTypes.BOOLEAN),
+            Pair.of("'asdf' != 'qwer'", PrimitiveTypes.BOOLEAN),
+            Pair.of("[1, 2, 3] != [2, 3, 4]", PrimitiveTypes.BOOLEAN),
+            Pair.of("{ a: 1, b: 2 } != { b: 1, c: 2 }", PrimitiveTypes.BOOLEAN),
+
+            // Mathematical operations
+            Pair.of("1 + 3", PrimitiveTypes.INTEGER),
+            Pair.of("1.4 + 3", PrimitiveTypes.FLOAT),
+            Pair.of("1 + 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1.3 + 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1 - 3", PrimitiveTypes.INTEGER),
+            Pair.of("1.4 - 3", PrimitiveTypes.FLOAT),
+            Pair.of("1 - 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1.3 - 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1 * 3", PrimitiveTypes.INTEGER),
+            Pair.of("1.4 * 3", PrimitiveTypes.FLOAT),
+            Pair.of("1 * 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1.3 * 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1 / 3", PrimitiveTypes.INTEGER),
+            Pair.of("1.4 / 3", PrimitiveTypes.FLOAT),
+            Pair.of("1 / 3.2", PrimitiveTypes.FLOAT),
+            Pair.of("1.3 / 3.2", PrimitiveTypes.FLOAT),
+
+            // String concatenation
+            Pair.of("'asdf' + 'qwer'", PrimitiveTypes.STRING),
+            Pair.of("3 + 'qwer'", PrimitiveTypes.STRING),
+            Pair.of("3.3 + 'qwer'", PrimitiveTypes.STRING),
+            Pair.of("[3, 4] + 'qwer'", PrimitiveTypes.STRING),
+            Pair.of("'asdf' + 3", PrimitiveTypes.STRING),
+            Pair.of("'asdf' + 3.3", PrimitiveTypes.STRING),
+            Pair.of("'asdf' + [3, 4]", PrimitiveTypes.STRING),
+
+            // String repetition
+            Pair.of("'asdf' * 3", PrimitiveTypes.STRING),
+            Pair.of("3 * 'asdf'", PrimitiveTypes.STRING)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckInfixOperator_errors() {
+        class TestCase {
+            public final String input;
+            public final MegaType expected;
+            public final MegaType actual;
+            public final MegaType overallType;
+
+            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType) {
+                this.input = input;
+                this.expected = expected;
+                this.actual = actual;
+                this.overallType = overallType;
+            }
+        }
+
+        List<TestCase> testCases = Lists.newArrayList(
+            //TODO: Implement error testing of boolean and/or
+            // Boolean and/or
+            // Pair.of("true && false", PrimitiveTypes.BOOLEAN),
+            // Pair.of("true || false", PrimitiveTypes.BOOLEAN),
+
+            // Inequalities
+            new TestCase("\"a\" < 3", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
+            new TestCase("3 > \"a\"", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
+            new TestCase("[3, 4] <= 3", PrimitiveTypes.NUMBER, new ArrayType(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
+            new TestCase("3 >= [3, 4]", PrimitiveTypes.NUMBER, new ArrayType(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
+
+            new TestCase("'asdf' * 1.3", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING),
+            new TestCase("'asdf' * [1.3]", PrimitiveTypes.INTEGER, new ArrayType(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
+            new TestCase("'asdf' * [1, 2]", PrimitiveTypes.INTEGER, new ArrayType(PrimitiveTypes.INTEGER), PrimitiveTypes.STRING),
+            new TestCase("'asdf' * 'asdf'", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, PrimitiveTypes.STRING)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should fail to typecheck", testCase.input);
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.input);
+                    assertEquals(testCase.overallType, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(
+                        new TypeMismatchError(testCase.expected, testCase.actual),
+                        result.errors.get(0)
+                    );
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckIfExpression() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            // When given no else-block, if-expr is typed to Unit
+            Pair.of("if true { 1 + 2 }", PrimitiveTypes.UNIT),
+            Pair.of("if true { \"asdf\" + 2 }", PrimitiveTypes.UNIT),
+            Pair.of("if true { let a = 1; 1 + 2 }", PrimitiveTypes.UNIT),
+
+            Pair.of("if true { 1 } else { 2 }", PrimitiveTypes.INTEGER),
+            Pair.of("if true { 1.2 } else { 2.3 }", PrimitiveTypes.FLOAT),
+            Pair.of("if true { \"asdf\" } else { \"qwer\" }", PrimitiveTypes.STRING)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckIfExpression_errors() {
+        class TestCase {
+            public final String input;
+            public final MegaType expected;
+            public final MegaType actual;
+            public final MegaType overallType;
+
+            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType) {
+                this.input = input;
+                this.expected = expected;
+                this.actual = actual;
+                this.overallType = overallType;
+            }
+        }
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
+            new TestCase("if true { 1.2 } else { 2 }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT),
+            new TestCase("if true { 1 } else { 2.1 }", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should fail to typecheck", testCase.input);
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.input);
+                    // Even though typechecking fails, there should still be some kind of overall type returned, even if it's <unknown>.
+                    assertEquals(testCase.overallType, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(
+                        new TypeMismatchError(testCase.expected, testCase.actual),
+                        result.errors.get(0)
+                    );
+                });
+            })
+            .collect(toList());
+    }
 }

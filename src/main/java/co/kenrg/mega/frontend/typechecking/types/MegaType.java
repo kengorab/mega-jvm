@@ -10,6 +10,7 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 public abstract class MegaType {
     abstract public String displayName();
+    abstract public boolean isEquivalentTo(MegaType other);
 
     public @Nullable List<MegaType> typeArgs() {
         return null;

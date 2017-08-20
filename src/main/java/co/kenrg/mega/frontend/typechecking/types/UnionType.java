@@ -22,4 +22,9 @@ public class UnionType extends MegaType {
             .map(MegaType::signature)
             .collect(joining(" | "));
     }
+
+    @Override
+    public boolean isEquivalentTo(MegaType other) {
+        return this.components.contains(other);
+    }
 }

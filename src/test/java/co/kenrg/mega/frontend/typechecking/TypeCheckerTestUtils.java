@@ -2,6 +2,7 @@ package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -9,7 +10,9 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class TypeCheckerTestUtils {
     public static MegaType testTypecheckExpression(String input) {
-        return testTypecheckExpressionAndGetResult(input).node.type;
+        TypeCheckResult typeCheckResult = testTypecheckExpressionAndGetResult(input);
+        assertTrue(typeCheckResult.errors.isEmpty(), "There should be no typechecking errors");
+        return typeCheckResult.node.type;
     }
 
     public static TypeCheckResult testTypecheckExpressionAndGetResult(String input) {
@@ -32,6 +35,7 @@ public class TypeCheckerTestUtils {
 
     public static MegaType testTypecheckStatement(String input, TypeEnvironment env) {
         TypeCheckResult typecheckResult = testTypecheckStatementAndGetResult(input, env);
+        assertTrue(typecheckResult.errors.isEmpty(), "There should be no typechecking errors");
         return typecheckResult.node.type;
     }
 

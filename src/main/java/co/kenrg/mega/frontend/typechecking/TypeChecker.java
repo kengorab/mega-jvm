@@ -8,8 +8,11 @@ import java.util.Optional;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
@@ -28,7 +31,6 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
-import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.Lists;
 
 public class TypeChecker {
@@ -36,6 +38,11 @@ public class TypeChecker {
         @Override
         public String displayName() {
             return "<unknown>";
+        }
+
+        @Override
+        public boolean isEquivalentTo(MegaType other) {
+            return false;
         }
     };
 
@@ -81,6 +88,12 @@ public class TypeChecker {
             type = this.typecheckNode(((ParenthesizedExpression) node).expr, env).type;
         } else if (node instanceof PrefixExpression) {
             type = this.typecheckPrefixExpression((PrefixExpression) node, env);
+        } else if (node instanceof InfixExpression) {
+            type = this.typecheckInfixExpression((InfixExpression) node, env);
+        } else if (node instanceof IfExpression) {
+            type = this.typecheckIfExpression((IfExpression) node, env);
+        } else if (node instanceof BlockExpression) {
+            type = this.typecheckBlockExpression((BlockExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -183,16 +196,114 @@ public class TypeChecker {
                 return PrimitiveTypes.BOOLEAN;
             case "-": {
                 MegaType exprType = typecheckNode(expr.expression, env).type;
-                if (exprType.equals(PrimitiveTypes.INTEGER) || exprType.equals(PrimitiveTypes.FLOAT)) {
+                if (PrimitiveTypes.NUMBER.isEquivalentTo(exprType)) {
                     return exprType;
                 } else {
-                    MegaType type = new UnionType(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT);
-                    this.errors.add(new TypeMismatchError(type, exprType));
+                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, exprType));
                     return unknownType;
                 }
             }
             default:
                 return unknownType;
         }
+    }
+
+    private MegaType typecheckInfixExpression(InfixExpression expr, TypeEnvironment env) {
+        MegaType leftType = typecheckNode(expr.left, env).type;
+        MegaType rightType = typecheckNode(expr.right, env).type;
+
+        switch (expr.operator) {
+            //TODO: Implement lexing/parsing of boolean and/or (&&, ||) infix operators
+            case "&&":
+            case "||":
+                if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(leftType)) {
+                    this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, leftType));
+                }
+                if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(rightType)) {
+                    this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, rightType));
+                }
+                return PrimitiveTypes.BOOLEAN;
+            case "<":
+            case ">":
+            case "<=":
+            case ">=":
+                if (!PrimitiveTypes.NUMBER.isEquivalentTo(leftType)) {
+                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, leftType));
+                }
+                if (!PrimitiveTypes.NUMBER.isEquivalentTo(rightType)) {
+                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, rightType));
+                }
+                return PrimitiveTypes.BOOLEAN;
+            case "==":
+            case "!=":
+                return PrimitiveTypes.BOOLEAN;
+            default:
+                if (PrimitiveTypes.NUMBER.isEquivalentTo(leftType) && PrimitiveTypes.NUMBER.isEquivalentTo(rightType)) {
+                    if (PrimitiveTypes.INTEGER.isEquivalentTo(leftType) && PrimitiveTypes.INTEGER.isEquivalentTo(rightType)) {
+                        return PrimitiveTypes.INTEGER;
+                    } else {
+                        return PrimitiveTypes.FLOAT;
+                    }
+                }
+
+                if (PrimitiveTypes.STRING.isEquivalentTo(leftType) || PrimitiveTypes.STRING.isEquivalentTo(rightType)) {
+                    switch (expr.operator) {
+                        case "+":
+                            return PrimitiveTypes.STRING;
+                        case "*":
+                            if (PrimitiveTypes.STRING.isEquivalentTo(leftType)) {
+                                if (!PrimitiveTypes.INTEGER.isEquivalentTo(rightType)) {
+                                    this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightType));
+                                }
+                            }
+                            if (PrimitiveTypes.STRING.isEquivalentTo(rightType)) {
+                                if (!PrimitiveTypes.INTEGER.isEquivalentTo(leftType)) {
+                                    this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, leftType));
+                                }
+                            }
+                            return PrimitiveTypes.STRING;
+                        default:
+                            // Unknown String operator
+                            return unknownType;
+                    }
+                }
+
+                // Unknown operator
+                return unknownType;
+        }
+    }
+
+    private MegaType typecheckIfExpression(IfExpression expr, TypeEnvironment env) {
+        MegaType conditionType = typecheckNode(expr.condition, env).type;
+        if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(conditionType)) {
+            this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, conditionType));
+        }
+
+        MegaType thenBlockType = typecheckNode(expr.thenExpr, env).type;
+
+        if (expr.elseExpr != null) {
+            MegaType elseBlockType = typecheckNode(expr.elseExpr, env).type;
+            if (!thenBlockType.isEquivalentTo(elseBlockType)) {
+                this.errors.add(new TypeMismatchError(thenBlockType, elseBlockType));
+            }
+            return thenBlockType;
+        } else {
+            return PrimitiveTypes.UNIT;
+        }
+    }
+
+    private MegaType typecheckBlockExpression(BlockExpression expr, TypeEnvironment env) {
+        List<Statement> statements = expr.statements;
+
+        // An empty block-expr should have type Unit
+        MegaType blockType = PrimitiveTypes.UNIT;
+
+        for (int i = 0; i < statements.size(); i++) {
+            MegaType type = typecheckNode(statements.get(i), env).type;
+            if (i == statements.size() - 1) {
+                blockType = type;
+            }
+        }
+        return blockType;
     }
 }

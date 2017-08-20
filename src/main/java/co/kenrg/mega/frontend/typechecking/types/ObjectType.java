@@ -17,4 +17,9 @@ public class ObjectType extends MegaType {
             .map(entry -> entry.getKey() + ": " + entry.getValue().signature())
             .collect(joining(", ", "{ ", " }"));
     }
+
+    @Override
+    public boolean isEquivalentTo(MegaType other) {
+        return other instanceof ObjectType && this.properties.equals(((ObjectType) other).properties);
+    }
 }

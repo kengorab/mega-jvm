@@ -17,6 +17,11 @@ public class ArrayType extends MegaType {
     }
 
     @Override
+    public boolean isEquivalentTo(MegaType other) {
+        return other instanceof ArrayType && this.typeArg.isEquivalentTo(((ArrayType) other).typeArg);
+    }
+
+    @Override
     public List<MegaType> typeArgs() {
         return Lists.newArrayList(this.typeArg);
     }
