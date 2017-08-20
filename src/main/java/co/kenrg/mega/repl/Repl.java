@@ -8,6 +8,7 @@ import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeChecker;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
+import co.kenrg.mega.repl.commands.Commands;
 import co.kenrg.mega.repl.evaluator.Environment;
 import co.kenrg.mega.repl.evaluator.Evaluator;
 import co.kenrg.mega.repl.object.NullObj;
@@ -29,7 +30,11 @@ public class Repl {
         while (true) {
             try {
                 String line = reader.readLine(prompt);
-                readEvalPrint(line, env, typeEnv);
+                if (Commands.shouldHandleLine(line)) {
+                    System.out.println(Commands.handleLine(line, typeEnv, env));
+                } else {
+                    readEvalPrint(line, env, typeEnv);
+                }
             } catch (UserInterruptException | EndOfFileException e) {
                 System.out.println("Bye for now!");
                 return;
