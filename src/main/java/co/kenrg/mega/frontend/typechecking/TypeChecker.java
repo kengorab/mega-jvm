@@ -11,6 +11,7 @@ import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
@@ -94,6 +95,8 @@ public class TypeChecker {
             type = this.typecheckIfExpression((IfExpression) node, env);
         } else if (node instanceof BlockExpression) {
             type = this.typecheckBlockExpression((BlockExpression) node, env);
+        } else if (node instanceof Identifier) {
+            type = this.typecheckIdentifier((Identifier) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -268,7 +271,7 @@ public class TypeChecker {
                     }
                 }
 
-                // Unknown operator
+                // Unknown operator, or incoming types are already <unknown>
                 return unknownType;
         }
     }
@@ -305,5 +308,10 @@ public class TypeChecker {
             }
         }
         return blockType;
+    }
+
+    private MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env) {
+        MegaType identifierType = env.get(identifier.value);
+        return identifierType == null ? unknownType : identifierType;
     }
 }

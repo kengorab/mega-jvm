@@ -1,5 +1,6 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -32,6 +33,7 @@ public class TypeEnvironment {
         return child;
     }
 
+    @Nullable
     public MegaType get(String name) {
         if (store.containsKey(name)) {
             return store.get(name).type;

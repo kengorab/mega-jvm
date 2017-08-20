@@ -564,4 +564,30 @@ class TypeCheckerTest {
             })
             .collect(toList());
     }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckIdentifier() {
+        List<Triple<String, Map<String, MegaType>, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("a", ImmutableMap.of("a", PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
+            Triple.of("-a", ImmutableMap.of("a", PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
+            Triple.of("a + 1", ImmutableMap.of(), TypeChecker.unknownType)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                Map<String, MegaType> environment = testCase.getMiddle();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    environment.forEach((key, value) -> env.add(key, value, true));
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
 }

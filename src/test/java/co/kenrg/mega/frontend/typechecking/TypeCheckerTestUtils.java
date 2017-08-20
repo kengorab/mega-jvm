@@ -15,8 +15,18 @@ public class TypeCheckerTestUtils {
         return typeCheckResult.node.type;
     }
 
+    public static MegaType testTypecheckExpression(String input, TypeEnvironment env) {
+        TypeCheckResult typeCheckResult = testTypecheckExpressionAndGetResult(input, env);
+        assertTrue(typeCheckResult.errors.isEmpty(), "There should be no typechecking errors");
+        return typeCheckResult.node.type;
+    }
+
     public static TypeCheckResult testTypecheckExpressionAndGetResult(String input) {
         TypeEnvironment env = new TypeEnvironment();
+        return testTypecheckExpressionAndGetResult(input, env);
+    }
+
+    public static TypeCheckResult testTypecheckExpressionAndGetResult(String input, TypeEnvironment env) {
         ExpressionStatement expressionStatement = parseExpressionStatement(input);
         TypeChecker typeChecker = new TypeChecker();
         TypeCheckResult<ExpressionStatement> typecheckResult = typeChecker.typecheck(expressionStatement, env);
