@@ -19,7 +19,7 @@ public class HelpCommand implements ReplCommand {
     public String detailedDescription() {
         return "Display high-level information about Mega REPL commands.\n" +
             "You can view deeper details about REPL commands by providing a command to the help\n" +
-            "command, e.g. :h :h (which displayed this message).";
+            "command, e.g. :h :h (which displays this message).";
     }
 
     @Override
