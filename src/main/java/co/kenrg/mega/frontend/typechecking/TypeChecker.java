@@ -1,16 +1,20 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static com.google.common.collect.Streams.zip;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
@@ -28,8 +32,11 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -37,6 +44,7 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeChecker {
     static final MegaType unknownType = new MegaType() {
@@ -107,6 +115,8 @@ public class TypeChecker {
             type = this.typecheckIdentifier((Identifier) node, env);
         } else if (node instanceof ArrowFunctionExpression) {
             type = this.typecheckArrowFunctionExpression((ArrowFunctionExpression) node, env);
+        } else if (node instanceof CallExpression) {
+            type = this.typecheckCallExpression((CallExpression) node, env);
         }
 
         return new TypedNode<>(node, type);
@@ -406,5 +416,28 @@ public class TypeChecker {
 
         MegaType returnType = typecheckNode(expr.body, env).type;
         return new FunctionType(paramTypes, returnType);
+    }
+
+    private MegaType typecheckCallExpression(CallExpression expr, TypeEnvironment env) {
+        MegaType targetType = typecheckNode(expr.target, env).type;
+        if (!(targetType instanceof FunctionType)) {
+            this.errors.add(new UninvokeableTypeError(targetType));
+            return unknownType;
+        }
+        FunctionType funcType = (FunctionType) targetType;
+
+        if (funcType.paramTypes.size() != expr.arguments.size()) {
+            this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size()));
+        }
+
+        List<MegaType> providedTypes = expr.arguments.stream().map(arg -> typecheckNode(arg, env).type).collect(toList());
+
+        zip(funcType.paramTypes.stream(), providedTypes.stream(), Pair::of)
+            .map(pair -> !pair.getLeft().isEquivalentTo(pair.getRight()))
+            .filter(Predicate.isEqual(true))
+            .findFirst()
+            .ifPresent(isMismatch -> this.errors.add(new FunctionTypeError(funcType.paramTypes, providedTypes)));
+
+        return funcType.returnType;
     }
 }
