@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;
 import co.kenrg.mega.repl.evaluator.Environment;
 import org.apache.commons.cli.CommandLine;
@@ -33,24 +34,25 @@ public class Main {
         List<String> argList = command.getArgList();
 
         if (argList.size() == 0) {
-            Repl.start(new Environment());
+            Repl.start(new Environment(), new TypeEnvironment());
             return;
         }
 
         if (argList.size() == 1) {
             Environment env = new Environment();
+            TypeEnvironment typeEnv = new TypeEnvironment();
             Path filepath = Paths.get(argList.get(0));
             try {
                 byte[] bytes = Files.readAllBytes(filepath);
                 String code = new String(bytes);
-                Repl.readEvalPrint(code, env);
+                Repl.readEvalPrint(code, env, typeEnv);
             } catch (IOException e) {
                 System.err.printf("No such file: %s\n", filepath.toAbsolutePath().toString());
                 System.exit(1);
             }
 
             if (command.hasOption('r')) {
-                Repl.start(env);
+                Repl.start(env, typeEnv);
             }
 
             return;
