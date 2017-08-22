@@ -37,7 +37,7 @@ public class TypeDetailsCommand implements ReplCommand {
     @Override
     public String execute(String input, TypeEnvironment typeEnvironment, Environment environment) {
         String identifier = input.replace(":t ", "");
-        MegaType type = typeEnvironment.get(identifier);
+        MegaType type = typeEnvironment.getTypeForBinding(identifier);
         if (type == null) {
             return String.format("Identifier %s unknown in this context", identifier);
         } else {

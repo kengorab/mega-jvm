@@ -140,7 +140,7 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    MegaType bindingType = env.get(testCase.getMiddle());
+                    MegaType bindingType = env.getTypeForBinding(testCase.getMiddle());
                     assertEquals(testCase.getRight(), bindingType);
                 });
             })
@@ -197,7 +197,7 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(input, env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    MegaType funcType = env.get(funcName);
+                    MegaType funcType = env.getTypeForBinding(funcName);
                     assertEquals(type, funcType);
                 });
             })
@@ -223,7 +223,7 @@ class TypeCheckerTest {
         String input = "for x in arr { let a: Int = x }";
 
         TypeEnvironment env = new TypeEnvironment();
-        env.add("arr", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), true);
+        env.addBindingWithType("arr", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), true);
 
         TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
         assertEquals(PrimitiveTypes.UNIT, result.node.type);
@@ -668,7 +668,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to %s", input, type.signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    environment.forEach((key, value) -> env.add(key, value, true));
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, true));
 
                     MegaType result = testTypecheckExpression(input, env);
                     assertEquals(type, result);
@@ -835,7 +835,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit", input);
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    environment.forEach((key, value) -> env.add(key, value, false));
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
 
                     MegaType result = testTypecheckExpression(input, env);
                     assertEquals(PrimitiveTypes.UNIT, result);
@@ -869,7 +869,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should fail to typecheck", testCase.getLeft());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    testCase.getMiddle().forEach((key, value) -> env.add(key, value.getLeft(), value.getRight()));
+                    testCase.getMiddle().forEach((key, value) -> env.addBindingWithType(key, value.getLeft(), value.getRight()));
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result.node.type);
 
@@ -896,7 +896,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to %s", input, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER).signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    environment.forEach((key, value) -> env.add(key, value, false));
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
 
                     MegaType result = testTypecheckExpression(input, env);
                     assertEquals(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), result);
@@ -945,7 +945,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should fail to typecheck", testCase.getLeft());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    testCase.getMiddle().forEach((key, value) -> env.add(key, value, true));
+                    testCase.getMiddle().forEach((key, value) -> env.addBindingWithType(key, value, true));
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
                     assertEquals(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), result.node.type);
 

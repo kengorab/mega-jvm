@@ -25,7 +25,7 @@ public class TypeEnvironment {
     }
 
     private TypeEnvironment parent;
-    private final Map<String, Binding> store = Maps.newHashMap();
+    private final Map<String, Binding> bindingTypesStore = Maps.newHashMap();
 
     public TypeEnvironment createChildEnvironment() {
         TypeEnvironment child = new TypeEnvironment();
@@ -34,39 +34,39 @@ public class TypeEnvironment {
     }
 
     @Nullable
-    public MegaType get(String name) {
-        if (store.containsKey(name)) {
-            return store.get(name).type;
+    public MegaType getTypeForBinding(String name) {
+        if (bindingTypesStore.containsKey(name)) {
+            return bindingTypesStore.get(name).type;
         }
 
         if (parent != null) {
-            return parent.get(name);
+            return parent.getTypeForBinding(name);
         }
 
         return null;
     }
 
-    public SetBindingStatus add(String name, MegaType type, boolean isImmutable) {
-        if (store.containsKey(name)) {
+    public SetBindingStatus addBindingWithType(String name, MegaType type, boolean isImmutable) {
+        if (bindingTypesStore.containsKey(name)) {
             return SetBindingStatus.E_DUPLICATE;
         }
 
-        store.put(name, new Binding(type, isImmutable));
+        bindingTypesStore.put(name, new Binding(type, isImmutable));
         return SetBindingStatus.NO_ERROR;
     }
 
-    public SetBindingStatus set(String name, MegaType type) {
-        if (store.containsKey(name) && store.get(name).isImmutable) {
+    public SetBindingStatus setTypeForBinding(String name, MegaType type) {
+        if (bindingTypesStore.containsKey(name) && bindingTypesStore.get(name).isImmutable) {
             return SetBindingStatus.E_IMMUTABLE;
-        } else if (!store.containsKey(name)) {
+        } else if (!bindingTypesStore.containsKey(name)) {
             if (this.parent != null) {
-                return this.parent.set(name, type);
+                return this.parent.setTypeForBinding(name, type);
             } else {
                 return SetBindingStatus.E_NOBINDING;
             }
         }
 
-        store.put(name, new Binding(type, false));
+        bindingTypesStore.put(name, new Binding(type, false));
         return SetBindingStatus.NO_ERROR;
     }
 }

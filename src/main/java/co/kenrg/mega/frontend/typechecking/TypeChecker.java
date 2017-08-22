@@ -194,7 +194,7 @@ public class TypeChecker {
             type = valueTypeResult.type;
         }
 
-        env.add(name, type, true);
+        env.addBindingWithType(name, type, true);
     }
 
     private void typecheckVarStatement(VarStatement statement, TypeEnvironment env) {
@@ -217,7 +217,7 @@ public class TypeChecker {
             type = valueTypeResult.type;
         }
 
-        env.add(name, type, false);
+        env.addBindingWithType(name, type, false);
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
@@ -237,7 +237,7 @@ public class TypeChecker {
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
-                    childEnv.add(parameter.value, type, true);
+                    childEnv.addBindingWithType(parameter.value, type, true);
                 }
             }
         }
@@ -251,13 +251,13 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType));
                 }
-                env.add(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
             } else {
                 this.errors.add(new UnknownTypeError(statement.typeAnnotation));
             }
         }
 
-        env.add(statement.name.value, new FunctionType(paramTypes, returnType), true);
+        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -268,9 +268,9 @@ public class TypeChecker {
         ArrayType arrayAnyType = ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY);
         if (!arrayAnyType.isEquivalentTo(iterateeType)) {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
-            childEnv.add(iterator, unknownType, true);
+            childEnv.addBindingWithType(iterator, unknownType, true);
         } else {
-            childEnv.add(iterator, ((ArrayType) iterateeType).typeArg, true);
+            childEnv.addBindingWithType(iterator, ((ArrayType) iterateeType).typeArg, true);
         }
 
         typecheckNode(statement.block, childEnv);
@@ -429,7 +429,7 @@ public class TypeChecker {
     }
 
     private MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env) {
-        MegaType identifierType = env.get(identifier.value);
+        MegaType identifierType = env.getTypeForBinding(identifier.value);
         return identifierType == null ? unknownType : identifierType;
     }
 
@@ -450,7 +450,7 @@ public class TypeChecker {
                 if (declaredTypeOpt.isPresent()) {
                     MegaType type = declaredTypeOpt.get();
                     paramTypes.add(type);
-                    childEnv.add(parameter.value, type, true);
+                    childEnv.addBindingWithType(parameter.value, type, true);
                 }
             }
         }
@@ -503,13 +503,13 @@ public class TypeChecker {
         String bindingName = expr.name.value;
         MegaType rightType = typecheckNode(expr.right, env).type;
 
-        MegaType type = env.get(bindingName);
+        MegaType type = env.getTypeForBinding(bindingName);
 
         if (type != null && !type.isEquivalentTo(rightType)) {
             this.errors.add(new TypeMismatchError(type, rightType));
         }
 
-        switch (env.set(bindingName, rightType)) {
+        switch (env.setTypeForBinding(bindingName, rightType)) {
             case E_IMMUTABLE:
                 this.errors.add(new MutabilityError(bindingName));
             case E_NOBINDING:
