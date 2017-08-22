@@ -10,8 +10,10 @@ func calculateSum(numbers) {
 
 calculateSum(numbers)
 
-struct type Engineer = {
-  age: Integer,
+type EmployeeId = Int
+
+type Engineer = {
+  id: EmployeeId,
   name: {
     firstName: String,
     lastName: String
@@ -19,11 +21,12 @@ struct type Engineer = {
 }
 
 type Manager = {
-  age: Integer,
+  id: EmployeeId,
+  teamMembers: Array[Engineer],
   name: {
     firstName: String,
     lastName: String
   }
 }
 
-type Person = Engineer | Manager
+type Employee = Engineer | Manager

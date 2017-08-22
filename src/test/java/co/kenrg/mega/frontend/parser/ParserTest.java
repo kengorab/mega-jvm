@@ -47,6 +47,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -987,6 +988,52 @@ class ParserTest {
         assertEquals("+", body.operator);
         assertIdentifier(body.left, "x");
         assertEquals(new IntegerLiteral(new Token(INT, "1"), 1), body.right);
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypeDeclarationStatement() {
+        class TestCase {
+            public final String input;
+            public final String typeName;
+            public final TypeExpression typeExpr;
+
+            public TestCase(String input, String typeName, TypeExpression typeExpr) {
+                this.input = input;
+                this.typeName = typeName;
+                this.typeExpr = typeExpr;
+            }
+        }
+
+        TypeExpression intType = new BasicTypeExpression("Int");
+        TypeExpression strType = new BasicTypeExpression("String");
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("type Id = Int", "Id", intType),
+            new TestCase("type Name = String", "Name", strType),
+            new TestCase("type Names = Array[String]", "Names", new ParametrizedTypeExpression("Array", Lists.newArrayList(strType))),
+            new TestCase("type Matrix = Array[Array[Int]]", "Matrix", new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(intType))))),
+            new TestCase("type UnaryOp = Int => Int", "UnaryOp", new FunctionTypeExpression(Lists.newArrayList(intType), intType)),
+            new TestCase("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionTypeExpression(Lists.newArrayList(intType), intType)),
+            new TestCase("type BinOp = (Int, Int) => Int", "BinOp", new FunctionTypeExpression(Lists.newArrayList(intType, intType), intType))
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                String typeName = testCase.typeName;
+                TypeExpression typeExpr = testCase.typeExpr;
+
+                String name = String.format("'%s' should declare type %s as %s", input, typeName, typeExpr.signature());
+                return dynamicTest(name, () -> {
+                    Statement statement = parseStatement(input);
+                    assertTrue(statement instanceof TypeDeclarationStatement);
+                    TypeDeclarationStatement typeDecl = (TypeDeclarationStatement) statement;
+
+                    assertEquals(typeName, typeDecl.typeName.value);
+                    assertEquals(typeExpr, typeDecl.typeExpr);
+                });
+            })
+            .collect(toList());
     }
 
     @TestFactory

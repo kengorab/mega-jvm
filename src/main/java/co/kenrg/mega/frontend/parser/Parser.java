@@ -35,6 +35,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -182,6 +183,8 @@ public class Parser {
                 return this.parseFunctionDeclarationStatement();
             case FOR:
                 return this.parseForInLoopStatement();
+            case TYPE:
+                return this.parseTypeDeclarationStatement();
             default:
                 return this.parseExpressionStatement();
         }
@@ -240,12 +243,12 @@ public class Parser {
         this.nextToken();
         this.nextToken();
 
-        TypeExpression type = this.parseTypeAnnotation();
+        TypeExpression type = this.parseTypeExpression();
         return new Identifier(t, ident, type);
     }
 
     @Nullable
-    private TypeExpression parseTypeAnnotation() {
+    private TypeExpression parseTypeExpression() {
         // Type annotations can take one of 5 forms:
         // 1. A single type:                           Int
         // 2. A type w/ type arg(s):                   Array[Int] or Map[String, Int]
@@ -262,13 +265,13 @@ public class Parser {
                 this.nextToken();
 
                 List<TypeExpression> typeArgs = Lists.newArrayList();
-                typeArgs.add(this.parseTypeAnnotation());
+                typeArgs.add(this.parseTypeExpression());
 
                 while (this.peekTokenIs(TokenType.COMMA)) {
                     this.nextToken();   // Consume ','
                     this.nextToken();
 
-                    typeArgs.add(this.parseTypeAnnotation());
+                    typeArgs.add(this.parseTypeExpression());
                 }
 
                 if (!expectPeek(TokenType.RBRACK)) {
@@ -279,7 +282,7 @@ public class Parser {
                 this.nextToken();
                 this.nextToken();
 
-                TypeExpression returnTypeExpr = this.parseTypeAnnotation();
+                TypeExpression returnTypeExpr = this.parseTypeExpression();
                 return new FunctionTypeExpression(Lists.newArrayList(new BasicTypeExpression(baseType)), returnTypeExpr);
             }
 
@@ -291,13 +294,13 @@ public class Parser {
             this.nextToken();
 
             List<TypeExpression> typeArgs = Lists.newArrayList();
-            typeArgs.add(this.parseTypeAnnotation());
+            typeArgs.add(this.parseTypeExpression());
 
             while (this.peekTokenIs(TokenType.COMMA)) {
                 this.nextToken();   // Consume ','
                 this.nextToken();
 
-                typeArgs.add(this.parseTypeAnnotation());
+                typeArgs.add(this.parseTypeExpression());
             }
 
             if (!expectPeek(TokenType.RPAREN)) {
@@ -308,7 +311,7 @@ public class Parser {
             }
             this.nextToken();
 
-            TypeExpression returnType = this.parseTypeAnnotation();
+            TypeExpression returnType = this.parseTypeExpression();
             return new FunctionTypeExpression(typeArgs, returnType);
         }
 
@@ -374,6 +377,26 @@ public class Parser {
 
         BlockExpression block = (BlockExpression) this.parseBlockExpression();
         return new ForLoopStatement(t, iterator, iteratee, block);
+    }
+
+    // type <ident> = <type_expr>
+    private Statement parseTypeDeclarationStatement() {
+        Token t = this.curTok;  // The 'type' token
+
+        if (!this.expectPeek(TokenType.IDENT)) {
+            return null;
+        }
+
+        Identifier typeName = new Identifier(this.curTok, this.curTok.literal);
+
+        if (!this.expectPeek(TokenType.ASSIGN)) {
+            return null;
+        }
+        this.nextToken();
+
+        TypeExpression typeExpr = this.parseTypeExpression();
+
+        return new TypeDeclarationStatement(t, typeName, typeExpr);
     }
 
     // Wrapper to allow top-level expressions

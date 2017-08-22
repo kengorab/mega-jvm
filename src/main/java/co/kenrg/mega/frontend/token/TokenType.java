@@ -50,7 +50,8 @@ public enum TokenType {
     LET("LET"),
     VAR("VAR"),
     FOR("FOR"),
-    IN("IN");
+    IN("IN"),
+    TYPE("TYPE");
 
     public final String literal;
 
@@ -68,6 +69,7 @@ public enum TokenType {
         .put("else", ELSE)
         .put("for", FOR)
         .put("in", IN)
+        .put("type", TYPE)
         .build();
 
     public static TokenType lookupIdent(String ident) {
