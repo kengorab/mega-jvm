@@ -4,11 +4,17 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-public class ArrayType extends MegaType {
+public class ArrayType extends ParametrizedMegaType {
     public final MegaType typeArg;
 
     public ArrayType(MegaType typeArg) {
+        super(Lists.newArrayList(typeArg));
         this.typeArg = typeArg;
+    }
+
+    @Override
+    public int numTypeArgs() {
+        return 1;
     }
 
     @Override
@@ -17,8 +23,9 @@ public class ArrayType extends MegaType {
     }
 
     @Override
-    public boolean isEquivalentTo(MegaType other) {
-        return other instanceof ArrayType && this.typeArg.isEquivalentTo(((ArrayType) other).typeArg);
+    public ParametrizedMegaType applyTypeArgs(List<MegaType> typeArgs) {
+        //TODO: Fix this; parametrized types shouldn't require a dummy instance of them, from which all instances will be cloned
+        return new ArrayType(typeArgs.get(0));
     }
 
     @Override

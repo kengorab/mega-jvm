@@ -3,7 +3,9 @@ package co.kenrg.mega.frontend.typechecking;
 import javax.annotation.Nullable;
 import java.util.Map;
 
+import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Maps;
 
 public class TypeEnvironment {
@@ -29,9 +31,19 @@ public class TypeEnvironment {
         }
     }
 
+    private static Map<String, MegaType> defaultTypes() {
+        //TODO: Figure out a better way of representing this to avoid needing to make a dummy ArrayType instance here
+        ArrayType arrayType = new ArrayType(PrimitiveTypes.NOTHING);
+
+        Map<String, MegaType> defaultTypes = Maps.newHashMap();
+        defaultTypes.putAll(PrimitiveTypes.ALL);
+        defaultTypes.put(arrayType.displayName(), arrayType);
+        return defaultTypes;
+    }
+
     private TypeEnvironment parent;
     private final Map<String, Binding> bindingTypesStore = Maps.newHashMap();
-    private final Map<String, MegaType> typesStore = Maps.newHashMap();
+    private final Map<String, MegaType> typesStore = defaultTypes();
 
     public TypeEnvironment createChildEnvironment() {
         TypeEnvironment child = new TypeEnvironment();

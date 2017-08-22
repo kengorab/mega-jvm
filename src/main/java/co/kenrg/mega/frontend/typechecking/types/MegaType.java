@@ -1,10 +1,5 @@
 package co.kenrg.mega.frontend.typechecking.types;
 
-import static java.util.stream.Collectors.joining;
-
-import javax.annotation.Nullable;
-import java.util.List;
-
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -13,21 +8,12 @@ public abstract class MegaType {
 
     abstract public boolean isEquivalentTo(MegaType other);
 
-    @Nullable
-    public List<MegaType> typeArgs() {
-        return null;
+    public String signature() {
+        return displayName();
     }
 
-    public String signature() {
-        List<MegaType> typeArgs = typeArgs();
-        if (typeArgs == null || typeArgs.isEmpty()) {
-            return displayName();
-        }
-
-        String typeArgsStr = typeArgs.stream()
-            .map(MegaType::signature)
-            .collect(joining(", ", "[", "]"));
-        return String.format("%s%s", displayName(), typeArgsStr);
+    public boolean isParametrized() {
+        return false;
     }
 
     @Override

@@ -6,7 +6,6 @@ import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Predicate;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -44,17 +43,19 @@ import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
+import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
-import co.kenrg.mega.frontend.typechecking.types.ParametrizedTypes;
+import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -143,35 +144,55 @@ public class TypeChecker {
         return new TypedNode<>(node, type);
     }
 
-    private MegaType resolveType(TypeExpression typeExpr) {
+    private MegaType resolveType(TypeExpression typeExpr, TypeEnvironment typeEnvironment) {
         if (typeExpr instanceof BasicTypeExpression) {
-            return PrimitiveTypes.byDisplayName(((BasicTypeExpression) typeExpr).type).orElseGet(() -> {
+            MegaType type = typeEnvironment.getTypeByName(((BasicTypeExpression) typeExpr).type);
+            if (type == null) {
                 this.errors.add(new UnknownTypeError(typeExpr.signature()));
                 return unknownType;
-            });
+            }
+            return type;
         }
 
         if (typeExpr instanceof ParametrizedTypeExpression) {
-            return ParametrizedTypes.byDisplayName(((ParametrizedTypeExpression) typeExpr).type)
-                .map(base -> {
-                    List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
-                    List<MegaType> argTypes = typeArgs.stream()
-                        .map(this::resolveType)
-                        .collect(toList());
-                    return base.apply(argTypes);
-                })
-                .orElseGet(() -> {
-                    this.errors.add(new UnknownTypeError(((ParametrizedTypeExpression) typeExpr).type));
-                    return unknownType;
-                });
+            MegaType type = typeEnvironment.getTypeByName(((ParametrizedTypeExpression) typeExpr).type);
+            if (type == null) {
+                this.errors.add(new UnknownTypeError(typeExpr.signature()));
+                return unknownType;
+            }
+            if (!type.isParametrized()) {
+                this.errors.add(new UnparametrizableTypeError(type.displayName()));
+                return type;
+            }
+            ParametrizedMegaType baseType = (ParametrizedMegaType) type;
+
+            List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
+            List<MegaType> argTypes = typeArgs.stream()
+                .map(typeArg -> resolveType(typeArg, typeEnvironment))
+                .collect(toList());
+
+            int expectedNumTypeArgs = baseType.numTypeArgs();
+            int suppliedNumTypeArgs = argTypes.size();
+            if (expectedNumTypeArgs < suppliedNumTypeArgs) {
+                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs));
+                return baseType.applyTypeArgs(argTypes.subList(0, expectedNumTypeArgs));
+            } else if (expectedNumTypeArgs > suppliedNumTypeArgs) {
+                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs));
+                for (int i = suppliedNumTypeArgs; i < expectedNumTypeArgs; i++) {
+                    argTypes.add(unknownType);
+                }
+                return baseType.applyTypeArgs(argTypes);
+            }
+
+            return baseType.applyTypeArgs(argTypes);
         }
 
         if (typeExpr instanceof FunctionTypeExpression) {
             FunctionTypeExpression funcTypeExpr = (FunctionTypeExpression) typeExpr;
             List<MegaType> paramTypes = funcTypeExpr.paramTypes.stream()
-                .map(this::resolveType)
+                .map(paramType -> resolveType(paramType, typeEnvironment))
                 .collect(toList());
-            MegaType returnType = resolveType(funcTypeExpr.returnType);
+            MegaType returnType = resolveType(funcTypeExpr.returnType, typeEnvironment);
             return new FunctionType(paramTypes, returnType);
         }
 
@@ -191,7 +212,7 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            MegaType declaredType = this.resolveType(statement.name.typeAnnotation);
+            MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
             if (declaredType.equals(valueTypeResult.type)) {
                 type = declaredType;
             } else {
@@ -211,7 +232,7 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            MegaType declaredType = this.resolveType(statement.name.typeAnnotation);
+            MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
             if (declaredType.equals(valueTypeResult.type)) {
                 type = declaredType;
             } else {
@@ -237,7 +258,7 @@ public class TypeChecker {
                     }
                 });
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation);
+                MegaType type = this.resolveType(parameter.typeAnnotation, env);
                 paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
             }
@@ -246,15 +267,14 @@ public class TypeChecker {
         MegaType returnType = typecheckNode(statement.body, childEnv).type;
 
         if (statement.typeAnnotation != null) {
-            Optional<MegaType> declaredReturnTypeOpt = PrimitiveTypes.byDisplayName(statement.typeAnnotation);
-            if (declaredReturnTypeOpt.isPresent()) {
-                MegaType declaredReturnType = declaredReturnTypeOpt.get();
+            MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);//PrimitiveTypes.byDisplayName(statement.typeAnnotation);
+            if (declaredReturnType == null) {
+                this.errors.add(new UnknownTypeError(statement.typeAnnotation));
+            } else {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType));
                 }
                 env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
-            } else {
-                this.errors.add(new UnknownTypeError(statement.typeAnnotation));
             }
         }
 
@@ -266,7 +286,7 @@ public class TypeChecker {
         String iterator = statement.iterator.value;
 
         MegaType iterateeType = typecheckNode(statement.iteratee, env).type;
-        ArrayType arrayAnyType = ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY);
+        ArrayType arrayAnyType = new ArrayType(PrimitiveTypes.ANY);
         if (!arrayAnyType.isEquivalentTo(iterateeType)) {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
             childEnv.addBindingWithType(iterator, unknownType, true);
@@ -279,7 +299,7 @@ public class TypeChecker {
 
     private void typecheckTypeDeclarationStatement(TypeDeclarationStatement statement, TypeEnvironment env) {
         String typeName = statement.typeName.value;
-        MegaType type = resolveType(statement.typeExpr);
+        MegaType type = resolveType(statement.typeExpr, env);
         switch (env.addType(typeName, type)) {
             case E_DUPLICATE:
                 this.errors.add(new DuplicateTypeError(typeName));
@@ -292,7 +312,7 @@ public class TypeChecker {
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
         if (array.elements.isEmpty()) {
-            return ParametrizedTypes.arrayOf.apply(PrimitiveTypes.NOTHING);
+            return new ArrayType(PrimitiveTypes.NOTHING);
         }
         List<Expression> elements = array.elements;
 
@@ -312,7 +332,7 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(type, firstMismatch));
         }
 
-        return ParametrizedTypes.arrayOf.apply(type);
+        return new ArrayType(type);
     }
 
     private MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env) {
@@ -460,7 +480,7 @@ public class TypeChecker {
                     }
                 });
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation);
+                MegaType type = this.resolveType(parameter.typeAnnotation, env);
                 paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
             }
@@ -495,7 +515,7 @@ public class TypeChecker {
 
     private MegaType typecheckIndexExpression(IndexExpression expr, TypeEnvironment env) {
         MegaType targetType = typecheckNode(expr.target, env).type;
-        if (!ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY).isEquivalentTo(targetType)) {
+        if (!new ArrayType(PrimitiveTypes.ANY).isEquivalentTo(targetType)) {
             this.errors.add(new UnindexableTypeError(targetType));
             return unknownType;
         } else {
@@ -544,6 +564,6 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightBoundType));
         }
 
-        return ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER);
+        return new ArrayType(PrimitiveTypes.INTEGER);
     }
 }

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
@@ -26,7 +27,7 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
-import co.kenrg.mega.frontend.typechecking.types.ParametrizedTypes;
+import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.ImmutableMap;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 class TypeCheckerTest {
+    private final Function<MegaType, ArrayType> arrayOf = ArrayType::new;
 
     @TestFactory
     public List<DynamicTest> testTypecheckIntegerLiteral() {
@@ -225,7 +227,7 @@ class TypeCheckerTest {
         String input = "for x in arr { let a: Int = x }";
 
         TypeEnvironment env = new TypeEnvironment();
-        env.addBindingWithType("arr", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), true);
+        env.addBindingWithType("arr", arrayOf.apply(PrimitiveTypes.INTEGER), true);
 
         TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
         assertEquals(PrimitiveTypes.UNIT, result.node.type);
@@ -235,8 +237,8 @@ class TypeCheckerTest {
     @TestFactory
     public List<DynamicTest> testTypecheckForLoopStatement_errors() {
         List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
-            Triple.of("for x in 123 { }", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.INTEGER),
-            Triple.of("for x in \"asdf\" { }", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
+            Triple.of("for x in 123 { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.INTEGER),
+            Triple.of("for x in \"asdf\" { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
             Triple.of("for x in [1, 2, 3] { let a: Float = x }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
         );
 
@@ -262,8 +264,8 @@ class TypeCheckerTest {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("type Id = Int", "Id", PrimitiveTypes.INTEGER),
             Triple.of("type Name = String", "Name", PrimitiveTypes.STRING),
-            Triple.of("type Names = Array[String]", "Names", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING)),
-            Triple.of("type Matrix = Array[Array[Int]]", "Matrix", ParametrizedTypes.arrayOf.apply(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER))),
+            Triple.of("type Names = Array[String]", "Names", arrayOf.apply(PrimitiveTypes.STRING)),
+            Triple.of("type Matrix = Array[Array[Int]]", "Matrix", arrayOf.apply(arrayOf.apply(PrimitiveTypes.INTEGER))),
             Triple.of("type UnaryOp = Int => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
@@ -313,7 +315,7 @@ class TypeCheckerTest {
             new TestCase(
                 "type MyType = Array[Identifier]",
                 new UnknownTypeError("Identifier"),
-                ParametrizedTypes.arrayOf.apply(TypeChecker.unknownType),
+                arrayOf.apply(TypeChecker.unknownType),
                 ImmutableMap.of()
             ),
             new TestCase(
@@ -357,7 +359,7 @@ class TypeCheckerTest {
 
     @Test
     public void testTypecheckEmptyArray_arrayOfNothing() {
-        MegaType type = testTypecheckExpression("[]");
+        ParametrizedMegaType type = (ParametrizedMegaType) testTypecheckExpression("[]");
         assertEquals("Array[Nothing]", type.signature());
         assertEquals(Lists.newArrayList(PrimitiveTypes.NOTHING), type.typeArgs());
     }
@@ -377,8 +379,8 @@ class TypeCheckerTest {
                 this.erroneousType = erroneousType;
             }
         }
-        ArrayType intArray = ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER);
-        ArrayType strArray = ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING);
+        ArrayType intArray = arrayOf.apply(PrimitiveTypes.INTEGER);
+        ArrayType strArray = arrayOf.apply(PrimitiveTypes.STRING);
 
         List<TestCase> testCases = Lists.newArrayList(
             new TestCase("[1, \"a\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
@@ -387,9 +389,9 @@ class TypeCheckerTest {
             new TestCase("[\"a\", \"b\", 3]", strArray, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
 
             // Test typechecking of arrays of arrays of disparate types
-            new TestCase("[[\"a\", \"b\"], 3]", ParametrizedTypes.arrayOf.apply(strArray), ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER),
-            new TestCase("[[\"a\", \"b\"], [\"c\", 4]]", ParametrizedTypes.arrayOf.apply(strArray), PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
-            new TestCase("[[\"a\", \"b\"], [3, 4]]", ParametrizedTypes.arrayOf.apply(strArray), ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING), ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER))
+            new TestCase("[[\"a\", \"b\"], 3]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER),
+            new TestCase("[[\"a\", \"b\"], [\"c\", 4]]", arrayOf.apply(strArray), PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+            new TestCase("[[\"a\", \"b\"], [3, 4]]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), arrayOf.apply(PrimitiveTypes.INTEGER))
         );
 
         return testCases.stream()
@@ -417,10 +419,10 @@ class TypeCheckerTest {
             Pair.of("[true, false, true]", PrimitiveTypes.BOOLEAN),
             Pair.of("[\"asdf\", \"qwer\", \"zxcv\"]", PrimitiveTypes.STRING),
 
-            Pair.of("[[1, 2], [3]]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Pair.of("[[1.2, 2.2], [3.2]]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.FLOAT)),
-            Pair.of("[[true, false], [true]]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.BOOLEAN)),
-            Pair.of("[[\"asdf\", \"qwer\"], [\"zxcv\"]]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING))
+            Pair.of("[[1, 2], [3]]", arrayOf.apply(PrimitiveTypes.INTEGER)),
+            Pair.of("[[1.2, 2.2], [3.2]]", arrayOf.apply(PrimitiveTypes.FLOAT)),
+            Pair.of("[[true, false], [true]]", arrayOf.apply(PrimitiveTypes.BOOLEAN)),
+            Pair.of("[[\"asdf\", \"qwer\"], [\"zxcv\"]]", arrayOf.apply(PrimitiveTypes.STRING))
         );
 
         return testCases.stream()
@@ -431,7 +433,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to %s", input, type.signature());
                 return dynamicTest(name, () -> {
                     MegaType result = testTypecheckExpression(input);
-                    assertEquals(ParametrizedTypes.arrayOf.apply(type), result);
+                    assertEquals(arrayOf.apply(type), result);
                 });
             })
             .collect(toList());
@@ -447,10 +449,10 @@ class TypeCheckerTest {
             Pair.of("{ a: true }", ImmutableMap.of("a", PrimitiveTypes.BOOLEAN)),
             Pair.of("{ a: \"a\" }", ImmutableMap.of("a", PrimitiveTypes.STRING)),
 
-            Pair.of("{ a: [1] }", ImmutableMap.of("a", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER))),
-            Pair.of("{ a: [1.2] }", ImmutableMap.of("a", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.FLOAT))),
-            Pair.of("{ a: [true] }", ImmutableMap.of("a", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.BOOLEAN))),
-            Pair.of("{ a: [\"a\"] }", ImmutableMap.of("a", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING))),
+            Pair.of("{ a: [1] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.INTEGER))),
+            Pair.of("{ a: [1.2] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.FLOAT))),
+            Pair.of("{ a: [true] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.BOOLEAN))),
+            Pair.of("{ a: [\"a\"] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.STRING))),
 
             Pair.of("{ a: 1, b: 2 }", ImmutableMap.of(
                 "a", PrimitiveTypes.INTEGER,
@@ -466,7 +468,7 @@ class TypeCheckerTest {
             )),
             Pair.of("{ a: true, b: [2.2] }", ImmutableMap.of(
                 "a", PrimitiveTypes.BOOLEAN,
-                "b", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.FLOAT)
+                "b", arrayOf.apply(PrimitiveTypes.FLOAT)
             ))
         );
 
@@ -497,7 +499,7 @@ class TypeCheckerTest {
                 "a1", PrimitiveTypes.STRING,
                 "a2", PrimitiveTypes.BOOLEAN
             )),
-            "b", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER)
+            "b", arrayOf.apply(PrimitiveTypes.INTEGER)
         ));
         assertEquals(expected, type);
     }
@@ -536,7 +538,7 @@ class TypeCheckerTest {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("-\"asdf\"", PrimitiveTypes.STRING),
             Pair.of("-true", PrimitiveTypes.BOOLEAN),
-            Pair.of("-[1, 2, 3]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER)),
+            Pair.of("-[1, 2, 3]", arrayOf.apply(PrimitiveTypes.INTEGER)),
             Pair.of("-{ a: 1 }", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
         );
 
@@ -659,12 +661,12 @@ class TypeCheckerTest {
             // Inequalities
             new TestCase("\"a\" < 3", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
             new TestCase("3 > \"a\"", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
-            new TestCase("[3, 4] <= 3", PrimitiveTypes.NUMBER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
-            new TestCase("3 >= [3, 4]", PrimitiveTypes.NUMBER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
+            new TestCase("[3, 4] <= 3", PrimitiveTypes.NUMBER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
+            new TestCase("3 >= [3, 4]", PrimitiveTypes.NUMBER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
 
             new TestCase("'asdf' * 1.3", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING),
-            new TestCase("'asdf' * [1.3]", PrimitiveTypes.INTEGER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
-            new TestCase("'asdf' * [1, 2]", PrimitiveTypes.INTEGER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.STRING),
+            new TestCase("'asdf' * [1.3]", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
+            new TestCase("'asdf' * [1, 2]", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.STRING),
             new TestCase("'asdf' * 'asdf'", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, PrimitiveTypes.STRING)
         );
 
@@ -827,7 +829,7 @@ class TypeCheckerTest {
     public List<DynamicTest> testTypecheckCallExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
             // Uninvokeable type errors
-            Triple.of("[1, 2, 3](1.3)", new UninvokeableTypeError(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER)), TypeChecker.unknownType),
+            Triple.of("[1, 2, 3](1.3)", new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER)), TypeChecker.unknownType),
             Triple.of("(1 + 3)(1)", new UninvokeableTypeError(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
             Triple.of("\"asdf\"(3)", new UninvokeableTypeError(PrimitiveTypes.STRING), TypeChecker.unknownType),
 
@@ -849,9 +851,9 @@ class TypeCheckerTest {
                 "((a: Int, b: Int, c: Int) => [a, b])(3, ['asdf'], 3)",
                 new FunctionTypeError(
                     Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER)
+                    Lists.newArrayList(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER)
                 ),
-                ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER)
+                arrayOf.apply(PrimitiveTypes.INTEGER)
             )
         );
 
@@ -877,7 +879,7 @@ class TypeCheckerTest {
             Pair.of("[1.2, 2.3, 3.4][1]", PrimitiveTypes.FLOAT),
             Pair.of("[true, false, true][1]", PrimitiveTypes.BOOLEAN),
             Pair.of("['asdf', 'qwer'][1]", PrimitiveTypes.STRING),
-            Pair.of("[['asdf', 'qwer'], ['zxcv']][1]", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING))
+            Pair.of("[['asdf', 'qwer'], ['zxcv']][1]", arrayOf.apply(PrimitiveTypes.STRING))
         );
 
         return testCases.stream()
@@ -993,13 +995,13 @@ class TypeCheckerTest {
                 String input = testCase.getLeft();
                 Map<String, MegaType> environment = testCase.getRight();
 
-                String name = String.format("'%s' should typecheck to %s", input, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER).signature());
+                String name = String.format("'%s' should typecheck to %s", input, arrayOf.apply(PrimitiveTypes.INTEGER).signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
                     environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
 
                     MegaType result = testTypecheckExpression(input, env);
-                    assertEquals(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), result);
+                    assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), result);
                 });
             })
             .collect(toList());
@@ -1026,7 +1028,7 @@ class TypeCheckerTest {
             Triple.of(
                 "[1, 2]..[4, 5]",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER))
+                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER))
             ),
             Triple.of(
                 "a..d",
@@ -1047,7 +1049,7 @@ class TypeCheckerTest {
                     TypeEnvironment env = new TypeEnvironment();
                     testCase.getMiddle().forEach((key, value) -> env.addBindingWithType(key, value, true));
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
-                    assertEquals(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER), result.node.type);
+                    assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), result.node.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getRight(), result.errors.get(0));
