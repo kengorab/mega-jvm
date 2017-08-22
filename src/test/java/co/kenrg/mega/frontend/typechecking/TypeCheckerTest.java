@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import java.util.List;
 import java.util.Map;
 
+import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
@@ -20,6 +21,7 @@ import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -250,6 +252,104 @@ class TypeCheckerTest {
                         new TypeMismatchError(testCase.getMiddle(), testCase.getRight()),
                         result.errors.get(0)
                     );
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckTypeDeclarationStatement() {
+        List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
+            Triple.of("type Id = Int", "Id", PrimitiveTypes.INTEGER),
+            Triple.of("type Name = String", "Name", PrimitiveTypes.STRING),
+            Triple.of("type Names = Array[String]", "Names", ParametrizedTypes.arrayOf.apply(PrimitiveTypes.STRING)),
+            Triple.of("type Matrix = Array[Array[Int]]", "Matrix", ParametrizedTypes.arrayOf.apply(ParametrizedTypes.arrayOf.apply(PrimitiveTypes.INTEGER))),
+            Triple.of("type UnaryOp = Int => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String typeName = testCase.getMiddle();
+                MegaType expectedType = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to Unit, and add type named %s to env", input, typeName);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    MegaType result = testTypecheckStatement(input, env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+
+                    MegaType type = env.getTypeByName(typeName);
+                    assertEquals(expectedType, type);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testTypecheckTypeDeclarationStatement_errors() {
+        class TestCase {
+            public final String input;
+            public final TypeCheckerError typeError;
+            public final MegaType savedType;
+            public final Map<String, MegaType> environment;
+
+            public TestCase(String input, TypeCheckerError typeError, MegaType savedType, Map<String, MegaType> environment) {
+                this.input = input;
+                this.typeError = typeError;
+                this.savedType = savedType;
+                this.environment = environment;
+            }
+        }
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "type MyType = Identifier",
+                new UnknownTypeError("Identifier"),
+                TypeChecker.unknownType,
+                ImmutableMap.of()
+            ),
+            new TestCase(
+                "type MyType = Array[Identifier]",
+                new UnknownTypeError("Identifier"),
+                ParametrizedTypes.arrayOf.apply(TypeChecker.unknownType),
+                ImmutableMap.of()
+            ),
+            new TestCase(
+                "type MyType = Identifier => Int",
+                new UnknownTypeError("Identifier"),
+                new FunctionType(Lists.newArrayList(TypeChecker.unknownType), PrimitiveTypes.INTEGER),
+                ImmutableMap.of()
+            ),
+            new TestCase(
+                "type MyType = Int => Identifier",
+                new UnknownTypeError("Identifier"),
+                new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
+                ImmutableMap.of()
+            ),
+
+            new TestCase(
+                "type MyType = String",
+                new DuplicateTypeError("MyType"),
+                PrimitiveTypes.INTEGER,
+                ImmutableMap.of("MyType", PrimitiveTypes.INTEGER)
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should typecheck to Unit, but should fail to typecheck", testCase.input);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment typeEnv = new TypeEnvironment();
+                    testCase.environment.forEach(typeEnv::addType);
+                    TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.input, typeEnv);
+                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(testCase.typeError, result.errors.get(0));
+
+                    assertEquals(testCase.savedType, typeEnv.getTypeByName("MyType"));
                 });
             })
             .collect(toList());

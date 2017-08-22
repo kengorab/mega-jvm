@@ -34,10 +34,13 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
+import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
@@ -97,6 +100,8 @@ public class TypeChecker {
             this.typecheckFunctionDeclarationStatement((FunctionDeclarationStatement) node, env);
         } else if (node instanceof ForLoopStatement) {
             this.typecheckForLoopStatement((ForLoopStatement) node, env);
+        } else if (node instanceof TypeDeclarationStatement) {
+            this.typecheckTypeDeclarationStatement((TypeDeclarationStatement) node, env);
         }
 
         if (node instanceof IntegerLiteral) {
@@ -138,38 +143,43 @@ public class TypeChecker {
         return new TypedNode<>(node, type);
     }
 
-    private Optional<MegaType> resolveType(TypeExpression typeExpr) {
+    private MegaType resolveType(TypeExpression typeExpr) {
         if (typeExpr instanceof BasicTypeExpression) {
-            return PrimitiveTypes.byDisplayName(((BasicTypeExpression) typeExpr).type);
-        } else if (typeExpr instanceof ParametrizedTypeExpression) {
+            return PrimitiveTypes.byDisplayName(((BasicTypeExpression) typeExpr).type).orElseGet(() -> {
+                this.errors.add(new UnknownTypeError(typeExpr.signature()));
+                return unknownType;
+            });
+        }
+
+        if (typeExpr instanceof ParametrizedTypeExpression) {
             return ParametrizedTypes.byDisplayName(((ParametrizedTypeExpression) typeExpr).type)
-                .flatMap(base -> {
+                .map(base -> {
                     List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
                     List<MegaType> argTypes = typeArgs.stream()
-                        .map(typeArg -> {
-                            Optional<MegaType> argType = resolveType(typeArg);
-                            if (!argType.isPresent()) {
-                                this.errors.add(new UnknownTypeError(typeArg.signature()));
-                            }
-                            return argType;
-                        })
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
+                        .map(this::resolveType)
                         .collect(toList());
-                    if (argTypes.size() != typeArgs.size()) {
-                        return Optional.empty();
-                    } else {
-                        return Optional.of(base.apply(argTypes));
-                    }
+                    return base.apply(argTypes);
+                })
+                .orElseGet(() -> {
+                    this.errors.add(new UnknownTypeError(((ParametrizedTypeExpression) typeExpr).type));
+                    return unknownType;
                 });
-        } else {
-            return Optional.empty();
         }
+
+        if (typeExpr instanceof FunctionTypeExpression) {
+            FunctionTypeExpression funcTypeExpr = (FunctionTypeExpression) typeExpr;
+            List<MegaType> paramTypes = funcTypeExpr.paramTypes.stream()
+                .map(this::resolveType)
+                .collect(toList());
+            MegaType returnType = resolveType(funcTypeExpr.returnType);
+            return new FunctionType(paramTypes, returnType);
+        }
+
+        return unknownType;
     }
 
     private void typecheckStatements(List<Statement> statements, TypeEnvironment env) {
         for (Statement statement : statements) {
-            //TODO: Record errors...
             this.typecheckNode(statement, env);
         }
     }
@@ -181,14 +191,11 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            Optional<MegaType> declaredTypeOpt = this.resolveType(statement.name.typeAnnotation);
-            if (declaredTypeOpt.isPresent()) {
-                MegaType declaredType = declaredTypeOpt.get();
-                if (declaredType.equals(valueTypeResult.type)) {
-                    type = declaredType;
-                } else {
-                    this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
-                }
+            MegaType declaredType = this.resolveType(statement.name.typeAnnotation);
+            if (declaredType.equals(valueTypeResult.type)) {
+                type = declaredType;
+            } else {
+                this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
             }
         } else {
             type = valueTypeResult.type;
@@ -204,14 +211,11 @@ public class TypeChecker {
         MegaType type = unknownType;
 
         if (statement.name.typeAnnotation != null) {
-            Optional<MegaType> declaredTypeOpt = this.resolveType(statement.name.typeAnnotation);
-            if (declaredTypeOpt.isPresent()) {
-                MegaType declaredType = declaredTypeOpt.get();
-                if (declaredType.equals(valueTypeResult.type)) {
-                    type = declaredType;
-                } else {
-                    this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
-                }
+            MegaType declaredType = this.resolveType(statement.name.typeAnnotation);
+            if (declaredType.equals(valueTypeResult.type)) {
+                type = declaredType;
+            } else {
+                this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
             }
         } else {
             type = valueTypeResult.type;
@@ -233,12 +237,9 @@ public class TypeChecker {
                     }
                 });
             } else {
-                Optional<MegaType> declaredTypeOpt = this.resolveType(parameter.typeAnnotation);
-                if (declaredTypeOpt.isPresent()) {
-                    MegaType type = declaredTypeOpt.get();
-                    paramTypes.add(type);
-                    childEnv.addBindingWithType(parameter.value, type, true);
-                }
+                MegaType type = this.resolveType(parameter.typeAnnotation);
+                paramTypes.add(type);
+                childEnv.addBindingWithType(parameter.value, type, true);
             }
         }
 
@@ -274,6 +275,19 @@ public class TypeChecker {
         }
 
         typecheckNode(statement.block, childEnv);
+    }
+
+    private void typecheckTypeDeclarationStatement(TypeDeclarationStatement statement, TypeEnvironment env) {
+        String typeName = statement.typeName.value;
+        MegaType type = resolveType(statement.typeExpr);
+        switch (env.addType(typeName, type)) {
+            case E_DUPLICATE:
+                this.errors.add(new DuplicateTypeError(typeName));
+                break;
+            case NO_ERROR:
+            default:
+                // No action needed, type has been saved
+        }
     }
 
     private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
@@ -446,12 +460,9 @@ public class TypeChecker {
                     }
                 });
             } else {
-                Optional<MegaType> declaredTypeOpt = this.resolveType(parameter.typeAnnotation);
-                if (declaredTypeOpt.isPresent()) {
-                    MegaType type = declaredTypeOpt.get();
-                    paramTypes.add(type);
-                    childEnv.addBindingWithType(parameter.value, type, true);
-                }
+                MegaType type = this.resolveType(parameter.typeAnnotation);
+                paramTypes.add(type);
+                childEnv.addBindingWithType(parameter.value, type, true);
             }
         }
 

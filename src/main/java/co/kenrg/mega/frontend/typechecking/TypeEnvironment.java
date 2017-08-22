@@ -14,6 +14,11 @@ public class TypeEnvironment {
         E_NOBINDING
     }
 
+    public enum AddTypeStatus {
+        NO_ERROR,
+        E_DUPLICATE
+    }
+
     private class Binding {
         public final MegaType type;
         public final boolean isImmutable;
@@ -26,6 +31,7 @@ public class TypeEnvironment {
 
     private TypeEnvironment parent;
     private final Map<String, Binding> bindingTypesStore = Maps.newHashMap();
+    private final Map<String, MegaType> typesStore = Maps.newHashMap();
 
     public TypeEnvironment createChildEnvironment() {
         TypeEnvironment child = new TypeEnvironment();
@@ -59,8 +65,8 @@ public class TypeEnvironment {
         if (bindingTypesStore.containsKey(name) && bindingTypesStore.get(name).isImmutable) {
             return SetBindingStatus.E_IMMUTABLE;
         } else if (!bindingTypesStore.containsKey(name)) {
-            if (this.parent != null) {
-                return this.parent.setTypeForBinding(name, type);
+            if (parent != null) {
+                return parent.setTypeForBinding(name, type);
             } else {
                 return SetBindingStatus.E_NOBINDING;
             }
@@ -68,5 +74,27 @@ public class TypeEnvironment {
 
         bindingTypesStore.put(name, new Binding(type, false));
         return SetBindingStatus.NO_ERROR;
+    }
+
+    public AddTypeStatus addType(String typeName, MegaType type) {
+        if (typesStore.containsKey(typeName)) {
+            return AddTypeStatus.E_DUPLICATE;
+        }
+
+        typesStore.put(typeName, type);
+        return AddTypeStatus.NO_ERROR;
+    }
+
+    @Nullable
+    public MegaType getTypeByName(String typeName) {
+        if (typesStore.containsKey(typeName)) {
+            return typesStore.get(typeName);
+        }
+
+        if (parent != null) {
+            return parent.getTypeByName(typeName);
+        }
+
+        return null;
     }
 }
