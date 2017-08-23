@@ -36,12 +36,17 @@ public class TypeDetailsCommand implements ReplCommand {
 
     @Override
     public String execute(String input, TypeEnvironment typeEnvironment, Environment environment) {
-        String identifier = input.replace(":t ", "");
-        MegaType type = typeEnvironment.getTypeForBinding(identifier);
-        if (type == null) {
-            return String.format("Identifier %s unknown in this context", identifier);
-        } else {
-            return String.format("%s: %s", identifier, type.signature());
+        String name = input.replace(":t ", "");
+        MegaType type = typeEnvironment.getTypeByName(name);
+        if (type != null) {
+            return String.format("type %s = %s", name, type.signature());
         }
+
+        MegaType bindingType = typeEnvironment.getTypeForBinding(name);
+        if (bindingType != null) {
+            return String.format("%s: %s", name, bindingType.signature());
+        }
+
+        return String.format("Identifier %s unknown in this context", name);
     }
 }
