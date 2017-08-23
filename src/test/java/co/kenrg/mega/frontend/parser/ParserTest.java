@@ -2,6 +2,7 @@ package co.kenrg.mega.frontend.parser;
 
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetErrors;
 import static co.kenrg.mega.frontend.token.TokenType.FALSE;
 import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
 import static co.kenrg.mega.frontend.token.TokenType.IDENT;
@@ -53,6 +54,7 @@ import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
+import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Token;
 import com.google.common.collect.ImmutableMap;
@@ -202,6 +204,19 @@ class ParserTest {
         Statement statement = parseStatement(input);
         FunctionDeclarationStatement functionDeclarationStatement = (FunctionDeclarationStatement) statement;
         assertEquals("Int", functionDeclarationStatement.typeAnnotation);
+    }
+
+    @Test
+    public void testTypeAnnotations_structTypeExpression_syntaxError() {
+        String input = "let person: { name: String } = { name: 'Ken' }";
+        Pair<Statement, List<SyntaxError>> result = parseStatementAndGetErrors(input);
+        LetStatement letStatement = (LetStatement) result.getLeft();
+        assertEquals(null, letStatement.name.typeAnnotation);
+
+        assertEquals(
+            "Unexpected struct-based type definition",
+            result.getRight().get(0).message
+        );
     }
 
     @Test

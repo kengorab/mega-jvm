@@ -40,6 +40,7 @@ import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
@@ -243,18 +244,19 @@ public class Parser {
         this.nextToken();
         this.nextToken();
 
-        TypeExpression type = this.parseTypeExpression();
+        TypeExpression type = this.parseTypeExpression(false);
         return new Identifier(t, ident, type);
     }
 
     @Nullable
-    private TypeExpression parseTypeExpression() {
-        // Type annotations can take one of 5 forms:
-        // 1. A single type:                           Int
-        // 2. A type w/ type arg(s):                   Array[Int] or Map[String, Int]
-        // 3. A function with 1 param (no parens):     Int => String
-        // 4. A function with 1 param (w/ parens):     (Int) => String
-        // 5. A function with many params:             (Int, String) => String
+    private TypeExpression parseTypeExpression(boolean allowInlineStruct) {
+        // Type annotations can take one of 6 forms:
+        // 1. A single type:                            Int
+        // 2. A type w/ type arg(s):                    Array[Int] or Map[String, Int]
+        // 3. A function with 1 param (no parens):      Int => String
+        // 4. A function with 1 param (w/ parens):      (Int) => String
+        // 5. A function with many params:              (Int, String) => String
+        // 6. A map describing the structure:           { num: Int, func: (Int, Int) => Int }
 
         // Handle cases which begin with an identifier (1, 2, 3)
         if (this.curTokenIs(TokenType.IDENT)) {
@@ -265,13 +267,13 @@ public class Parser {
                 this.nextToken();
 
                 List<TypeExpression> typeArgs = Lists.newArrayList();
-                typeArgs.add(this.parseTypeExpression());
+                typeArgs.add(this.parseTypeExpression(allowInlineStruct));
 
                 while (this.peekTokenIs(TokenType.COMMA)) {
                     this.nextToken();   // Consume ','
                     this.nextToken();
 
-                    typeArgs.add(this.parseTypeExpression());
+                    typeArgs.add(this.parseTypeExpression(allowInlineStruct));
                 }
 
                 if (!expectPeek(TokenType.RBRACK)) {
@@ -282,7 +284,7 @@ public class Parser {
                 this.nextToken();
                 this.nextToken();
 
-                TypeExpression returnTypeExpr = this.parseTypeExpression();
+                TypeExpression returnTypeExpr = this.parseTypeExpression(allowInlineStruct);
                 return new FunctionTypeExpression(Lists.newArrayList(new BasicTypeExpression(baseType)), returnTypeExpr);
             }
 
@@ -294,13 +296,13 @@ public class Parser {
             this.nextToken();
 
             List<TypeExpression> typeArgs = Lists.newArrayList();
-            typeArgs.add(this.parseTypeExpression());
+            typeArgs.add(this.parseTypeExpression(allowInlineStruct));
 
             while (this.peekTokenIs(TokenType.COMMA)) {
                 this.nextToken();   // Consume ','
                 this.nextToken();
 
-                typeArgs.add(this.parseTypeExpression());
+                typeArgs.add(this.parseTypeExpression(allowInlineStruct));
             }
 
             if (!expectPeek(TokenType.RPAREN)) {
@@ -311,8 +313,47 @@ public class Parser {
             }
             this.nextToken();
 
-            TypeExpression returnType = this.parseTypeExpression();
+            TypeExpression returnType = this.parseTypeExpression(allowInlineStruct);
             return new FunctionTypeExpression(typeArgs, returnType);
+        }
+
+        if (this.curTokenIs(TokenType.LBRACE)) {
+            this.nextToken();
+
+            Map<String, TypeExpression> propTypes = Maps.newHashMap();
+
+            Identifier prop = (Identifier) this.parseIdentifier();
+
+            if (!expectPeek(TokenType.COLON)) {
+                return null;
+            }
+            this.nextToken();
+
+            propTypes.put(prop.value, this.parseTypeExpression(true));
+
+            while (this.peekTokenIs(TokenType.COMMA)) {
+                this.nextToken();   // Consume ','
+                this.nextToken();
+
+                String propName = ((Identifier) this.parseIdentifier()).value;
+
+                if (!expectPeek(TokenType.COLON)) {
+                    return null;
+                }
+                this.nextToken();
+
+                propTypes.put(propName, this.parseTypeExpression(true));
+            }
+
+            if (!expectPeek(TokenType.RBRACE)) {
+                return null;
+            }
+
+            if (allowInlineStruct) {
+                return new StructTypeExpression(propTypes);
+            } else {
+                this.errors.add(new SyntaxError("Unexpected struct-based type definition"));
+            }
         }
 
         return null;
@@ -394,7 +435,7 @@ public class Parser {
         }
         this.nextToken();
 
-        TypeExpression typeExpr = this.parseTypeExpression();
+        TypeExpression typeExpr = this.parseTypeExpression(true);
 
         return new TypeDeclarationStatement(t, typeName, typeExpr);
     }
