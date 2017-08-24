@@ -29,6 +29,7 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import co.kenrg.mega.frontend.typechecking.types.StructType;
 import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -125,6 +126,8 @@ class TypeCheckerTest {
             Triple.of("let f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
             Triple.of("let b = true", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("let b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("let arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
+            Triple.of("let sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
 
             Triple.of("var s = \"asdf\"", "s", PrimitiveTypes.STRING),
             Triple.of("var s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
@@ -133,7 +136,9 @@ class TypeCheckerTest {
             Triple.of("var f = 12.34", "f", PrimitiveTypes.FLOAT),
             Triple.of("var f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
             Triple.of("var b = true", "b", PrimitiveTypes.BOOLEAN),
-            Triple.of("var b: Bool = false", "b", PrimitiveTypes.BOOLEAN)
+            Triple.of("var b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("var arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
+            Triple.of("var sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
         );
 
         return testCases.stream()
@@ -152,17 +157,51 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    public List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType() {
+        StructType personType = new StructType("Person", ImmutableMap.of("name", PrimitiveTypes.STRING, "age", PrimitiveTypes.INTEGER));
+        StructType teamType = new StructType("Team", ImmutableMap.of("manager", personType, "members", arrayOf.apply(personType)));
+
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("let p: Person = { name: 'Ken', age: 25 }", personType),
+            Pair.of("let p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
+            Pair.of("let p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
+
+            Pair.of("var p: Person = { name: 'Ken', age: 25 }", personType),
+            Pair.of("var p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
+            Pair.of("var p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getRight().signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    MegaType result = testTypecheckStatement(testCase.getLeft(), env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+
+                    MegaType bindingType = env.getTypeForBinding("p");
+                    assertEquals(testCase.getRight(), bindingType);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
     public List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
         List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
             Triple.of("let s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
             Triple.of("let i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
             Triple.of("let f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
             Triple.of("let b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
+            Triple.of("let arr: Array[Int] = ['abc']", arrayOf.apply(PrimitiveTypes.INTEGER), arrayOf.apply(PrimitiveTypes.STRING)),
 
             Triple.of("var s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
             Triple.of("var i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
             Triple.of("var f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
-            Triple.of("var b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER)
+            Triple.of("var b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
+            Triple.of("var arr: Array[Int] = ['abc']", arrayOf.apply(PrimitiveTypes.INTEGER), arrayOf.apply(PrimitiveTypes.STRING))
         );
 
         return testCases.stream()
@@ -268,7 +307,8 @@ class TypeCheckerTest {
             Triple.of("type Matrix = Array[Array[Int]]", "Matrix", arrayOf.apply(arrayOf.apply(PrimitiveTypes.INTEGER))),
             Triple.of("type UnaryOp = Int => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+            Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", ImmutableMap.of("name", PrimitiveTypes.STRING, "age", PrimitiveTypes.INTEGER)))
         );
 
         return testCases.stream()
@@ -328,6 +368,12 @@ class TypeCheckerTest {
                 "type MyType = Int => Identifier",
                 new UnknownTypeError("Identifier"),
                 new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
+                ImmutableMap.of()
+            ),
+            new TestCase(
+                "type MyType = { name: String, someField: BogusType }",
+                new UnknownTypeError("BogusType"),
+                new StructType("MyType", ImmutableMap.of("name", PrimitiveTypes.STRING, "someField", TypeChecker.unknownType)),
                 ImmutableMap.of()
             ),
 

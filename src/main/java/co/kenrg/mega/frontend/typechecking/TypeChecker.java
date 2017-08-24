@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toMap;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Predicate;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -38,6 +39,7 @@ import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
@@ -57,6 +59,7 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -196,6 +199,15 @@ public class TypeChecker {
             return new FunctionType(paramTypes, returnType);
         }
 
+        if (typeExpr instanceof StructTypeExpression) {
+            StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
+            Map<String, MegaType> propTypes = structTypeExpr.propTypes.entrySet().stream().collect(toMap(
+                Entry::getKey,
+                entry -> resolveType(entry.getValue(), typeEnvironment)
+            ));
+            return new ObjectType(propTypes);
+        }
+
         return unknownType;
     }
 
@@ -213,7 +225,7 @@ public class TypeChecker {
 
         if (statement.name.typeAnnotation != null) {
             MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
-            if (declaredType.equals(valueTypeResult.type)) {
+            if (declaredType.isEquivalentTo(valueTypeResult.type)) {
                 type = declaredType;
             } else {
                 this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
@@ -233,7 +245,7 @@ public class TypeChecker {
 
         if (statement.name.typeAnnotation != null) {
             MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
-            if (declaredType.equals(valueTypeResult.type)) {
+            if (declaredType.isEquivalentTo(valueTypeResult.type)) {
                 type = declaredType;
             } else {
                 this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
@@ -300,6 +312,10 @@ public class TypeChecker {
     private void typecheckTypeDeclarationStatement(TypeDeclarationStatement statement, TypeEnvironment env) {
         String typeName = statement.typeName.value;
         MegaType type = resolveType(statement.typeExpr, env);
+        if (type instanceof ObjectType) {
+            type = new StructType(typeName, ((ObjectType) type).properties);
+        }
+
         switch (env.addType(typeName, type)) {
             case E_DUPLICATE:
                 this.errors.add(new DuplicateTypeError(typeName));
