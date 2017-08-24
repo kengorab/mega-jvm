@@ -2,7 +2,7 @@ let sum = (a: Int, b: Int) => a + b
 
 let numbers = [1, 2, 3]
 
-func calculateSum(numbers) {
+func calculateSum(numbers: Array[Int]): Int {
   let sum1 = sum(numbers[0], numbers[1])
   let sum2 = sum(sum1, numbers[1])
   sum(sum2, numbers[2])
@@ -29,4 +29,4 @@ type Manager = {
   }
 }
 
-type Employee = Engineer | Manager
+let numArray: Array[Int] = []
