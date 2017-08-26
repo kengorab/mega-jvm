@@ -4,6 +4,8 @@ import static com.google.common.collect.Streams.zip;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,6 +62,7 @@ import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -67,7 +70,7 @@ public class TypeChecker {
     static final MegaType unknownType = new MegaType() {
         @Override
         public String displayName() {
-            return "<unknown>";
+            return "<Unknown>";
         }
 
         @Override
@@ -76,25 +79,41 @@ public class TypeChecker {
         }
     };
 
-    private final List<TypeCheckerError> errors;
+    static final MegaType notInferredType = new MegaType() {
+        @Override
+        public String displayName() {
+            return "<NotInferred>";
+        }
+
+        @Override
+        public boolean isEquivalentTo(MegaType other) {
+            return false;
+        }
+    };
+
+    final List<TypeCheckerError> errors;
 
     public TypeChecker() {
         this.errors = Lists.newArrayList();
     }
 
     public <T extends Node> TypeCheckResult<T> typecheck(T node, TypeEnvironment env) {
-        TypedNode<T> typedNode = typecheckNode(node, env);
+        TypedNode<T> typedNode = typecheckNode(node, env, null);
         return new TypeCheckResult<>(typedNode, this.errors);
     }
 
     private <T extends Node> TypedNode<T> typecheckNode(T node, TypeEnvironment env) {
+        return this.typecheckNode(node, env, null);
+    }
+
+    private <T extends Node> TypedNode<T> typecheckNode(T node, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType type = PrimitiveTypes.UNIT;
 
         // Statements
         if (node instanceof Module) {
             this.typecheckStatements(((Module) node).statements, env);
         } else if (node instanceof ExpressionStatement) {
-            TypedNode<Expression> typedNode = typecheckNode(((ExpressionStatement) node).expression, env);
+            TypedNode<Expression> typedNode = typecheckNode(((ExpressionStatement) node).expression, env, expectedType);
             return new TypedNode<>(node, typedNode.type);
         } else if (node instanceof LetStatement) {
             this.typecheckLetStatement((LetStatement) node, env);
@@ -109,19 +128,19 @@ public class TypeChecker {
         }
 
         if (node instanceof IntegerLiteral) {
-            type = PrimitiveTypes.INTEGER;
+            type = this.typecheckLiteralExpression(PrimitiveTypes.INTEGER, expectedType);
         } else if (node instanceof FloatLiteral) {
-            type = PrimitiveTypes.FLOAT;
+            type = this.typecheckLiteralExpression(PrimitiveTypes.FLOAT, expectedType);
         } else if (node instanceof BooleanLiteral) {
-            type = PrimitiveTypes.BOOLEAN;
+            type = this.typecheckLiteralExpression(PrimitiveTypes.BOOLEAN, expectedType);
         } else if (node instanceof StringLiteral) {
-            type = PrimitiveTypes.STRING;
+            type = this.typecheckLiteralExpression(PrimitiveTypes.STRING, expectedType);
         } else if (node instanceof ArrayLiteral) {
-            type = this.typecheckArrayLiteral((ArrayLiteral) node, env);
+            type = this.typecheckArrayLiteral((ArrayLiteral) node, env, expectedType);
         } else if (node instanceof ObjectLiteral) {
-            type = this.typecheckObjectLiteral((ObjectLiteral) node, env);
+            type = this.typecheckObjectLiteral((ObjectLiteral) node, env, expectedType);
         } else if (node instanceof ParenthesizedExpression) {
-            type = this.typecheckNode(((ParenthesizedExpression) node).expr, env).type;
+            type = this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType).type;
         } else if (node instanceof PrefixExpression) {
             type = this.typecheckPrefixExpression((PrefixExpression) node, env);
         } else if (node instanceof InfixExpression) {
@@ -131,9 +150,9 @@ public class TypeChecker {
         } else if (node instanceof BlockExpression) {
             type = this.typecheckBlockExpression((BlockExpression) node, env);
         } else if (node instanceof Identifier) {
-            type = this.typecheckIdentifier((Identifier) node, env);
+            type = this.typecheckIdentifier((Identifier) node, env, expectedType);
         } else if (node instanceof ArrowFunctionExpression) {
-            type = this.typecheckArrowFunctionExpression((ArrowFunctionExpression) node, env);
+            type = this.typecheckArrowFunctionExpression((ArrowFunctionExpression) node, env, expectedType);
         } else if (node instanceof CallExpression) {
             type = this.typecheckCallExpression((CallExpression) node, env);
         } else if (node instanceof IndexExpression) {
@@ -218,43 +237,21 @@ public class TypeChecker {
     }
 
     private void typecheckLetStatement(LetStatement statement, TypeEnvironment env) {
-        TypedNode<Expression> valueTypeResult = this.typecheckNode(statement.value, env);
-
-        String name = statement.name.value;
-        MegaType type = unknownType;
-
-        if (statement.name.typeAnnotation != null) {
-            MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
-            if (declaredType.isEquivalentTo(valueTypeResult.type)) {
-                type = declaredType;
-            } else {
-                this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
-            }
-        } else {
-            type = valueTypeResult.type;
-        }
-
-        env.addBindingWithType(name, type, true);
+        typecheckBindingStatement(statement.name, statement.value, true, env);
     }
 
     private void typecheckVarStatement(VarStatement statement, TypeEnvironment env) {
-        TypedNode<Expression> valueTypeResult = this.typecheckNode(statement.value, env);
+        typecheckBindingStatement(statement.name, statement.value, false, env);
+    }
 
-        String name = statement.name.value;
-        MegaType type = unknownType;
-
-        if (statement.name.typeAnnotation != null) {
-            MegaType declaredType = this.resolveType(statement.name.typeAnnotation, env);
-            if (declaredType.isEquivalentTo(valueTypeResult.type)) {
-                type = declaredType;
-            } else {
-                this.errors.add(new TypeMismatchError(declaredType, valueTypeResult.type));
-            }
-        } else {
-            type = valueTypeResult.type;
+    private void typecheckBindingStatement(Identifier name, Expression value, boolean isImmutable, TypeEnvironment env) {
+        MegaType expectedType = null;
+        if (name.typeAnnotation != null) {
+            expectedType = this.resolveType(name.typeAnnotation, env);
         }
 
-        env.addBindingWithType(name, type, false);
+        MegaType type = this.typecheckNode(value, env, expectedType).type;
+        env.addBindingWithType(name.value, type, isImmutable);
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
@@ -276,10 +273,11 @@ public class TypeChecker {
             }
         }
 
+        //TODO: Pass expected type here when function declarations' typeAnnotation is actually a TypeExpression
         MegaType returnType = typecheckNode(statement.body, childEnv).type;
 
         if (statement.typeAnnotation != null) {
-            MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);//PrimitiveTypes.byDisplayName(statement.typeAnnotation);
+            MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);
             if (declaredReturnType == null) {
                 this.errors.add(new UnknownTypeError(statement.typeAnnotation));
             } else {
@@ -326,16 +324,33 @@ public class TypeChecker {
         }
     }
 
-    private MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckLiteralExpression(MegaType literalType, @Nullable MegaType expectedType) {
+        if (expectedType == null) {
+            return literalType;
+        }
+
+        if (!expectedType.isEquivalentTo(literalType)) {
+            this.errors.add(new TypeMismatchError(expectedType, literalType));
+        }
+        return expectedType;
+    }
+
+    @VisibleForTesting
+    MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env, @Nullable MegaType expectedType) {
         if (array.elements.isEmpty()) {
             return new ArrayType(PrimitiveTypes.NOTHING);
         }
         List<Expression> elements = array.elements;
 
-        MegaType type = null;
-        MegaType firstMismatch = null;
+        MegaType expectedTypeArg = (expectedType != null && expectedType instanceof ArrayType)
+            ? ((ArrayType) expectedType).typeArg
+            : null;
+
+        MegaType type = expectedTypeArg;  // The type arg is the expectedType arg if passed, else the type of elem 0
+        MegaType firstMismatch = null;  // Used to detect if elems differ from first elem type, when no expected passed
         for (Expression elem : elements) {
-            TypedNode<Expression> elemTypeResult = typecheckNode(elem, env);
+            TypedNode<Expression> elemTypeResult = typecheckNode(elem, env, expectedTypeArg);
             if (type == null) {
                 type = elemTypeResult.type;
             }
@@ -344,20 +359,37 @@ public class TypeChecker {
             }
         }
 
-        if (firstMismatch != null) {
-            this.errors.add(new TypeMismatchError(type, firstMismatch));
+        ArrayType arrayType = new ArrayType(type);
+        if (expectedType == null) {
+            // Only need to check firstMismatch if no expectedType passed
+            if (firstMismatch != null) {
+                this.errors.add(new TypeMismatchError(type, firstMismatch));
+            }
+            return arrayType;
         }
 
-        return new ArrayType(type);
+        if (!expectedType.isEquivalentTo(arrayType)) {
+            this.errors.add(new TypeMismatchError(expectedType, arrayType));
+        }
+
+        return arrayType;
     }
 
-    private MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
         Map<String, MegaType> objectPropertyTypes = object.pairs.entrySet().stream()
             .collect(toMap(
                 entry -> entry.getKey().value,
                 entry -> typecheckNode(entry.getValue(), env).type
             ));
-        return new ObjectType(objectPropertyTypes);
+        ObjectType type = new ObjectType(objectPropertyTypes);
+        if (expectedType != null) {
+            if (!expectedType.isEquivalentTo(type)) {
+                this.errors.add(new TypeMismatchError(expectedType, type));
+            }
+            return expectedType;
+        }
+        return type;
     }
 
     private MegaType typecheckPrefixExpression(PrefixExpression expr, TypeEnvironment env) {
@@ -478,32 +510,53 @@ public class TypeChecker {
         return blockType;
     }
 
-    private MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType identifierType = env.getTypeForBinding(identifier.value);
+        if (expectedType != null) {
+            if (expectedType.isEquivalentTo(identifierType)) {
+                return expectedType;
+            } else {
+                this.errors.add(new TypeMismatchError(expectedType, identifierType));
+            }
+        }
         return identifierType == null ? unknownType : identifierType;
     }
 
-    private MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         TypeEnvironment childEnv = env.createChildEnvironment();
-        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(expr.parameters.size());
+        int numParams = expr.parameters.size();
+        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(numParams);
 
-        for (Identifier parameter : expr.parameters) {
+        List<MegaType> expectedParamTypes = (expectedType != null && expectedType instanceof FunctionType)
+            ? ((FunctionType) expectedType).paramTypes
+            : Collections.nCopies(numParams, null);
+
+        for (int i = 0; i < numParams; i++) {
+            Identifier parameter = expr.parameters.get(i);
+            MegaType expectedParamType = expectedParamTypes.get(i);
+
+            MegaType paramType;
             if (parameter.typeAnnotation == null) {
-                this.errors.add(new TypeCheckerError() {
-                    @Override
-                    public String message() {
-                        return String.format("Missing type annotation on parameter: %s", parameter.value);
-                    }
-                });
+                if (expectedParamType != null) {
+                    paramType = expectedParamType;
+                } else {
+                    paramType = notInferredType;
+                }
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation, env);
-                paramTypes.add(type);
-                childEnv.addBindingWithType(parameter.value, type, true);
+                paramType = this.resolveType(parameter.typeAnnotation, env);
             }
+            paramTypes.add(paramType);
+            childEnv.addBindingWithType(parameter.value, paramType, true);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv).type;
-        return new FunctionType(paramTypes, returnType);
+        FunctionType functionType = new FunctionType(paramTypes, returnType);
+        if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
+            this.errors.add(new TypeMismatchError(expectedType, functionType));
+        }
+        return functionType;
     }
 
     private MegaType typecheckCallExpression(CallExpression expr, TypeEnvironment env) {

@@ -2,6 +2,7 @@ package co.kenrg.mega.frontend.typechecking.types;
 
 import static java.util.stream.Collectors.joining;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class FunctionType extends MegaType {
@@ -11,6 +12,12 @@ public class FunctionType extends MegaType {
     public FunctionType(List<MegaType> paramTypes, MegaType returnType) {
         this.paramTypes = paramTypes;
         this.returnType = returnType;
+    }
+
+    public FunctionType(MegaType ...typeArgs) {
+        List<MegaType> _typeArgs = Arrays.asList(typeArgs);
+        this.paramTypes = _typeArgs.subList(0, _typeArgs.size() - 1);
+        this.returnType = _typeArgs.get(_typeArgs.size() - 1);
     }
 
     @Override

@@ -381,6 +381,7 @@ public class Parser {
         if (this.peekTokenIs(TokenType.COLON)) {
             this.nextToken();
             this.nextToken();
+            //TODO: This should support all type annotations!!
             typeAnnotation = this.curTok.literal;
         }
 

@@ -39,6 +39,13 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
+/**
+ * This test suite tests typechecking at a pretty high level. The tests go from a string input down into the types that
+ * the parsed AST should be. They also check errors for various different types, and that the TypeEnvironment is
+ * modified to include types and bindings that get defined.
+ *
+ * Compared to {@link TypeCheckerExpectedTypeTest}, these tests are more towards the "functional test" side of the spectrum.
+ */
 class TypeCheckerTest {
     private final Function<MegaType, ArrayType> arrayOf = ArrayType::new;
 
@@ -195,13 +202,15 @@ class TypeCheckerTest {
             Triple.of("let i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
             Triple.of("let f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
             Triple.of("let b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("let arr: Array[Int] = ['abc']", arrayOf.apply(PrimitiveTypes.INTEGER), arrayOf.apply(PrimitiveTypes.STRING)),
+            Triple.of("let b: Bool = (123)", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
+            Triple.of("let arr: Array[Int] = ['abc']", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
 
             Triple.of("var s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
             Triple.of("var i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
             Triple.of("var f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
             Triple.of("var b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("var arr: Array[Int] = ['abc']", arrayOf.apply(PrimitiveTypes.INTEGER), arrayOf.apply(PrimitiveTypes.STRING))
+            Triple.of("var b: Bool = (123)", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
+            Triple.of("var arr: Array[Int] = ['abc']", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
         );
 
         return testCases.stream()
