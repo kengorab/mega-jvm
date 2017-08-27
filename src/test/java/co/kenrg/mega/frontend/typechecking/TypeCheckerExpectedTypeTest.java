@@ -10,6 +10,7 @@ import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
@@ -298,6 +299,70 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(funcType, arrowFuncType);
+        }
+    }
+
+    @Nested
+    class PrefixExpressionTests {
+
+        @Test
+        public void bangOperator_noExpectedTypePassed_returnsBoolean() {
+            PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, null);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.BOOLEAN, type);
+        }
+
+        @Test
+        public void bangOperator_expectedTypePassed_expectBoolean_returnsBoolean() {
+            PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.BOOLEAN);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.BOOLEAN, type);
+        }
+
+        @Test
+        public void bangOperator_expectedTypePassed_expectNonBoolean_returnsBoolean_hasMismatchError() {
+            PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, arrayOf.apply(PrimitiveTypes.STRING));
+
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.BOOLEAN)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.BOOLEAN, type);
+        }
+
+        @Test
+        public void minusOperator_noExpectedTypePassed_returnsInferredType() {
+            PrefixExpression prefixExpr = parseExpression("-1.5", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, null);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.FLOAT, type);
+        }
+
+        @Test
+        public void minusOperator_expectedTypePassed_expectInteger_returnsExpectedType() {
+            PrefixExpression prefixExpr = parseExpression("-4", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.INTEGER);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void minusOperator_expectedTypePassed_expectWrongType_returnsExpectedType_hasMismatchError() {
+            PrefixExpression prefixExpr = parseExpression("-1.4", PrefixExpression.class);
+            MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.INTEGER);
+
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.FLOAT, type);
         }
     }
 }

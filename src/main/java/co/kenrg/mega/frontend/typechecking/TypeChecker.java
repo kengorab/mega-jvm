@@ -142,7 +142,7 @@ public class TypeChecker {
         } else if (node instanceof ParenthesizedExpression) {
             type = this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType).type;
         } else if (node instanceof PrefixExpression) {
-            type = this.typecheckPrefixExpression((PrefixExpression) node, env);
+            type = this.typecheckPrefixExpression((PrefixExpression) node, env, expectedType);
         } else if (node instanceof InfixExpression) {
             type = this.typecheckInfixExpression((InfixExpression) node, env);
         } else if (node instanceof IfExpression) {
@@ -392,18 +392,27 @@ public class TypeChecker {
         return type;
     }
 
-    private MegaType typecheckPrefixExpression(PrefixExpression expr, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckPrefixExpression(PrefixExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         switch (expr.operator) {
             case "!":
+                if (expectedType != null && !expectedType.equals(PrimitiveTypes.BOOLEAN)) {
+                    this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.BOOLEAN));
+                }
                 return PrimitiveTypes.BOOLEAN;
             case "-": {
                 MegaType exprType = typecheckNode(expr.expression, env).type;
-                if (PrimitiveTypes.NUMBER.isEquivalentTo(exprType)) {
-                    return exprType;
+                if (expectedType != null) {
+                    if (!expectedType.isEquivalentTo(exprType)) {
+                        this.errors.add(new TypeMismatchError(expectedType, exprType));
+                    }
                 } else {
-                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, exprType));
-                    return unknownType;
+                    if (!PrimitiveTypes.NUMBER.isEquivalentTo(exprType)) {
+                        this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, exprType));
+                        return unknownType;
+                    }
                 }
+                return exprType;
             }
             default:
                 return unknownType;
