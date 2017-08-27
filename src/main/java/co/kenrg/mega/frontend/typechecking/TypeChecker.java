@@ -1,5 +1,6 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.isBooleanOperator;
 import static com.google.common.collect.Streams.zip;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -43,9 +44,11 @@ import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
+import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
@@ -53,6 +56,7 @@ import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
@@ -144,7 +148,7 @@ public class TypeChecker {
         } else if (node instanceof PrefixExpression) {
             type = this.typecheckPrefixExpression((PrefixExpression) node, env, expectedType);
         } else if (node instanceof InfixExpression) {
-            type = this.typecheckInfixExpression((InfixExpression) node, env);
+            type = this.typecheckInfixExpression((InfixExpression) node, env, expectedType);
         } else if (node instanceof IfExpression) {
             type = this.typecheckIfExpression((IfExpression) node, env);
         } else if (node instanceof BlockExpression) {
@@ -419,69 +423,43 @@ public class TypeChecker {
         }
     }
 
-    private MegaType typecheckInfixExpression(InfixExpression expr, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckInfixExpression(InfixExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType leftType = typecheckNode(expr.left, env).type;
         MegaType rightType = typecheckNode(expr.right, env).type;
 
-        switch (expr.operator) {
-            //TODO: Implement lexing/parsing of boolean and/or (&&, ||) infix operators
-            case "&&":
-            case "||":
-                if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(leftType)) {
-                    this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, leftType));
-                }
-                if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(rightType)) {
-                    this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, rightType));
-                }
-                return PrimitiveTypes.BOOLEAN;
-            case "<":
-            case ">":
-            case "<=":
-            case ">=":
-                if (!PrimitiveTypes.NUMBER.isEquivalentTo(leftType)) {
-                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, leftType));
-                }
-                if (!PrimitiveTypes.NUMBER.isEquivalentTo(rightType)) {
-                    this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, rightType));
-                }
-                return PrimitiveTypes.BOOLEAN;
-            case "==":
-            case "!=":
-                return PrimitiveTypes.BOOLEAN;
-            default:
-                if (PrimitiveTypes.NUMBER.isEquivalentTo(leftType) && PrimitiveTypes.NUMBER.isEquivalentTo(rightType)) {
-                    if (PrimitiveTypes.INTEGER.isEquivalentTo(leftType) && PrimitiveTypes.INTEGER.isEquivalentTo(rightType)) {
-                        return PrimitiveTypes.INTEGER;
-                    } else {
-                        return PrimitiveTypes.FLOAT;
-                    }
-                }
-
-                if (PrimitiveTypes.STRING.isEquivalentTo(leftType) || PrimitiveTypes.STRING.isEquivalentTo(rightType)) {
-                    switch (expr.operator) {
-                        case "+":
-                            return PrimitiveTypes.STRING;
-                        case "*":
-                            if (PrimitiveTypes.STRING.isEquivalentTo(leftType)) {
-                                if (!PrimitiveTypes.INTEGER.isEquivalentTo(rightType)) {
-                                    this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightType));
-                                }
-                            }
-                            if (PrimitiveTypes.STRING.isEquivalentTo(rightType)) {
-                                if (!PrimitiveTypes.INTEGER.isEquivalentTo(leftType)) {
-                                    this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, leftType));
-                                }
-                            }
-                            return PrimitiveTypes.STRING;
-                        default:
-                            // Unknown String operator
-                            return unknownType;
-                    }
-                }
-
-                // Unknown operator, or incoming types are already <unknown>
-                return unknownType;
+        // If no assumptions can be made about the operand types, bail early
+        if (leftType.equals(unknownType) || rightType.equals(unknownType) ||
+            leftType.equals(notInferredType) || rightType.equals(notInferredType)) {
+            return unknownType;
         }
+
+        List<OperatorSignature> opSignatures = OperatorTypeChecker.signaturesForOperator(expr.operator);
+        if (opSignatures == null) {
+            this.errors.add(new UnknownOperatorError(expr.operator));
+            return unknownType;
+        }
+
+        List<OperatorSignature> possibleOperators = opSignatures.stream()
+            .filter(signature -> signature.lType.isEquivalentTo(leftType) && signature.rType.isEquivalentTo(rightType))
+            .collect(toList());
+
+        if (possibleOperators.isEmpty()) {
+            this.errors.add(new IllegalOperatorError(expr.operator, leftType, rightType));
+            return isBooleanOperator(expr.operator) ? PrimitiveTypes.BOOLEAN : unknownType;
+        }
+
+        OperatorSignature operator = possibleOperators.get(0);
+        MegaType type = operator.returnType;
+
+        if (expectedType != null) {
+            if (!expectedType.isEquivalentTo(type)) {
+                this.errors.add(new TypeMismatchError(expectedType, type));
+            }
+            return expectedType;
+        }
+
+        return type;
     }
 
     private MegaType typecheckIfExpression(IfExpression expr, TypeEnvironment env) {

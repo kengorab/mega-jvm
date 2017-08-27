@@ -16,6 +16,7 @@ import java.util.function.Function;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
@@ -30,7 +31,6 @@ import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
-import co.kenrg.mega.frontend.typechecking.types.UnionType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -43,7 +43,7 @@ import org.junit.jupiter.api.TestFactory;
  * This test suite tests typechecking at a pretty high level. The tests go from a string input down into the types that
  * the parsed AST should be. They also check errors for various different types, and that the TypeEnvironment is
  * modified to include types and bindings that get defined.
- *
+ * <p>
  * Compared to {@link TypeCheckerExpectedTypeTest}, these tests are more towards the "functional test" side of the spectrum.
  */
 class TypeCheckerTest {
@@ -597,8 +597,6 @@ class TypeCheckerTest {
             Pair.of("-{ a: 1 }", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
         );
 
-        MegaType numericType = new UnionType(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT);
-
         return testCases.stream()
             .map(testCase -> {
                 String input = testCase.getLeft();
@@ -611,7 +609,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(numericType, type),
+                        new TypeMismatchError(PrimitiveTypes.NUMBER, type),
                         result.errors.get(0)
                     );
                 });
@@ -695,14 +693,12 @@ class TypeCheckerTest {
     public List<DynamicTest> testTypecheckInfixOperator_errors() {
         class TestCase {
             public final String input;
-            public final MegaType expected;
-            public final MegaType actual;
+            public final TypeCheckerError error;
             public final MegaType overallType;
 
-            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType) {
+            public TestCase(String input, TypeCheckerError error, MegaType overallType) {
                 this.input = input;
-                this.expected = expected;
-                this.actual = actual;
+                this.error = error;
                 this.overallType = overallType;
             }
         }
@@ -714,15 +710,47 @@ class TypeCheckerTest {
             // Pair.of("true || false", PrimitiveTypes.BOOLEAN),
 
             // Inequalities
-            new TestCase("\"a\" < 3", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
-            new TestCase("3 > \"a\"", PrimitiveTypes.NUMBER, PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN),
-            new TestCase("[3, 4] <= 3", PrimitiveTypes.NUMBER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
-            new TestCase("3 >= [3, 4]", PrimitiveTypes.NUMBER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.BOOLEAN),
+            new TestCase(
+                "\"a\" < 3",
+                new IllegalOperatorError("<", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+                PrimitiveTypes.BOOLEAN
+            ),
+            new TestCase(
+                "3 > \"a\"",
+                new IllegalOperatorError(">", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+                PrimitiveTypes.BOOLEAN
+            ),
+            new TestCase(
+                "[3, 4] <= 3",
+                new IllegalOperatorError("<=", arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
+                PrimitiveTypes.BOOLEAN
+            ),
+            new TestCase(
+                "3 >= [3, 4]",
+                new IllegalOperatorError(">=", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER)),
+                PrimitiveTypes.BOOLEAN
+            ),
 
-            new TestCase("'asdf' * 1.3", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING),
-            new TestCase("'asdf' * [1.3]", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
-            new TestCase("'asdf' * [1, 2]", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.STRING),
-            new TestCase("'asdf' * 'asdf'", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, PrimitiveTypes.STRING)
+            new TestCase(
+                "'asdf' * 1.3",
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.FLOAT),
+                TypeChecker.unknownType
+            ),
+            new TestCase(
+                "'asdf' * [1.3]",
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.FLOAT)),
+                TypeChecker.unknownType
+            ),
+            new TestCase(
+                "'asdf' * [1, 2]",
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.INTEGER)),
+                TypeChecker.unknownType
+            ),
+            new TestCase(
+                "'asdf' * 'asdf'",
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.STRING),
+                TypeChecker.unknownType
+            )
         );
 
         return testCases.stream()
@@ -733,10 +761,7 @@ class TypeCheckerTest {
                     assertEquals(testCase.overallType, result.node.type);
 
                     assertTrue(result.hasErrors());
-                    assertEquals(
-                        new TypeMismatchError(testCase.expected, testCase.actual),
-                        result.errors.get(0)
-                    );
+                    assertEquals(testCase.error, result.errors.get(0));
                 });
             })
             .collect(toList());

@@ -4,7 +4,6 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import java.util.Map;
-import java.util.Optional;
 
 import com.google.common.collect.Lists;
 
@@ -94,13 +93,9 @@ public class PrimitiveTypes {
         }
     };
 
-    public static final MegaType NUMBER = new UnionType(INTEGER, FLOAT);
+    public static final MegaType NUMBER = new UnionType("Number", INTEGER, FLOAT);
 
     public static final Map<String, MegaType> ALL =
         Lists.newArrayList(INTEGER, FLOAT, BOOLEAN, STRING, UNIT, NOTHING, ANY).stream()
             .collect(toMap(MegaType::displayName, identity()));
-
-    public static Optional<MegaType> byDisplayName(String name) {
-        return Optional.ofNullable(ALL.get(name));
-    }
 }

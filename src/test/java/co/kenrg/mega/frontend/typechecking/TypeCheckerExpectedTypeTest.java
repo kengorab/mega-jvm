@@ -9,11 +9,14 @@ import java.util.function.Function;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
+import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -23,6 +26,7 @@ import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -295,10 +299,19 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                Lists.newArrayList(
+                    new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING),
+                    new TypeMismatchError(
+                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING),
+                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType)
+                    )
+                ),
                 typeChecker.errors
             );
-            assertEquals(funcType, arrowFuncType);
+            assertEquals(
+                new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
+                arrowFuncType
+            );
         }
     }
 
@@ -363,6 +376,97 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.FLOAT, type);
+        }
+    }
+
+    @Nested
+    class InfixExpressionTests {
+
+        @Test
+        public void noExpectedTypePassed_leftTypeIsUnknown_returnsUnknown() {
+            InfixExpression infixExpr = parseExpression("a + 1", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_rightTypeIsUnknown_returnsUnknown() {
+            InfixExpression infixExpr = parseExpression("1 + a", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_leftTypeIsNotInferred_returnsUnknown() {
+            ArrowFunctionExpression arrowFuncExpr = parseExpression("a => a + 1", ArrowFunctionExpression.class);
+            MegaType type = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            FunctionType funcType = (FunctionType) type;
+            assertEquals(TypeChecker.unknownType, funcType.returnType);
+        }
+
+        @Test
+        public void noExpectedTypePassed_rightTypeIsNotInferred_returnsUnknown() {
+            ArrowFunctionExpression arrowFuncExpr = parseExpression("a => 1 + a", ArrowFunctionExpression.class);
+            MegaType type = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            FunctionType funcType = (FunctionType) type;
+            assertEquals(TypeChecker.unknownType, funcType.returnType);
+        }
+
+        @Test
+        @Disabled("Having unknown operators is currently unsupported at the parser level")
+        public void noExpectedTypePassed_unknownOperator_returnsUnknown_hasUnknownOperatorError() {
+            InfixExpression infixExpr = parseExpression("1 & 4", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new UnknownOperatorError("&")),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_incorrectTypesForOperator_operatorIsNonBoolean_returnsUnknown_hasIllegalOperatorError() {
+            InfixExpression infixExpr = parseExpression("3.4 * 'abc'", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_incorrectTypesForOperator_operatorNonBoolean_returnsBoolean_hasIllegalOperatorError() {
+            InfixExpression infixExpr = parseExpression("'abc' <= 'def'", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new IllegalOperatorError("<=", PrimitiveTypes.STRING, PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.BOOLEAN, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_returnsOperatorResultType() {
+            InfixExpression infixExpr = parseExpression("1 + 5.2", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.FLOAT, type);
+        }
+
+        @Test
+        public void expectedTypePassed_resultTypeDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+            InfixExpression infixExpr = parseExpression("1 + 5.2", InfixExpression.class);
+            MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, PrimitiveTypes.INTEGER);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
         }
     }
 }
