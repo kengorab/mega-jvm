@@ -9,6 +9,7 @@ import java.util.function.Function;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -224,6 +225,15 @@ class TypeCheckerExpectedTypeTest {
         @Test
         public void noExpectedTypePassed_paramsHaveTypeAnnotations_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
+            MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), arrowFuncType);
+        }
+
+        @Test
+        public void noExpectedTypePassed_paramsHaveTypeAnnotations_bodyIsBlockExpression_returnsType() {
+            ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => { a + b }", ArrowFunctionExpression.class);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -467,6 +477,99 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+    }
+
+    @Nested
+    class IfExpressionTests {
+
+        @Test
+        public void noExpectedTypePassed_conditionIsNotBoolean_returnsInferredType_hasMismatchError() {
+            IfExpression ifExpr = parseExpression("if 123 { 'abc' } else { 'def' }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_noElse_returnsUnitType() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.UNIT, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_elseTypeMatchesThen_returnsInferredType() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' } else { 'def' }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void noExpectedTypePassed_elseTypeDoesntMatchThen_returnsThenType_hasMismatchError() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void expectedTypePassed_noElse_expectedIsNotUnit_returnsExpectedType_hasMismatchError() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.UNIT)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void expectedTypePassed_elseDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
+            assertEquals(
+                Lists.newArrayList(
+                    new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)
+                ),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void expectedTypePassed_thenDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.INTEGER);
+            assertEquals(
+                Lists.newArrayList(
+                    new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                ),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void expectedTypePassed_neitherThenNorElseMatchExpected_returnsExpectedType_has2MismatchErrors() {
+            IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
+            MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, arrayOf.apply(PrimitiveTypes.FLOAT));
+            assertEquals(
+                Lists.newArrayList(
+                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
+                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.INTEGER)
+                ),
+                typeChecker.errors
+            );
+            assertEquals(arrayOf.apply(PrimitiveTypes.FLOAT), type);
         }
     }
 }

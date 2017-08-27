@@ -150,9 +150,9 @@ public class TypeChecker {
         } else if (node instanceof InfixExpression) {
             type = this.typecheckInfixExpression((InfixExpression) node, env, expectedType);
         } else if (node instanceof IfExpression) {
-            type = this.typecheckIfExpression((IfExpression) node, env);
+            type = this.typecheckIfExpression((IfExpression) node, env, expectedType);
         } else if (node instanceof BlockExpression) {
-            type = this.typecheckBlockExpression((BlockExpression) node, env);
+            type = this.typecheckBlockExpression((BlockExpression) node, env, expectedType);
         } else if (node instanceof Identifier) {
             type = this.typecheckIdentifier((Identifier) node, env, expectedType);
         } else if (node instanceof ArrowFunctionExpression) {
@@ -462,26 +462,33 @@ public class TypeChecker {
         return type;
     }
 
-    private MegaType typecheckIfExpression(IfExpression expr, TypeEnvironment env) {
-        MegaType conditionType = typecheckNode(expr.condition, env).type;
-        if (!PrimitiveTypes.BOOLEAN.isEquivalentTo(conditionType)) {
-            this.errors.add(new TypeMismatchError(PrimitiveTypes.BOOLEAN, conditionType));
-        }
+    @VisibleForTesting
+    MegaType typecheckIfExpression(IfExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        typecheckNode(expr.condition, env, PrimitiveTypes.BOOLEAN);
 
-        MegaType thenBlockType = typecheckNode(expr.thenExpr, env).type;
+        MegaType thenBlockType = typecheckNode(expr.thenExpr, env, expectedType).type;
 
         if (expr.elseExpr != null) {
-            MegaType elseBlockType = typecheckNode(expr.elseExpr, env).type;
-            if (!thenBlockType.isEquivalentTo(elseBlockType)) {
-                this.errors.add(new TypeMismatchError(thenBlockType, elseBlockType));
+            MegaType elseBlockType = typecheckNode(expr.elseExpr, env, expectedType).type;
+            if (expectedType == null) {
+                if (!thenBlockType.isEquivalentTo(elseBlockType)) {
+                    this.errors.add(new TypeMismatchError(thenBlockType, elseBlockType));
+                }
+                return thenBlockType;
             }
-            return thenBlockType;
+            return expectedType;
         } else {
+            if (expectedType != null && !PrimitiveTypes.UNIT.isEquivalentTo(expectedType)) {
+                this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT));
+                return expectedType;
+            }
             return PrimitiveTypes.UNIT;
         }
     }
 
-    private MegaType typecheckBlockExpression(BlockExpression expr, TypeEnvironment env) {
+    // BlockExpressions are only accessible via if-expressions and arrow/plain function bodies there's no way to create
+    // a BlockExpression on its own.
+    private MegaType typecheckBlockExpression(BlockExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         TypeEnvironment childEnv = env.createChildEnvironment();
         List<Statement> statements = expr.statements;
 
@@ -493,6 +500,12 @@ public class TypeChecker {
             if (i == statements.size() - 1) {
                 blockType = type;
             }
+        }
+        if (expectedType != null) {
+            if (!expectedType.isEquivalentTo(blockType)) {
+                this.errors.add(new TypeMismatchError(expectedType, blockType));
+            }
+            return expectedType;
         }
         return blockType;
     }
