@@ -159,7 +159,7 @@ public class TypeChecker {
         } else if (node instanceof IndexExpression) {
             type = this.typecheckIndexExpression((IndexExpression) node, env, expectedType);
         } else if (node instanceof AssignmentExpression) {
-            type = this.typecheckAssignmentExpression((AssignmentExpression) node, env);
+            type = this.typecheckAssignmentExpression((AssignmentExpression) node, env, expectedType);
         } else if (node instanceof RangeExpression) {
             type = this.typecheckRangeExpression((RangeExpression) node, env);
         }
@@ -604,27 +604,32 @@ public class TypeChecker {
         }
     }
 
-    private MegaType typecheckAssignmentExpression(AssignmentExpression expr, TypeEnvironment env) {
+    @VisibleForTesting
+    MegaType typecheckAssignmentExpression(AssignmentExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        if (expectedType != null && !expectedType.equals(PrimitiveTypes.UNIT)) {
+            this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT));
+            return PrimitiveTypes.UNIT;
+        }
+
         String bindingName = expr.name.value;
-        MegaType rightType = typecheckNode(expr.right, env).type;
 
         MegaType type = env.getTypeForBinding(bindingName);
-
-        if (type != null && !type.isEquivalentTo(rightType)) {
-            this.errors.add(new TypeMismatchError(type, rightType));
-        }
+        MegaType rightType = typecheckNode(expr.right, env, type).type;
 
         switch (env.setTypeForBinding(bindingName, rightType)) {
             case E_IMMUTABLE:
                 this.errors.add(new MutabilityError(bindingName));
+                break;
             case E_NOBINDING:
                 this.errors.add(new UnknownIdentifierError(bindingName));
+                break;
             case E_DUPLICATE:
-                // This should not happen
             case NO_ERROR:
             default:
-                return PrimitiveTypes.UNIT;
+                // These cases are unimportant, for the purposes of typechecking
+                break;
         }
+        return PrimitiveTypes.UNIT;
     }
 
     private MegaType typecheckRangeExpression(RangeExpression expr, TypeEnvironment env) {

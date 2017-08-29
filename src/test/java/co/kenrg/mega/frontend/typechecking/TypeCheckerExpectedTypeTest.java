@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
@@ -20,9 +21,11 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -715,6 +718,56 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(PrimitiveTypes.STRING, type);
+        }
+    }
+
+    @Nested
+    class AssignmentExpressionTests {
+
+        @Test
+        public void noExpectedType_assignmentTypeDoesntMatchAssigneeType_returnsUnit_hasMismatchError() {
+            AssignmentExpression assignmentExpr = parseExpression("a = 4", AssignmentExpression.class);
+            env.addBindingWithType("a", PrimitiveTypes.STRING, false);
+            MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.UNIT, type);
+        }
+
+        @Test
+        public void noExpectedType_assigneeDoesntExist_returnsUnit_hasUnknownIdentifierError() {
+            AssignmentExpression assignmentExpr = parseExpression("a = 4 + 4.3", AssignmentExpression.class);
+            MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new UnknownIdentifierError("a")),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.UNIT, type);
+        }
+
+        @Test
+        public void noExpectedType_assigneeIsImmutable_returnsUnit_hasMutabilityError() {
+            AssignmentExpression assignmentExpr = parseExpression("a = 'abcd' + 'bcd'", AssignmentExpression.class);
+            env.addBindingWithType("a", PrimitiveTypes.STRING, true);
+            MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new MutabilityError("a")),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.UNIT, type);
+        }
+
+        @Test
+        public void expectedType_expectedTypeIsNotUnit_returnsUnit_hasMismatchError() {
+            AssignmentExpression assignmentExpr = parseExpression("a = 4", AssignmentExpression.class);
+            MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, PrimitiveTypes.INTEGER);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.UNIT)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.UNIT, type);
         }
     }
 }
