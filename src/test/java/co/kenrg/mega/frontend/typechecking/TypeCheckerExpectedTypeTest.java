@@ -11,6 +11,7 @@ import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -20,6 +21,7 @@ import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
@@ -627,6 +629,10 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(PrimitiveTypes.INTEGER, type);
         }
 
+        //TODO: Add test verifying that the following typechecks:
+        //   let call (fn: Int => Int, a: Int) => fn(a)
+        //   call(a => a + 1, 1)
+
         @Test
         public void noExpectedType_returnsReturnType() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
@@ -652,6 +658,63 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+    }
+
+    @Nested
+    class IndexExpressionTests {
+
+        @Test
+        public void noExpectedType_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
+            IndexExpression indexExpr = parseExpression("'asdf'[0]", IndexExpression.class);
+            MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedType_targetIsIdent_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
+            IndexExpression indexExpr = parseExpression("arr[0]", IndexExpression.class);
+            env.addBindingWithType("arr", PrimitiveTypes.STRING, true);
+            MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedType_indexIsNotInteger_returnsArrayTypeArg_hasMismatchError() {
+            IndexExpression indexExpr = parseExpression("[1, 2]['ab']", IndexExpression.class);
+            MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void expectedType_arrayTypeArgDoesntMatchExpected_returnsExpected_hasMismatchError() {
+            IndexExpression indexExpr = parseExpression("[1, 2][1]", IndexExpression.class);
+            MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void expectedType_arrayTypeArgMatchesExpected_returnsExpected() {
+            IndexExpression indexExpr = parseExpression("['abc', 'def'][1]", IndexExpression.class);
+            MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.STRING, type);
         }
     }
 }
