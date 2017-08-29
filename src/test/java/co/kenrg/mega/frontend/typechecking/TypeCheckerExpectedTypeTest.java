@@ -16,6 +16,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
@@ -768,6 +769,51 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.UNIT, type);
+        }
+    }
+
+    @Nested
+    class RangeExpressionTests {
+
+        @Test
+        public void noExpectedType_leftBoundIsNotInteger_returnsIntArray_hasMismatchError() {
+            RangeExpression rangeExpression = parseExpression("'a'..4", RangeExpression.class);
+            MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
+        }
+
+        @Test
+        public void noExpectedType_rightBoundIsNotInteger_returnsIntArray_hasMismatchError() {
+            RangeExpression rangeExpression = parseExpression("1..1.3", RangeExpression.class);
+            MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                typeChecker.errors
+            );
+            assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
+        }
+
+        @Test
+        public void expectedType_expectedTypeIsNotIntArray_returnsExpectedType_hasMismatchError() {
+            RangeExpression rangeExpression = parseExpression("1..3", RangeExpression.class);
+            MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.FLOAT));
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), arrayOf.apply(PrimitiveTypes.INTEGER))),
+                typeChecker.errors
+            );
+            assertEquals(arrayOf.apply(PrimitiveTypes.FLOAT), type);
+        }
+
+        @Test
+        public void expectedType_expectedTypeIsIntArray_returnsExpectedType() {
+            RangeExpression rangeExpression = parseExpression("1..3", RangeExpression.class);
+            MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.INTEGER));
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
         }
     }
 }

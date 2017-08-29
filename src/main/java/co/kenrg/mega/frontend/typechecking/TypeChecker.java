@@ -161,7 +161,7 @@ public class TypeChecker {
         } else if (node instanceof AssignmentExpression) {
             type = this.typecheckAssignmentExpression((AssignmentExpression) node, env, expectedType);
         } else if (node instanceof RangeExpression) {
-            type = this.typecheckRangeExpression((RangeExpression) node, env);
+            type = this.typecheckRangeExpression((RangeExpression) node, env, expectedType);
         }
 
         return new TypedNode<>(node, type);
@@ -632,17 +632,18 @@ public class TypeChecker {
         return PrimitiveTypes.UNIT;
     }
 
-    private MegaType typecheckRangeExpression(RangeExpression expr, TypeEnvironment env) {
-        MegaType leftBoundType = typecheckNode(expr.leftBound, env).type;
-        if (!PrimitiveTypes.INTEGER.isEquivalentTo(leftBoundType)) {
-            this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, leftBoundType));
-        }
+    @VisibleForTesting
+    MegaType typecheckRangeExpression(RangeExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        typecheckNode(expr.leftBound, env, PrimitiveTypes.INTEGER);
+        typecheckNode(expr.rightBound, env, PrimitiveTypes.INTEGER);
 
-        MegaType rightBoundType = typecheckNode(expr.rightBound, env).type;
-        if (!PrimitiveTypes.INTEGER.isEquivalentTo(rightBoundType)) {
-            this.errors.add(new TypeMismatchError(PrimitiveTypes.INTEGER, rightBoundType));
+        ArrayType arrayType = new ArrayType(PrimitiveTypes.INTEGER);
+        if (expectedType != null) {
+            if (!expectedType.isEquivalentTo(arrayType)) {
+                this.errors.add(new TypeMismatchError(expectedType, arrayType));
+            }
+            return expectedType;
         }
-
-        return new ArrayType(PrimitiveTypes.INTEGER);
+        return arrayType;
     }
 }
