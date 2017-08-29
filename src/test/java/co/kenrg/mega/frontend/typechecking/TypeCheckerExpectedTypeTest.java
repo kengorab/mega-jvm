@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
@@ -15,8 +16,11 @@ import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
+import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -570,6 +574,84 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.FLOAT), type);
+        }
+    }
+
+    @Nested
+    class CallExpressionTests {
+
+        @Test
+        public void noExpectedType_targetIsNotAFunction_returnsUnknown_hasUninvokeableTypeError() {
+            CallExpression callExpr = parseExpression("[1, 2](4)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER))),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
+        }
+
+        @Test
+        public void noExpectedType_moreParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
+            CallExpression callExpr = parseExpression("((a: Int) => a)(1, 2)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new FunctionArityError(1, 2)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_fewerParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
+            CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new FunctionArityError(2, 1)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_paramTypesDontMatch_returnsReturnType_hasFunctionTypeError() {
+            CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 'a')", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new FunctionTypeError(
+                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
+                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                )),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_returnsReturnType() {
+            CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void expectedType_expectedTypeDoesntMatchReturnType_returnsExpected_hasMismatchError() {
+            CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.STRING);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        public void expectedType_expectedTypeMatchesReturnType_returnsExpected() {
+            CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.INTEGER);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
         }
     }
 }

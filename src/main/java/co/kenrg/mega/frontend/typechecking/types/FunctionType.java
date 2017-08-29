@@ -1,9 +1,12 @@
 package co.kenrg.mega.frontend.typechecking.types;
 
+import static com.google.common.collect.Streams.zip;
 import static java.util.stream.Collectors.joining;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
     public final List<MegaType> paramTypes;
@@ -37,8 +40,16 @@ public class FunctionType extends MegaType {
 
     @Override
     public boolean isEquivalentTo(MegaType other) {
-        return other instanceof FunctionType
-            && ((FunctionType) other).paramTypes.equals(this.paramTypes)
-            && ((FunctionType) other).returnType.equals(this.returnType);
+        if (!(other instanceof FunctionType)) {
+            return false;
+        }
+        FunctionType otherType = (FunctionType) other;
+
+        Boolean paramTypesEq = zip(this.paramTypes.stream(), otherType.paramTypes.stream(), Pair::of)
+            .map(pair -> pair.getLeft().isEquivalentTo(pair.getRight()))
+            .reduce(true, Boolean::logicalAnd);
+        boolean returnTypesEq = this.returnType.isEquivalentTo(otherType.returnType);
+
+        return paramTypesEq && returnTypesEq;
     }
 }
