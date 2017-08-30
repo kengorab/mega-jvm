@@ -43,9 +43,9 @@ import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature;
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
-import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
@@ -237,12 +237,22 @@ public class TypeChecker {
         }
     }
 
-    private void typecheckLetStatement(LetStatement statement, TypeEnvironment env) {
+    @VisibleForTesting
+    void typecheckLetStatement(LetStatement statement, TypeEnvironment env) {
         typecheckBindingStatement(statement.name, statement.value, true, env);
     }
 
     private void typecheckVarStatement(VarStatement statement, TypeEnvironment env) {
         typecheckBindingStatement(statement.name, statement.value, false, env);
+    }
+
+    private boolean containsInferences(MegaType type) {
+        if (type instanceof ParametrizedMegaType) {
+            return ((ParametrizedMegaType) type).typeArgs().contains(notInferredType);
+        } else if (type instanceof FunctionType) {
+            return ((FunctionType) type).paramTypes.contains(notInferredType);
+        }
+        return false;
     }
 
     private void typecheckBindingStatement(Identifier name, Expression value, boolean isImmutable, TypeEnvironment env) {
@@ -252,7 +262,11 @@ public class TypeChecker {
         }
 
         MegaType type = this.typecheckNode(value, env, expectedType).type;
-        env.addBindingWithType(name.value, type, isImmutable);
+        if (containsInferences(type)) {
+            env.addBindingWithType(name.value, type, isImmutable, value);
+        } else {
+            env.addBindingWithType(name.value, type, isImmutable);
+        }
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
@@ -509,7 +523,10 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckIdentifier(Identifier identifier, TypeEnvironment env, @Nullable MegaType expectedType) {
-        MegaType identifierType = env.getTypeForBinding(identifier.value);
+        Binding binding = env.getBinding(identifier.value);
+        MegaType identifierType = (binding == null)
+            ? null
+            : (binding.expression != null) ? typecheckNode(binding.expression, env, expectedType).type : binding.type;
         if (expectedType != null) {
             if (expectedType.isEquivalentTo(identifierType)) {
                 return expectedType;
@@ -567,13 +584,20 @@ public class TypeChecker {
 
         if (funcType.paramTypes.size() != expr.arguments.size()) {
             this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size()));
+            return funcType.returnType;
         }
 
-        List<MegaType> providedTypes = expr.arguments.stream().map(arg -> typecheckNode(arg, env).type).collect(toList());
-        FunctionType inferredFuncType = new FunctionType(providedTypes, funcType.returnType);
-        if (!funcType.isEquivalentTo(inferredFuncType)) {
-            this.errors.add(new FunctionTypeError(funcType.paramTypes, providedTypes));
+//        List<MegaType> providedTypes = Lists.newArrayListWithExpectedSize(expr.arguments.size());
+        for (int i = 0; i < expr.arguments.size(); i++) {
+            Expression arg = expr.arguments.get(i);
+            MegaType expectedParamType = funcType.paramTypes.get(i);
+            typecheckNode(arg, env, expectedParamType);
+//            providedTypes.add(paramType);
         }
+//        FunctionType inferredFuncType = new FunctionType(providedTypes, funcType.returnType);
+//        if (!funcType.isEquivalentTo(inferredFuncType)) {
+//            this.errors.add(new FunctionTypeError(funcType.paramTypes, providedTypes));
+//        }
 
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(funcType.returnType)) {
@@ -613,7 +637,10 @@ public class TypeChecker {
 
         String bindingName = expr.name.value;
 
-        MegaType type = env.getTypeForBinding(bindingName);
+        Binding binding = env.getBinding(bindingName);
+        MegaType type = (binding != null)
+            ? binding.type
+            : null;
         MegaType rightType = typecheckNode(expr.right, env, type).type;
 
         switch (env.setTypeForBinding(bindingName, rightType)) {

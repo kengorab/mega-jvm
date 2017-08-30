@@ -19,8 +19,10 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
+import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.parser.ParserTestUtils;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
-import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
@@ -57,6 +59,12 @@ class TypeCheckerExpectedTypeTest {
         ExpressionStatement expressionStatement = parseExpressionStatement(input);
         assertTrue(exprClass.isAssignableFrom(expressionStatement.expression.getClass()));
         return (T) expressionStatement.expression;
+    }
+
+    private <T extends Statement> T parseStatement(String input, Class<T> stmtClass) {
+        Statement statement = ParserTestUtils.parseStatement(input);
+        assertTrue(stmtClass.isAssignableFrom(statement.getClass()));
+        return (T) statement;
     }
 
     @BeforeEach
@@ -226,6 +234,18 @@ class TypeCheckerExpectedTypeTest {
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, identType);
+        }
+
+        @Test
+        public void expectedTypePassed_actualTypeHasInferences_inferredTypeMatchesExpected_returnsExpected() {
+            typeChecker.typecheckLetStatement(parseStatement("let identity = a => a", LetStatement.class), env);
+
+            Identifier identifier = parseExpression("identity", Identifier.class);
+            FunctionType expectedType = new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER);
+            MegaType identType = typeChecker.typecheckIdentifier(identifier, env, expectedType);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(expectedType, identType);
         }
     }
 
@@ -624,18 +644,50 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 'a')", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new FunctionTypeError(
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
+            LetStatement letStmt = parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class);
+            typeChecker.typecheckLetStatement(letStmt, env);
+
+            CallExpression callExpr = parseExpression("call(a => a, 1)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeDoesntMatchParamType_returnsReturnType_hasMismatchError() {
+            LetStatement letStmt = parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class);
+            typeChecker.typecheckLetStatement(letStmt, env);
+
+            CallExpression callExpr = parseExpression("call(a => a + '!', 1)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(
+                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
+                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
                 )),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
         }
 
-        //TODO: Add test verifying that the following typechecks:
-        //   let call (fn: Int => Int, a: Int) => fn(a)
-        //   call(a => a + 1, 1)
+        @Test
+        public void noExpectedType_identifierPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
+            typeChecker.typecheckLetStatement(parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class), env);
+            typeChecker.typecheckLetStatement(parseStatement("let identity = a => a", LetStatement.class), env);
+
+            CallExpression callExpr = parseExpression("call(identity, 1)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
 
         @Test
         public void noExpectedType_returnsReturnType() {

@@ -6,6 +6,7 @@ import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypec
 import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckStatementAndGetResult;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
@@ -13,9 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
-import co.kenrg.mega.frontend.typechecking.errors.FunctionTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
@@ -156,7 +157,9 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    MegaType bindingType = env.getTypeForBinding(testCase.getMiddle());
+                    Binding binding = env.getBinding(testCase.getMiddle());
+                    assertNotNull(binding);
+                    MegaType bindingType = binding.type;
                     assertEquals(testCase.getRight(), bindingType);
                 });
             })
@@ -188,7 +191,9 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    MegaType bindingType = env.getTypeForBinding("p");
+                    Binding binding = env.getBinding("p");
+                    assertNotNull(binding);
+                    MegaType bindingType = binding.type;
                     assertEquals(testCase.getRight(), bindingType);
                 });
             })
@@ -249,7 +254,9 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(input, env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    MegaType funcType = env.getTypeForBinding(funcName);
+                    Binding binding = env.getBinding(funcName);
+                    assertNotNull(binding);
+                    MegaType funcType = binding.type;
                     assertEquals(type, funcType);
                 });
             })
@@ -921,18 +928,12 @@ class TypeCheckerTest {
             // Param type errors
             Triple.of(
                 "((a: Int, b: Int) => a + b)(3, 'asdf')",
-                new FunctionTypeError(
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
-                ),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
                 PrimitiveTypes.INTEGER
             ),
             Triple.of(
                 "((a: Int, b: Int, c: Int) => [a, b])(3, ['asdf'], 3)",
-                new FunctionTypeError(
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    Lists.newArrayList(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER)
-                ),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.STRING)),
                 arrayOf.apply(PrimitiveTypes.INTEGER)
             )
         );

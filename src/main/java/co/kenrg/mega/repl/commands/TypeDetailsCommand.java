@@ -3,6 +3,7 @@ package co.kenrg.mega.repl.commands;
 import java.util.List;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.repl.evaluator.Environment;
 import com.google.common.collect.Lists;
@@ -42,9 +43,12 @@ public class TypeDetailsCommand implements ReplCommand {
             return String.format("type %s = %s", name, type.signature());
         }
 
-        MegaType bindingType = typeEnvironment.getTypeForBinding(name);
-        if (bindingType != null) {
-            return String.format("%s: %s", name, bindingType.signature());
+        Binding binding = typeEnvironment.getBinding(name);
+        if (binding != null) {
+            MegaType bindingType = binding.type;
+            if (bindingType != null) {
+                return String.format("%s: %s", name, bindingType.signature());
+            }
         }
 
         return String.format("Identifier %s unknown in this context", name);

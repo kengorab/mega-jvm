@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.typechecking;
 import javax.annotation.Nullable;
 import java.util.Map;
 
+import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -21,13 +22,21 @@ public class TypeEnvironment {
         E_DUPLICATE
     }
 
-    private class Binding {
+    public static class Binding {
         public final MegaType type;
         public final boolean isImmutable;
+        @Nullable public final Expression expression;
 
         public Binding(MegaType type, boolean isImmutable) {
             this.type = type;
             this.isImmutable = isImmutable;
+            this.expression = null;
+        }
+
+        public Binding(MegaType type, boolean isImmutable, @Nullable Expression expression) {
+            this.type = type;
+            this.isImmutable = isImmutable;
+            this.expression = expression;
         }
     }
 
@@ -52,24 +61,28 @@ public class TypeEnvironment {
     }
 
     @Nullable
-    public MegaType getTypeForBinding(String name) {
+    public Binding getBinding(String name) {
         if (bindingTypesStore.containsKey(name)) {
-            return bindingTypesStore.get(name).type;
+            return bindingTypesStore.get(name);
         }
 
         if (parent != null) {
-            return parent.getTypeForBinding(name);
+            return parent.getBinding(name);
         }
 
         return null;
     }
 
     public SetBindingStatus addBindingWithType(String name, MegaType type, boolean isImmutable) {
+        return addBindingWithType(name, type, isImmutable, null);
+    }
+
+    public SetBindingStatus addBindingWithType(String name, MegaType type, boolean isImmutable, @Nullable Expression expression) {
         if (bindingTypesStore.containsKey(name)) {
             return SetBindingStatus.E_DUPLICATE;
         }
 
-        bindingTypesStore.put(name, new Binding(type, isImmutable));
+        bindingTypesStore.put(name, new Binding(type, isImmutable, expression));
         return SetBindingStatus.NO_ERROR;
     }
 
