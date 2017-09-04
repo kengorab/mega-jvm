@@ -10,6 +10,7 @@
    ✓ Support lazy evaluation of types (by storing AST along with binding name in TypeEnvironment?)
      - e.g. `let identity = a => a; a(5)`
 ✓ Field-wise type declaration (see Person type in test.meg)
+- Using types in interpreter
 - Parametrized types (e.g. `SomeType[T, U, V]`)
 - Property accessors of existing types (e.g. `let s = 'asdf'; s.length`)
 - Property accessors of type instances (e.g. `let a: Person = { name: 'Ken' }; a.name`)
@@ -17,3 +18,4 @@
 - Add line/col numbers to Tokens / Error messages
 - Single-line comments
 - Multi-line comments
+- Compiling to JVM bytecode
