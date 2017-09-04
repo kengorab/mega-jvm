@@ -679,7 +679,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_identifierPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
+        public void noExpectedType_identifierPassedThatRequiresInference_inferredTypeMatchesParamType_returnsReturnType() {
             typeChecker.typecheckLetStatement(parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class), env);
             typeChecker.typecheckLetStatement(parseStatement("let identity = a => a", LetStatement.class), env);
 
@@ -687,6 +687,27 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_targetRequiresInference_targetTypeMatchesInference_returnsReturnType() {
+            CallExpression callExpr = parseExpression("(a => a)(4)", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.INTEGER, type);
+        }
+
+        @Test
+        public void noExpectedType_targetRequiresInference_targetTypeDoesntMatchInference_returnsUnknown() {
+            typeChecker.typecheckLetStatement(parseStatement("let halve = a => a / 2", LetStatement.class), env);
+
+            CallExpression callExpr = parseExpression("halve('asdf')", CallExpression.class);
+            MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
+            assertEquals(
+                Lists.newArrayList(new IllegalOperatorError("/", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, type);
         }
 
         @Test

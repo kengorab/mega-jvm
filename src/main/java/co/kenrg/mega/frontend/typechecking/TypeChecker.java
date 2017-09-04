@@ -581,23 +581,26 @@ public class TypeChecker {
             return unknownType;
         }
         FunctionType funcType = (FunctionType) targetType;
-
         if (funcType.paramTypes.size() != expr.arguments.size()) {
             this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size()));
             return funcType.returnType;
         }
 
-//        List<MegaType> providedTypes = Lists.newArrayListWithExpectedSize(expr.arguments.size());
-        for (int i = 0; i < expr.arguments.size(); i++) {
-            Expression arg = expr.arguments.get(i);
-            MegaType expectedParamType = funcType.paramTypes.get(i);
-            typecheckNode(arg, env, expectedParamType);
-//            providedTypes.add(paramType);
+        if (this.containsInferences(funcType)) {
+            // If the target contains inferences, make two typechecking passes over it, since we know the param types...
+            List<MegaType> paramTypes = expr.arguments.stream()
+                .map(arg -> typecheckNode(arg, env).type)
+                .collect(toList());
+            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType);
+            funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType).type;
+        } else {
+            // Otherwise, typecheck the passed params with expected param types from non-inferred function type
+            for (int i = 0; i < expr.arguments.size(); i++) {
+                Expression arg = expr.arguments.get(i);
+                MegaType expectedParamType = funcType.paramTypes.get(i);
+                typecheckNode(arg, env, expectedParamType);
+            }
         }
-//        FunctionType inferredFuncType = new FunctionType(providedTypes, funcType.returnType);
-//        if (!funcType.isEquivalentTo(inferredFuncType)) {
-//            this.errors.add(new FunctionTypeError(funcType.paramTypes, providedTypes));
-//        }
 
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(funcType.returnType)) {
@@ -605,7 +608,7 @@ public class TypeChecker {
             }
             return expectedType;
         }
-        return funcType.returnType;
+        return (funcType.returnType == null) ? unknownType : funcType.returnType;
     }
 
     @VisibleForTesting

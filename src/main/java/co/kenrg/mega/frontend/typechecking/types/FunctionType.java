@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.typechecking.types;
 import static com.google.common.collect.Streams.zip;
 import static java.util.stream.Collectors.joining;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
@@ -10,14 +11,14 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
     public final List<MegaType> paramTypes;
-    public final MegaType returnType;
+    @Nullable public final MegaType returnType;
 
-    public FunctionType(List<MegaType> paramTypes, MegaType returnType) {
+    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType) {
         this.paramTypes = paramTypes;
         this.returnType = returnType;
     }
 
-    public FunctionType(MegaType ...typeArgs) {
+    public FunctionType(MegaType... typeArgs) {
         List<MegaType> _typeArgs = Arrays.asList(typeArgs);
         this.paramTypes = _typeArgs.subList(0, _typeArgs.size() - 1);
         this.returnType = _typeArgs.get(_typeArgs.size() - 1);
@@ -35,7 +36,10 @@ public class FunctionType extends MegaType {
             params = String.format("(%s)", paramList);
         }
 
-        return String.format("%s => %s", params, this.returnType.signature());
+        String returnType = (this.returnType == null)
+            ? "<Unknown>"   //TODO: Fix leaky <Unknown> abstraction
+            : this.returnType.signature();
+        return String.format("%s => %s", params, returnType);
     }
 
     @Override
@@ -48,7 +52,7 @@ public class FunctionType extends MegaType {
         Boolean paramTypesEq = zip(this.paramTypes.stream(), otherType.paramTypes.stream(), Pair::of)
             .map(pair -> pair.getLeft().isEquivalentTo(pair.getRight()))
             .reduce(true, Boolean::logicalAnd);
-        boolean returnTypesEq = this.returnType.isEquivalentTo(otherType.returnType);
+        boolean returnTypesEq = (this.returnType == null) || this.returnType.isEquivalentTo(otherType.returnType);
 
         return paramTypesEq && returnTypesEq;
     }
