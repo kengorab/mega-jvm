@@ -56,6 +56,7 @@ import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
+import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -264,17 +265,32 @@ class ParserTest {
 
     @TestFactory
     public List<DynamicTest> testAssignmentExpression() {
-        List<Triple<String, String, Object>> tests = Lists.newArrayList(
-            Triple.of("x = 4", "x", 4),
-            Triple.of("y = 10", "y", 10),
-            Triple.of("foobar = \"str\"", "foobar", "str")
+        class TestCase {
+            private final String input;
+            private final String identName;
+            private final Object value;
+            private final Position position;
+
+            public TestCase(String input, String identName, Object value, Position position) {
+                this.input = input;
+                this.identName = identName;
+                this.value = value;
+                this.position = position;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("x = 4", "x", 4, Position.at(1, 5)),
+            new TestCase("y = 10", "y", 10, Position.at(1, 5)),
+            new TestCase("foobar = \"str\"", "foobar", "str", Position.at(1, 10))
         );
 
         return tests.stream()
             .map(testCase -> {
-                    String input = testCase.getLeft();
-                    String ident = testCase.getMiddle();
-                    Object value = testCase.getRight();
+                    String input = testCase.input;
+                    String ident = testCase.identName;
+                    Object value = testCase.value;
+                    Position position = testCase.position;
 
                     String testName = String.format("The assign-expr `%s` should have ident `%s` and value `%s`", input, ident, value);
                     return dynamicTest(testName, () -> {
@@ -283,7 +299,7 @@ class ParserTest {
                         AssignmentExpression assignment = (AssignmentExpression) statement.expression;
 
                         assertEquals(ident, assignment.name.value);
-                        assertLiteralExpression(assignment.right, value);
+                        assertLiteralExpression(assignment.right, value, position);
                     });
                 }
             )
@@ -345,12 +361,12 @@ class ParserTest {
         assertEquals(
             Lists.newArrayList(
                 new ExpressionStatement(
-                    new Token(IDENT, "a"),
+                    new Token(IDENT, "a", Position.at(1, 18)),
                     new InfixExpression(
-                        new Token(PLUS, "+"),
+                        new Token(PLUS, "+", Position.at(1, 20)),
                         "+",
-                        new Identifier(new Token(IDENT, "a"), "a"),
-                        new Identifier(new Token(IDENT, "b"), "b")
+                        new Identifier(new Token(IDENT, "a", Position.at(1, 18)), "a"),
+                        new Identifier(new Token(IDENT, "b", Position.at(1, 22)), "b")
                     )
                 )
             ),
@@ -365,27 +381,27 @@ class ParserTest {
         ExpressionStatement statement = parseExpressionStatement(input);
         Expression identExpr = statement.expression;
 
-        assertEquals(identExpr, new Identifier(new Token(IDENT, "foobar"), "foobar"));
+        assertEquals(identExpr, new Identifier(new Token(IDENT, "foobar", Position.at(1, 1)), "foobar"));
     }
 
-    private void assertLiteralExpression(Expression expr, Object expectedValue) {
+    private void assertLiteralExpression(Expression expr, Object expectedValue, Position position) {
         if (expectedValue instanceof Integer) {
             Integer value = (Integer) expectedValue;
             assertEquals(
-                new IntegerLiteral(new Token(INT, String.valueOf(value)), value),
+                new IntegerLiteral(new Token(INT, String.valueOf(value), position), value),
                 expr
             );
         } else if (expectedValue instanceof Float) {
             Float value = (Float) expectedValue;
             assertEquals(
-                new FloatLiteral(new Token(FLOAT, String.valueOf(value)), value),
+                new FloatLiteral(new Token(FLOAT, String.valueOf(value), position), value),
                 expr
             );
         } else if (expectedValue instanceof Boolean) {
             Boolean value = (Boolean) expectedValue;
             Token token = value
-                ? new Token(TRUE, "true")
-                : new Token(FALSE, "false");
+                ? new Token(TRUE, "true", position)
+                : new Token(FALSE, "false", position);
             assertEquals(
                 new BooleanLiteral(token, value),
                 expr
@@ -393,7 +409,7 @@ class ParserTest {
         } else if (expectedValue instanceof String) {
             String value = (String) expectedValue;
             assertEquals(
-                new StringLiteral(new Token(STRING, value), value),
+                new StringLiteral(new Token(STRING, value, position), value),
                 expr
             );
         } else {
@@ -401,8 +417,8 @@ class ParserTest {
         }
     }
 
-    private void assertIdentifier(Expression expr, String identName) {
-        assertEquals(expr, new Identifier(new Token(IDENT, identName), identName));
+    private void assertIdentifier(Expression expr, String identName, Position position) {
+        assertEquals(expr, new Identifier(new Token(IDENT, identName, position), identName));
     }
 
     @TestFactory
@@ -421,7 +437,7 @@ class ParserTest {
                 String name = String.format("'%s' should parse to '%d'", input, value);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertLiteralExpression(statement.expression, value);
+                    assertLiteralExpression(statement.expression, value, Position.at(1, 1));
                 });
             })
             .collect(toList());
@@ -443,7 +459,7 @@ class ParserTest {
                 String name = String.format("'%s' should parse to '%f'", input, value);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertLiteralExpression(statement.expression, value);
+                    assertLiteralExpression(statement.expression, value, Position.at(1, 1));
                 });
             })
             .collect(toList());
@@ -464,7 +480,7 @@ class ParserTest {
                 String name = String.format("'%s' should parse to '%b'", input, value);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertLiteralExpression(statement.expression, value);
+                    assertLiteralExpression(statement.expression, value, Position.at(1, 1));
                 });
             })
             .collect(toList());
@@ -484,7 +500,7 @@ class ParserTest {
                 String name = String.format("'%s' should parse to '%s'", input, value);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertLiteralExpression(statement.expression, value);
+                    assertLiteralExpression(statement.expression, value, Position.at(1, 1));
                 });
             })
             .collect(toList());
@@ -492,28 +508,30 @@ class ParserTest {
 
     @TestFactory
     public List<DynamicTest> testStringInterpolationExpression() {
+        //TODO: The positions of interpolated expressions should be with respect to the string, not with respect to itself.
+        // This is an artifact of how I'm (kind of jankily) supporting these nested expressions...
         List<Pair<String, Map<String, Expression>>> testCases = Lists.newArrayList(
             Pair.of("\"$a bc\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a"), "a")
+                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a")
             )),
             Pair.of("\"$a $bc\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a"), "a"),
-                "$bc", new Identifier(new Token(IDENT, "bc"), "bc")
+                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
+                "$bc", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"$a ${bc}\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a"), "a"),
-                "${bc}", new Identifier(new Token(IDENT, "bc"), "bc")
+                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
+                "${bc}", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"${a} ${bc}\"", ImmutableMap.of(
-                "${a}", new Identifier(new Token(IDENT, "a"), "a"),
-                "${bc}", new Identifier(new Token(IDENT, "bc"), "bc")
+                "${a}", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
+                "${bc}", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"1 + 1 = ${1 + 1}\"", ImmutableMap.of(
                 "${1 + 1}", new InfixExpression(
-                    new Token(PLUS, "+"),
+                    new Token(PLUS, "+", Position.at(1, 3)),
                     "+",
-                    new IntegerLiteral(new Token(INT, "1"), 1),
-                    new IntegerLiteral(new Token(INT, "1"), 1)
+                    new IntegerLiteral(new Token(INT, "1", Position.at(1, 1)), 1),
+                    new IntegerLiteral(new Token(INT, "1", Position.at(1, 5)), 1)
                 )
             ))
         );
@@ -535,16 +553,23 @@ class ParserTest {
 
     @TestFactory
     public List<DynamicTest> testArrayLiteralExpression_elementsAreLiterals() {
-        List<Pair<String, List<Object>>> testCases = Lists.newArrayList(
+        List<Pair<String, List<Pair<Object, Position>>>> testCases = Lists.newArrayList(
             Pair.of("[]", Lists.newArrayList()),
-            Pair.of("[\"hello\", 1]", Lists.newArrayList("hello", 1)),
-            Pair.of("[\"hello\", 1.2, true]", Lists.newArrayList("hello", 1.2f, true))
-        );
+            Pair.of("[\"hello\", 1]", Lists.newArrayList(
+                Pair.of("hello", Position.at(1, 2)),
+                Pair.of(1, Position.at(1, 11)
+                ))),
+            Pair.of("[\"hello\", 1.2, true]", Lists.newArrayList(
+                Pair.of("hello", Position.at(1, 2)),
+                Pair.of(1.2f, Position.at(1, 11)),
+                Pair.of(true, Position.at(1, 16))
+                )
+            ));
 
         return testCases.stream()
             .map(testCase -> {
                 String input = testCase.getLeft();
-                List<Object> elements = testCase.getRight();
+                List<Pair<Object, Position>> elements = testCase.getRight();
 
                 String name = String.format("'%s' should parse to an array of elements", input);
                 return dynamicTest(name, () -> {
@@ -553,9 +578,9 @@ class ParserTest {
                     assertEquals(elements.size(), expr.elements.size());
 
                     for (int i = 0; i < elements.size(); i++) {
-                        Object elem = elements.get(i);
+                        Pair<Object, Position> elem = elements.get(i);
                         Expression expression = expr.elements.get(i);
-                        assertLiteralExpression(expression, elem);
+                        assertLiteralExpression(expression, elem.getLeft(), elem.getRight());
                     }
                 });
             })
@@ -564,25 +589,25 @@ class ParserTest {
 
     @TestFactory
     public List<DynamicTest> testObjectLiteralExpression() {
-        List<Pair<String, List<Pair<String, String>>>> testCases = Lists.newArrayList(
+        List<Pair<String, List<Triple<String, Position, String>>>> testCases = Lists.newArrayList(
             Pair.of("{}", Lists.newArrayList()),
             Pair.of("{prop1:1}", Lists.newArrayList(
-                Pair.of("prop1", "1")
+                Triple.of("prop1", Position.at(1, 2), "1")
             )),
             Pair.of("{prop1:1, prop2:\"two\"}", Lists.newArrayList(
-                Pair.of("prop1", "1"),
-                Pair.of("prop2", "\"two\"")
+                Triple.of("prop1", Position.at(1, 2),"1"),
+                Triple.of("prop2",Position.at(1, 11), "\"two\"")
             )),
             Pair.of("{prop1:1 + 1, prop2:\"two\" + \"two\"}", Lists.newArrayList(
-                Pair.of("prop1", "(1 + 1)"),
-                Pair.of("prop2", "(\"two\" + \"two\")")
+                Triple.of("prop1", Position.at(1, 2),"(1 + 1)"),
+                Triple.of("prop2",Position.at(1, 15), "(\"two\" + \"two\")")
             ))
         );
 
         return testCases.stream()
             .map(testCase -> {
                 String input = testCase.getLeft();
-                List<Pair<String, String>> elements = testCase.getRight();
+                List<Triple<String, Position, String>> elements = testCase.getRight();
 
                 String name = String.format("'%s' should parse to an object literal", input);
                 return dynamicTest(name, () -> {
@@ -596,11 +621,11 @@ class ParserTest {
                     elems.sort(Comparator.comparing(e -> e.getKey().value));
 
                     for (int i = 0; i < elems.size(); i++) {
-                        Pair<String, String> elem = elements.get(i);
+                        Triple<String, Position, String> elem = elements.get(i);
                         Entry<Identifier, Expression> pair = elems.get(i);
 
-                        assertIdentifier(pair.getKey(), elem.getKey());
-                        assertEquals(elem.getValue(), pair.getValue().repr(true, 0));
+                        assertIdentifier(pair.getKey(), elem.getLeft(), elem.getMiddle());
+                        assertEquals(elem.getRight(), pair.getValue().repr(true, 0));
                     }
                 });
             })
@@ -632,7 +657,7 @@ class ParserTest {
                     PrefixExpression prefixExpr = (PrefixExpression) expr;
 
                     assertEquals(operator, prefixExpr.operator);
-                    assertLiteralExpression(prefixExpr.expression, value);
+                    assertLiteralExpression(prefixExpr.expression, value, Position.at(1, 2));
                 });
             })
             .collect(toList());
@@ -645,26 +670,30 @@ class ParserTest {
             private final String operator;
             private final Object left;
             private final Object right;
+            private final Position lPos;
+            private final Position rPos;
 
-            private TestCase(String input, String operator, Object left, Object right) {
+            private TestCase(String input, String operator, Object left, Object right, Position lPos, Position rPos) {
                 this.input = input;
                 this.operator = operator;
                 this.left = left;
                 this.right = right;
+                this.lPos = lPos;
+                this.rPos = rPos;
             }
         }
 
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("5 + 5", "+", 5, 5),
-            new TestCase("5 - 5", "-", 5, 5),
-            new TestCase("5 * 5", "*", 5, 5),
-            new TestCase("5 / 5", "/", 5, 5),
-            new TestCase("5 < 5", "<", 5, 5),
-            new TestCase("5 <= 5", "<=", 5, 5),
-            new TestCase("5 > 5", ">", 5, 5),
-            new TestCase("5 >= 5", ">=", 5, 5),
-            new TestCase("5 == 5", "==", 5, 5),
-            new TestCase("5 != 5", "!=", 5, 5)
+            new TestCase("5 + 5", "+", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 - 5", "-", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 * 5", "*", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 / 5", "/", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 < 5", "<", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 <= 5", "<=", 5, 5, Position.at(1, 1), Position.at(1, 6)),
+            new TestCase("5 > 5", ">", 5, 5, Position.at(1, 1), Position.at(1, 5)),
+            new TestCase("5 >= 5", ">=", 5, 5, Position.at(1, 1), Position.at(1, 6)),
+            new TestCase("5 == 5", "==", 5, 5, Position.at(1, 1), Position.at(1, 6)),
+            new TestCase("5 != 5", "!=", 5, 5, Position.at(1, 1), Position.at(1, 6))
         );
 
         return testCases.stream()
@@ -678,8 +707,8 @@ class ParserTest {
                     InfixExpression infixExpr = (InfixExpression) expr;
 
                     assertEquals(testCase.operator, infixExpr.operator);
-                    assertLiteralExpression(infixExpr.left, testCase.left);
-                    assertLiteralExpression(infixExpr.right, testCase.right);
+                    assertLiteralExpression(infixExpr.left, testCase.left, testCase.lPos);
+                    assertLiteralExpression(infixExpr.right, testCase.right, testCase.rPos);
                 });
             })
             .collect(toList());
@@ -746,12 +775,12 @@ class ParserTest {
 
         InfixExpression condition = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition.operator);
-        assertEquals(condition.left, new Identifier(new Token(IDENT, "x"), "x"));
-        assertEquals(condition.right, new Identifier(new Token(IDENT, "y"), "y"));
+        assertEquals(condition.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
+        assertEquals(condition.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
         Identifier ident = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
-        assertEquals(ident, new Identifier(new Token(IDENT, "x"), "x"));
+        assertEquals(ident, new Identifier(new Token(IDENT, "x", Position.at(1, 12)), "x"));
 
         assertNull(ifExpression.elseExpr);
     }
@@ -765,16 +794,16 @@ class ParserTest {
 
         InfixExpression condition = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition.operator);
-        assertEquals(condition.left, new Identifier(new Token(IDENT, "x"), "x"));
-        assertEquals(condition.right, new Identifier(new Token(IDENT, "y"), "y"));
+        assertEquals(condition.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
+        assertEquals(condition.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
         Identifier thenExpr = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
-        assertEquals(thenExpr, new Identifier(new Token(IDENT, "x"), "x"));
+        assertEquals(thenExpr, new Identifier(new Token(IDENT, "x", Position.at(1, 12)), "x"));
 
         BlockExpression elseBlock = (BlockExpression) ifExpression.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
-        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y"), "y"));
+        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y", Position.at(1, 23)), "y"));
     }
 
     @Test
@@ -782,7 +811,7 @@ class ParserTest {
         String input = "" +
             "if x < y { \n" +
             "  if x > 0 {\n" +
-            "    0" +
+            "    0\n" +
             "  } else {\n" +
             "    y\n" +
             "  }\n" +
@@ -793,8 +822,8 @@ class ParserTest {
 
         InfixExpression condition1 = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition1.operator);
-        assertEquals(condition1.left, new Identifier(new Token(IDENT, "x"), "x"));
-        assertEquals(condition1.right, new Identifier(new Token(IDENT, "y"), "y"));
+        assertEquals(condition1.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
+        assertEquals(condition1.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock1 = (BlockExpression) ifExpression.thenExpr;
         IfExpression nestedIfExpr = (IfExpression) ((ExpressionStatement) thenBlock1.statements.get(0)).expression;
@@ -802,16 +831,16 @@ class ParserTest {
 
         InfixExpression condition2 = (InfixExpression) nestedIfExpr.condition;
         assertEquals(">", condition2.operator);
-        assertEquals(condition2.left, new Identifier(new Token(IDENT, "x"), "x"));
-        assertLiteralExpression(condition2.right, 0);
+        assertEquals(condition2.left, new Identifier(new Token(IDENT, "x", Position.at(2, 6)), "x"));
+        assertLiteralExpression(condition2.right, 0, Position.at(2, 10));
 
         BlockExpression thenBlock2 = (BlockExpression) nestedIfExpr.thenExpr;
         IntegerLiteral thenExpr = (IntegerLiteral) ((ExpressionStatement) thenBlock2.statements.get(0)).expression;
-        assertLiteralExpression(thenExpr, 0);
+        assertLiteralExpression(thenExpr, 0, Position.at(3, 5));
 
         BlockExpression elseBlock = (BlockExpression) nestedIfExpr.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
-        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y"), "y"));
+        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y", Position.at(5, 5)), "y"));
     }
 
     @TestFactory
@@ -819,20 +848,22 @@ class ParserTest {
         class TestCase {
             public final String input;
             public final List<String> params;
+            public final Position bodyPosition;
 
-            public TestCase(String input, List<String> params) {
+            public TestCase(String input, List<String> params, Position bodyPosition) {
                 this.input = input;
                 this.params = params;
+                this.bodyPosition = bodyPosition;
             }
         }
 
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("(a, b) => { 24 }", Lists.newArrayList("a", "b")),
-            new TestCase("(a) => { 24 }", Lists.newArrayList("a")),
-            new TestCase("() => { 24 }", Lists.newArrayList()),
-            new TestCase("() => 24", Lists.newArrayList()),
-            new TestCase("a => { 24 }", Lists.newArrayList("a")),
-            new TestCase("a => 24", Lists.newArrayList("a"))
+            new TestCase("(a, b) => { 24 }", Lists.newArrayList("a", "b"), Position.at(1, 13)),
+            new TestCase("(a) => { 24 }", Lists.newArrayList("a"), Position.at(1, 10)),
+            new TestCase("() => { 24 }", Lists.newArrayList(), Position.at(1, 9)),
+            new TestCase("() => 24", Lists.newArrayList(), Position.at(1, 7)),
+            new TestCase("a => { 24 }", Lists.newArrayList("a"), Position.at(1, 8)),
+            new TestCase("a => 24", Lists.newArrayList("a"), Position.at(1, 6))
         );
 
         return testCases.stream()
@@ -856,9 +887,9 @@ class ParserTest {
                         BlockExpression block = (BlockExpression) body;
 
                         assertEquals(1, block.statements.size());
-                        assertLiteralExpression(((ExpressionStatement) block.statements.get(0)).expression, 24);
+                        assertLiteralExpression(((ExpressionStatement) block.statements.get(0)).expression, 24, testCase.bodyPosition);
                     } else {
-                        assertLiteralExpression(body, 24);
+                        assertLiteralExpression(body, 24, testCase.bodyPosition);
                     }
                 });
             })
@@ -873,23 +904,23 @@ class ParserTest {
         assertTrue(statement.expression instanceof ArrowFunctionExpression);
         ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
 
-        assertIdentifier(expr.parameters.get(0), "a");
+        assertIdentifier(expr.parameters.get(0), "a", Position.at(1, 1));
 
         Expression body = expr.body;
         assertTrue(body instanceof ArrowFunctionExpression);
         ArrowFunctionExpression arrowFunc = (ArrowFunctionExpression) body;
 
         assertEquals(1, arrowFunc.parameters.size());
-        assertIdentifier(arrowFunc.parameters.get(0), "b");
+        assertIdentifier(arrowFunc.parameters.get(0), "b", Position.at(1, 6));
 
         Expression arrowFuncBody = arrowFunc.body;
         assertEquals(
             arrowFuncBody,
             new InfixExpression(
-                new Token(PLUS, "+"),
+                new Token(PLUS, "+", Position.at(1, 13)),
                 "+",
-                new Identifier(new Token(IDENT, "a"), "a"),
-                new Identifier(new Token(IDENT, "b"), "b")
+                new Identifier(new Token(IDENT, "a", Position.at(1, 11)), "a"),
+                new Identifier(new Token(IDENT, "b", Position.at(1, 15)), "b")
             )
         );
     }
@@ -995,14 +1026,14 @@ class ParserTest {
 
         ForLoopStatement forLoop = (ForLoopStatement) statement;
 
-        assertIdentifier(forLoop.iterator, "x");
-        assertIdentifier(forLoop.iteratee, "arr");
+        assertIdentifier(forLoop.iterator, "x", Position.at(1, 5));
+        assertIdentifier(forLoop.iteratee, "arr", Position.at(1, 10));
 
         assertEquals(1, forLoop.block.statements.size());
         InfixExpression body = (InfixExpression) ((ExpressionStatement) forLoop.block.statements.get(0)).expression;
         assertEquals("+", body.operator);
-        assertIdentifier(body.left, "x");
-        assertEquals(new IntegerLiteral(new Token(INT, "1"), 1), body.right);
+        assertIdentifier(body.left, "x", Position.at(1, 16));
+        assertEquals(new IntegerLiteral(new Token(INT, "1", Position.at(1, 20)), 1), body.right);
     }
 
     @TestFactory
