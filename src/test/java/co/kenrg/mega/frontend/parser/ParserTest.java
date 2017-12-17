@@ -109,9 +109,6 @@ class ParserTest {
             }
         }
 
-        BasicTypeExpression intType = new BasicTypeExpression("Int");
-        BasicTypeExpression strType = new BasicTypeExpression("String");
-
         Function<Statement, Identifier> getLetStmtIdent = s -> ((LetStatement) s).name;
         Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
         Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
@@ -120,61 +117,83 @@ class ParserTest {
             new TestCase(
                 "let x: Int = 4",
                 "x",
-                intType,
+                new BasicTypeExpression("Int", Position.at(1, 8)),
                 getLetStmtIdent
             ),
             new TestCase(
                 "let s: String = \"asdf\"",
                 "s",
-                strType,
+                new BasicTypeExpression("String", Position.at(1, 8)),
                 getLetStmtIdent
             ),
             new TestCase(
                 "let s: Array[String] = [\"asdf\"]",
                 "s",
-                new ParametrizedTypeExpression("Array", Lists.newArrayList(strType)),
+                new ParametrizedTypeExpression("Array", Lists.newArrayList(new BasicTypeExpression("String", Position.at(1, 14))), Position.at(1, 8)),
                 getLetStmtIdent
             ),
             new TestCase(
                 "let s: Array[Array[String]] = [[\"asdf\"]]",
                 "s",
-                new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(strType)))),
+                new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(new BasicTypeExpression("String", Position.at(1, 20))), Position.at(1, 14))), Position.at(1, 8)),
                 getLetStmtIdent
             ),
             new TestCase(
                 "let s: SomeType[A, B] = [[\"asdf\"]]",
                 "s",
-                new ParametrizedTypeExpression("SomeType", Lists.newArrayList(new BasicTypeExpression("A"), new BasicTypeExpression("B"))),
+                new ParametrizedTypeExpression("SomeType", Lists.newArrayList(
+                    new BasicTypeExpression("A", Position.at(1, 17)),
+                    new BasicTypeExpression("B", Position.at(1, 20))
+                ), Position.at(1, 8)),
                 getLetStmtIdent
             ),
 
-            new TestCase("var x: Int = 4", "x", intType, getVarStmtIdent),
-            new TestCase("var s: String = \"asdf\"", "s", strType, getVarStmtIdent),
+            new TestCase("var x: Int = 4", "x", new BasicTypeExpression("Int", Position.at(1, 8)), getVarStmtIdent),
+            new TestCase("var s: String = \"asdf\"", "s", new BasicTypeExpression("String", Position.at(1, 8)), getVarStmtIdent),
 
-            new TestCase("func abc(a: Int, b: Int) { a + b }", "a", intType, getFuncStmtParamIdent.apply(0)),
-            new TestCase("func abc(a: Int, b: Int) { a + b }", "b", intType, getFuncStmtParamIdent.apply(1)),
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "a", new BasicTypeExpression("Int", Position.at(1, 13)), getFuncStmtParamIdent.apply(0)),
+            new TestCase("func abc(a: Int, b: Int) { a + b }", "b", new BasicTypeExpression("Int", Position.at(1, 21)), getFuncStmtParamIdent.apply(1)),
 
-            new TestCase("(a: String, b: String) => a + b", "a", strType, getArrowFuncExprParamIdent.apply(0)),
-            new TestCase("(a: String, b: String) => a + b", "b", strType, getArrowFuncExprParamIdent.apply(1)),
+            new TestCase("(a: String, b: String) => a + b", "a", new BasicTypeExpression("String", Position.at(1, 5)), getArrowFuncExprParamIdent.apply(0)),
+            new TestCase("(a: String, b: String) => a + b", "b", new BasicTypeExpression("String", Position.at(1, 16)), getArrowFuncExprParamIdent.apply(1)),
             new TestCase("(a, b: String) => a + b", "a", null, getArrowFuncExprParamIdent.apply(0)),
             new TestCase("(a: String, b) => a + b", "b", null, getArrowFuncExprParamIdent.apply(1)),
 
             new TestCase(
                 "(a: (Int, Int) => String, b: Int, c: Int) => a(b, c)",
                 "a",
-                new FunctionTypeExpression(Lists.newArrayList(intType, intType), strType),
+                new FunctionTypeExpression(
+                    Lists.newArrayList(
+                        new BasicTypeExpression("Int", Position.at(1, 6)),
+                        new BasicTypeExpression("Int", Position.at(1, 11))
+                    ),
+                    new BasicTypeExpression("String", Position.at(1, 19)),
+                    Position.at(1, 5)
+                ),
                 getArrowFuncExprParamIdent.apply(0)
             ),
             new TestCase(
                 "(a: (Int) => String, b: Int) => a(b)",
                 "a",
-                new FunctionTypeExpression(Lists.newArrayList(intType), strType),
+                new FunctionTypeExpression(
+                    Lists.newArrayList(
+                        new BasicTypeExpression("Int", Position.at(1, 6))
+                    ),
+                    new BasicTypeExpression("String", Position.at(1, 14)),
+                    Position.at(1, 5)
+                ),
                 getArrowFuncExprParamIdent.apply(0)
             ),
             new TestCase(
                 "(a: Int => String, b: Int) => a(b)",
                 "a",
-                new FunctionTypeExpression(Lists.newArrayList(intType), strType),
+                new FunctionTypeExpression(
+                    Lists.newArrayList(
+                        new BasicTypeExpression("Int", Position.at(1, 5))
+                    ),
+                    new BasicTypeExpression("String", Position.at(1, 12)),
+                    Position.at(1, 5)
+                ),
                 getArrowFuncExprParamIdent.apply(0)
             )
         );
@@ -595,12 +614,12 @@ class ParserTest {
                 Triple.of("prop1", Position.at(1, 2), "1")
             )),
             Pair.of("{prop1:1, prop2:\"two\"}", Lists.newArrayList(
-                Triple.of("prop1", Position.at(1, 2),"1"),
-                Triple.of("prop2",Position.at(1, 11), "\"two\"")
+                Triple.of("prop1", Position.at(1, 2), "1"),
+                Triple.of("prop2", Position.at(1, 11), "\"two\"")
             )),
             Pair.of("{prop1:1 + 1, prop2:\"two\" + \"two\"}", Lists.newArrayList(
-                Triple.of("prop1", Position.at(1, 2),"(1 + 1)"),
-                Triple.of("prop2",Position.at(1, 15), "(\"two\" + \"two\")")
+                Triple.of("prop1", Position.at(1, 2), "(1 + 1)"),
+                Triple.of("prop2", Position.at(1, 15), "(\"two\" + \"two\")")
             ))
         );
 
@@ -1050,17 +1069,71 @@ class ParserTest {
             }
         }
 
-        TypeExpression intType = new BasicTypeExpression("Int");
-        TypeExpression strType = new BasicTypeExpression("String");
-
         List<TestCase> tests = Lists.newArrayList(
-            new TestCase("type Id = Int", "Id", intType),
-            new TestCase("type Name = String", "Name", strType),
-            new TestCase("type Names = Array[String]", "Names", new ParametrizedTypeExpression("Array", Lists.newArrayList(strType))),
-            new TestCase("type Matrix = Array[Array[Int]]", "Matrix", new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(intType))))),
-            new TestCase("type UnaryOp = Int => Int", "UnaryOp", new FunctionTypeExpression(Lists.newArrayList(intType), intType)),
-            new TestCase("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionTypeExpression(Lists.newArrayList(intType), intType)),
-            new TestCase("type BinOp = (Int, Int) => Int", "BinOp", new FunctionTypeExpression(Lists.newArrayList(intType, intType), intType))
+            new TestCase(
+                "type Id = Int",
+                "Id",
+                new BasicTypeExpression("Int", Position.at(1, 11))
+            ),
+            new TestCase(
+                "type Name = String",
+                "Name",
+                new BasicTypeExpression("String", Position.at(1, 13))
+            ),
+            new TestCase(
+                "type Names = Array[String]",
+                "Names",
+                new ParametrizedTypeExpression(
+                    "Array",
+                    Lists.newArrayList(new BasicTypeExpression("String", Position.at(1, 20))),
+                    Position.at(1, 14)
+                )
+            ),
+            new TestCase(
+                "type Matrix = Array[Array[Int]]",
+                "Matrix",
+                new ParametrizedTypeExpression(
+                    "Array",
+                    Lists.newArrayList(
+                        new ParametrizedTypeExpression(
+                            "Array",
+                            Lists.newArrayList(new BasicTypeExpression("Int", Position.at(1, 27))),
+                            Position.at(1, 21)
+                        )
+                    ),
+                    Position.at(1, 15)
+                )
+            ),
+            new TestCase(
+                "type UnaryOp = Int => Int",
+                "UnaryOp",
+                new FunctionTypeExpression(
+                    Lists.newArrayList(new BasicTypeExpression("Int", Position.at(1, 16))),
+                    new BasicTypeExpression("Int", Position.at(1, 23)),
+                    Position.at(1, 16)
+                )
+            ),
+            new TestCase(
+                "type UnaryOp = (Int) => Int",
+                "UnaryOp",
+                new FunctionTypeExpression(
+                    Lists.newArrayList(new BasicTypeExpression("Int", Position.at(1, 17))),
+                    new BasicTypeExpression("Int", Position.at(1, 25)),
+                    Position.at(1, 16)
+                )
+            ),
+            new TestCase(
+                "type BinOp = (Int, Int) => Int",
+                "BinOp",
+                new FunctionTypeExpression(
+                    Lists.newArrayList(
+                        new BasicTypeExpression("Int", Position.at(1, 15)),
+                        new BasicTypeExpression("Int", Position.at(1, 20))
+                    ),
+                    new BasicTypeExpression("Int", Position.at(1, 28)),
+                    Position.at(1, 14)
+                )
+            )
         );
 
         return tests.stream()

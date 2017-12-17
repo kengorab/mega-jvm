@@ -42,6 +42,7 @@ import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
+import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
@@ -66,6 +67,7 @@ import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeChecker {
     static final MegaType unknownType = new MegaType() {
@@ -129,13 +131,13 @@ public class TypeChecker {
         }
 
         if (node instanceof IntegerLiteral) {
-            type = this.typecheckLiteralExpression(PrimitiveTypes.INTEGER, expectedType);
+            type = this.typecheckLiteralExpression(PrimitiveTypes.INTEGER, expectedType, node);
         } else if (node instanceof FloatLiteral) {
-            type = this.typecheckLiteralExpression(PrimitiveTypes.FLOAT, expectedType);
+            type = this.typecheckLiteralExpression(PrimitiveTypes.FLOAT, expectedType, node);
         } else if (node instanceof BooleanLiteral) {
-            type = this.typecheckLiteralExpression(PrimitiveTypes.BOOLEAN, expectedType);
+            type = this.typecheckLiteralExpression(PrimitiveTypes.BOOLEAN, expectedType, node);
         } else if (node instanceof StringLiteral) {
-            type = this.typecheckLiteralExpression(PrimitiveTypes.STRING, expectedType);
+            type = this.typecheckLiteralExpression(PrimitiveTypes.STRING, expectedType, node);
         } else if (node instanceof ArrayLiteral) {
             type = this.typecheckArrayLiteral((ArrayLiteral) node, env, expectedType);
         } else if (node instanceof ObjectLiteral) {
@@ -171,7 +173,7 @@ public class TypeChecker {
         if (typeExpr instanceof BasicTypeExpression) {
             MegaType type = typeEnvironment.getTypeByName(((BasicTypeExpression) typeExpr).type);
             if (type == null) {
-                this.errors.add(new UnknownTypeError(typeExpr.signature()));
+                this.errors.add(new UnknownTypeError(typeExpr.signature(), typeExpr.position));
                 return unknownType;
             }
             return type;
@@ -180,11 +182,11 @@ public class TypeChecker {
         if (typeExpr instanceof ParametrizedTypeExpression) {
             MegaType type = typeEnvironment.getTypeByName(((ParametrizedTypeExpression) typeExpr).type);
             if (type == null) {
-                this.errors.add(new UnknownTypeError(typeExpr.signature()));
+                this.errors.add(new UnknownTypeError(typeExpr.signature(), typeExpr.position));
                 return unknownType;
             }
             if (!type.isParametrized()) {
-                this.errors.add(new UnparametrizableTypeError(type.displayName()));
+                this.errors.add(new UnparametrizableTypeError(type.displayName(), typeExpr.position));
                 return type;
             }
             ParametrizedMegaType baseType = (ParametrizedMegaType) type;
@@ -197,10 +199,10 @@ public class TypeChecker {
             int expectedNumTypeArgs = baseType.numTypeArgs();
             int suppliedNumTypeArgs = argTypes.size();
             if (expectedNumTypeArgs < suppliedNumTypeArgs) {
-                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs));
+                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs, typeExpr.position));
                 return baseType.applyTypeArgs(argTypes.subList(0, expectedNumTypeArgs));
             } else if (expectedNumTypeArgs > suppliedNumTypeArgs) {
-                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs));
+                this.errors.add(new ParametrizableTypeArityError(baseType.displayName(), expectedNumTypeArgs, suppliedNumTypeArgs, typeExpr.position));
                 for (int i = suppliedNumTypeArgs; i < expectedNumTypeArgs; i++) {
                     argTypes.add(unknownType);
                 }
@@ -275,7 +277,7 @@ public class TypeChecker {
 
         for (Identifier parameter : statement.parameters) {
             if (parameter.typeAnnotation == null) {
-                this.errors.add(new TypeCheckerError() {
+                this.errors.add(new TypeCheckerError(parameter.token.position) {
                     @Override
                     public String message() {
                         return String.format("Missing type annotation on parameter: %s", parameter.value);
@@ -294,10 +296,10 @@ public class TypeChecker {
         if (statement.typeAnnotation != null) {
             MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);
             if (declaredReturnType == null) {
-                this.errors.add(new UnknownTypeError(statement.typeAnnotation));
+                this.errors.add(new UnknownTypeError(statement.typeAnnotation, statement.token.position));
             } else {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
-                    this.errors.add(new TypeMismatchError(declaredReturnType, returnType));
+                    this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
                 env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
             }
@@ -313,7 +315,7 @@ public class TypeChecker {
         MegaType iterateeType = typecheckNode(statement.iteratee, env).type;
         ArrayType arrayAnyType = new ArrayType(PrimitiveTypes.ANY);
         if (!arrayAnyType.isEquivalentTo(iterateeType)) {
-            this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType));
+            this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType, statement.iteratee.getToken().position));
             childEnv.addBindingWithType(iterator, unknownType, true);
         } else {
             childEnv.addBindingWithType(iterator, ((ArrayType) iterateeType).typeArg, true);
@@ -331,7 +333,7 @@ public class TypeChecker {
 
         switch (env.addType(typeName, type)) {
             case E_DUPLICATE:
-                this.errors.add(new DuplicateTypeError(typeName));
+                this.errors.add(new DuplicateTypeError(typeName, statement.token.position));
                 break;
             case NO_ERROR:
             default:
@@ -340,13 +342,13 @@ public class TypeChecker {
     }
 
     @VisibleForTesting
-    MegaType typecheckLiteralExpression(MegaType literalType, @Nullable MegaType expectedType) {
+    MegaType typecheckLiteralExpression(MegaType literalType, @Nullable MegaType expectedType, Node node) {
         if (expectedType == null) {
             return literalType;
         }
 
         if (!expectedType.isEquivalentTo(literalType)) {
-            this.errors.add(new TypeMismatchError(expectedType, literalType));
+            this.errors.add(new TypeMismatchError(expectedType, literalType, node.getToken().position));
         }
         return expectedType;
     }
@@ -363,14 +365,14 @@ public class TypeChecker {
             : null;
 
         MegaType type = expectedTypeArg;  // The type arg is the expectedType arg if passed, else the type of elem 0
-        MegaType firstMismatch = null;  // Used to detect if elems differ from first elem type, when no expected passed
+        Pair<MegaType, Position> firstMismatch = null;  // Used to detect if elems differ from first elem type, when no expected passed
         for (Expression elem : elements) {
             TypedNode<Expression> elemTypeResult = typecheckNode(elem, env, expectedTypeArg);
             if (type == null) {
                 type = elemTypeResult.type;
             }
             if (!elemTypeResult.type.equals(type)) {
-                firstMismatch = elemTypeResult.type;
+                firstMismatch = Pair.of(elemTypeResult.type, elem.getToken().position);
             }
         }
 
@@ -378,13 +380,13 @@ public class TypeChecker {
         if (expectedType == null) {
             // Only need to check firstMismatch if no expectedType passed
             if (firstMismatch != null) {
-                this.errors.add(new TypeMismatchError(type, firstMismatch));
+                this.errors.add(new TypeMismatchError(type, firstMismatch.getLeft(), firstMismatch.getRight()));
             }
             return arrayType;
         }
 
         if (!expectedType.isEquivalentTo(arrayType)) {
-            this.errors.add(new TypeMismatchError(expectedType, arrayType));
+            this.errors.add(new TypeMismatchError(expectedType, arrayType, array.token.position));
         }
 
         return arrayType;
@@ -400,7 +402,7 @@ public class TypeChecker {
         ObjectType type = new ObjectType(objectPropertyTypes);
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(type)) {
-                this.errors.add(new TypeMismatchError(expectedType, type));
+                this.errors.add(new TypeMismatchError(expectedType, type, object.token.position));
             }
             return expectedType;
         }
@@ -412,18 +414,18 @@ public class TypeChecker {
         switch (expr.operator) {
             case "!":
                 if (expectedType != null && !expectedType.equals(PrimitiveTypes.BOOLEAN)) {
-                    this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.BOOLEAN));
+                    this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.BOOLEAN, expr.token.position));
                 }
                 return PrimitiveTypes.BOOLEAN;
             case "-": {
                 MegaType exprType = typecheckNode(expr.expression, env).type;
                 if (expectedType != null) {
                     if (!expectedType.isEquivalentTo(exprType)) {
-                        this.errors.add(new TypeMismatchError(expectedType, exprType));
+                        this.errors.add(new TypeMismatchError(expectedType, exprType, expr.token.position));
                     }
                 } else {
                     if (!PrimitiveTypes.NUMBER.isEquivalentTo(exprType)) {
-                        this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, exprType));
+                        this.errors.add(new TypeMismatchError(PrimitiveTypes.NUMBER, exprType, expr.token.position));
                         return unknownType;
                     }
                 }
@@ -447,7 +449,7 @@ public class TypeChecker {
 
         List<OperatorSignature> opSignatures = OperatorTypeChecker.signaturesForOperator(expr.operator);
         if (opSignatures == null) {
-            this.errors.add(new UnknownOperatorError(expr.operator));
+            this.errors.add(new UnknownOperatorError(expr.operator, expr.token.position));
             return unknownType;
         }
 
@@ -456,7 +458,7 @@ public class TypeChecker {
             .collect(toList());
 
         if (possibleOperators.isEmpty()) {
-            this.errors.add(new IllegalOperatorError(expr.operator, leftType, rightType));
+            this.errors.add(new IllegalOperatorError(expr.operator, leftType, rightType, expr.token.position));
             return isBooleanOperator(expr.operator) ? PrimitiveTypes.BOOLEAN : unknownType;
         }
 
@@ -465,7 +467,7 @@ public class TypeChecker {
 
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(type)) {
-                this.errors.add(new TypeMismatchError(expectedType, type));
+                this.errors.add(new TypeMismatchError(expectedType, type, expr.token.position));
             }
             return expectedType;
         }
@@ -483,14 +485,14 @@ public class TypeChecker {
             MegaType elseBlockType = typecheckNode(expr.elseExpr, env, expectedType).type;
             if (expectedType == null) {
                 if (!thenBlockType.isEquivalentTo(elseBlockType)) {
-                    this.errors.add(new TypeMismatchError(thenBlockType, elseBlockType));
+                    this.errors.add(new TypeMismatchError(thenBlockType, elseBlockType, expr.elseExpr.getToken().position));
                 }
                 return thenBlockType;
             }
             return expectedType;
         } else {
             if (expectedType != null && !PrimitiveTypes.UNIT.isEquivalentTo(expectedType)) {
-                this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT));
+                this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT, expr.thenExpr.getToken().position));
                 return expectedType;
             }
             return PrimitiveTypes.UNIT;
@@ -514,7 +516,8 @@ public class TypeChecker {
         }
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(blockType)) {
-                this.errors.add(new TypeMismatchError(expectedType, blockType));
+                Statement lastStatement = statements.get(statements.size() - 1);
+                this.errors.add(new TypeMismatchError(expectedType, blockType, lastStatement.getToken().position));
             }
             return expectedType;
         }
@@ -531,7 +534,7 @@ public class TypeChecker {
             if (expectedType.isEquivalentTo(identifierType)) {
                 return expectedType;
             } else {
-                this.errors.add(new TypeMismatchError(expectedType, identifierType));
+                this.errors.add(new TypeMismatchError(expectedType, identifierType, identifier.token.position));
             }
         }
         return identifierType == null ? unknownType : identifierType;
@@ -568,7 +571,7 @@ public class TypeChecker {
         MegaType returnType = typecheckNode(expr.body, childEnv).type;
         FunctionType functionType = new FunctionType(paramTypes, returnType);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
-            this.errors.add(new TypeMismatchError(expectedType, functionType));
+            this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
         return functionType;
     }
@@ -577,12 +580,12 @@ public class TypeChecker {
     MegaType typecheckCallExpression(CallExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType targetType = typecheckNode(expr.target, env).type;
         if (!(targetType instanceof FunctionType)) {
-            this.errors.add(new UninvokeableTypeError(targetType));
+            this.errors.add(new UninvokeableTypeError(targetType, expr.target.getToken().position));
             return unknownType;
         }
         FunctionType funcType = (FunctionType) targetType;
         if (funcType.paramTypes.size() != expr.arguments.size()) {
-            this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size()));
+            this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size(), expr.token.position));
             return funcType.returnType;
         }
 
@@ -604,7 +607,7 @@ public class TypeChecker {
 
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(funcType.returnType)) {
-                this.errors.add(new TypeMismatchError(expectedType, funcType.returnType));
+                this.errors.add(new TypeMismatchError(expectedType, funcType.returnType, expr.token.position));
             }
             return expectedType;
         }
@@ -615,7 +618,7 @@ public class TypeChecker {
     MegaType typecheckIndexExpression(IndexExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType targetType = typecheckNode(expr.target, env).type;
         if (!(new ArrayType(PrimitiveTypes.ANY)).isEquivalentTo(targetType)) {
-            this.errors.add(new UnindexableTypeError(targetType));
+            this.errors.add(new UnindexableTypeError(targetType, expr.target.getToken().position));
             return unknownType;
         } else {
             ArrayType arrayType = (ArrayType) targetType;
@@ -623,7 +626,7 @@ public class TypeChecker {
 
             if (expectedType != null) {
                 if (!expectedType.isEquivalentTo(arrayType.typeArg)) {
-                    this.errors.add(new TypeMismatchError(expectedType, arrayType.typeArg));
+                    this.errors.add(new TypeMismatchError(expectedType, arrayType.typeArg, expr.token.position));
                 }
                 return expectedType;
             }
@@ -634,7 +637,7 @@ public class TypeChecker {
     @VisibleForTesting
     MegaType typecheckAssignmentExpression(AssignmentExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         if (expectedType != null && !expectedType.equals(PrimitiveTypes.UNIT)) {
-            this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT));
+            this.errors.add(new TypeMismatchError(expectedType, PrimitiveTypes.UNIT, expr.token.position));
             return PrimitiveTypes.UNIT;
         }
 
@@ -648,10 +651,10 @@ public class TypeChecker {
 
         switch (env.setTypeForBinding(bindingName, rightType)) {
             case E_IMMUTABLE:
-                this.errors.add(new MutabilityError(bindingName));
+                this.errors.add(new MutabilityError(bindingName, expr.name.token.position));
                 break;
             case E_NOBINDING:
-                this.errors.add(new UnknownIdentifierError(bindingName));
+                this.errors.add(new UnknownIdentifierError(bindingName, expr.name.token.position));
                 break;
             case E_DUPLICATE:
             case NO_ERROR:
@@ -670,7 +673,7 @@ public class TypeChecker {
         ArrayType arrayType = new ArrayType(PrimitiveTypes.INTEGER);
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(arrayType)) {
-                this.errors.add(new TypeMismatchError(expectedType, arrayType));
+                this.errors.add(new TypeMismatchError(expectedType, arrayType, expr.token.position));
             }
             return expectedType;
         }

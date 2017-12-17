@@ -14,14 +14,19 @@ import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
+import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.LetStatement;
 import co.kenrg.mega.frontend.parser.ParserTestUtils;
+import co.kenrg.mega.frontend.token.Position;
+import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.token.TokenType;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
@@ -78,23 +83,26 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void noExpectedTypePassed_returnsLiteralTypePassed() {
-            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, null);
+            IntegerLiteral intLiteral = new IntegerLiteral(new Token(TokenType.INT, "4"), 4);
+            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, null, intLiteral);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(PrimitiveTypes.STRING, type);
         }
 
         @Test
         public void expectedTypePassed_literalTypeAssignableToExpected_returnsExpected() {
-            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.STRING);
+            StringLiteral stringLiteral = new StringLiteral(new Token(TokenType.STRING, "abcd"), "abcd");
+            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.STRING, stringLiteral);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(PrimitiveTypes.STRING, type);
         }
 
         @Test
         public void expectedTypePassed_literalTypeNotAssignableToExpected_returnsExpected_hasMismatchError() {
-            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER);
+            StringLiteral stringLiteral = new StringLiteral(new Token(TokenType.STRING, "abcd"), "abcd");
+            MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, stringLiteral);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, null)),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -119,7 +127,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, null);
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 5))),
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), arrayType);
@@ -140,7 +148,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, arrayOf.apply(PrimitiveTypes.INTEGER));
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 2))),
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), arrayType);
@@ -193,7 +201,8 @@ class TypeCheckerExpectedTypeTest {
                     new ObjectType(ImmutableMap.of(
                         "name", PrimitiveTypes.STRING,
                         "age", PrimitiveTypes.INTEGER
-                    ))
+                    )),
+                    Position.at(1, 1)
                 )),
                 typeChecker.errors
             );
@@ -230,7 +239,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType identType = typeChecker.typecheckIdentifier(identifier, env, PrimitiveTypes.INTEGER);
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, identType);
@@ -316,7 +325,7 @@ class TypeCheckerExpectedTypeTest {
 
             FunctionType actualFuncType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(expectedFuncType, actualFuncType)),
+                Lists.newArrayList(new TypeMismatchError(expectedFuncType, actualFuncType, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(actualFuncType, arrowFuncType);
@@ -340,10 +349,11 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(
                 Lists.newArrayList(
-                    new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING),
+                    new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, Position.at(1, 13)),
                     new TypeMismatchError(
                         new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING),
-                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType)
+                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
+                        Position.at(1, 1)
                     )
                 ),
                 typeChecker.errors
@@ -382,7 +392,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, arrayOf.apply(PrimitiveTypes.STRING));
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.BOOLEAN)),
+                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.BOOLEAN, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.BOOLEAN, type);
@@ -412,7 +422,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.INTEGER);
 
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.FLOAT, type);
@@ -462,7 +472,7 @@ class TypeCheckerExpectedTypeTest {
             InfixExpression infixExpr = parseExpression("1 & 4", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new UnknownOperatorError("&")),
+                Lists.newArrayList(new UnknownOperatorError("&", Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -473,7 +483,7 @@ class TypeCheckerExpectedTypeTest {
             InfixExpression infixExpr = parseExpression("3.4 * 'abc'", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, Position.at(1, 5))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -484,7 +494,7 @@ class TypeCheckerExpectedTypeTest {
             InfixExpression infixExpr = parseExpression("'abc' <= 'def'", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new IllegalOperatorError("<=", PrimitiveTypes.STRING, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new IllegalOperatorError("<=", PrimitiveTypes.STRING, PrimitiveTypes.STRING, Position.at(1, 7))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.BOOLEAN, type);
@@ -503,7 +513,7 @@ class TypeCheckerExpectedTypeTest {
             InfixExpression infixExpr = parseExpression("1 + 5.2", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 3))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -518,7 +528,7 @@ class TypeCheckerExpectedTypeTest {
             IfExpression ifExpr = parseExpression("if 123 { 'abc' } else { 'def' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, Position.at(1, 4))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, type);
@@ -545,7 +555,7 @@ class TypeCheckerExpectedTypeTest {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 24))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, type);
@@ -556,7 +566,7 @@ class TypeCheckerExpectedTypeTest {
             IfExpression ifExpr = parseExpression("if true { 'abc' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.UNIT)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.UNIT, Position.at(1, 9))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, type);
@@ -568,7 +578,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
             assertEquals(
                 Lists.newArrayList(
-                    new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)
+                    new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 26))
                 ),
                 typeChecker.errors
             );
@@ -581,7 +591,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
                 Lists.newArrayList(
-                    new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                    new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 11))
                 ),
                 typeChecker.errors
             );
@@ -594,8 +604,8 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, arrayOf.apply(PrimitiveTypes.FLOAT));
             assertEquals(
                 Lists.newArrayList(
-                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING),
-                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.INTEGER)
+                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.STRING, Position.at(1, 11)),
+                    new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), PrimitiveTypes.INTEGER, Position.at(1, 26))
                 ),
                 typeChecker.errors
             );
@@ -611,7 +621,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("[1, 2](4)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER))),
+                Lists.newArrayList(new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -622,7 +632,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("((a: Int) => a)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new FunctionArityError(1, 2)),
+                Lists.newArrayList(new FunctionArityError(1, 2, Position.at(1, 16))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -633,7 +643,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new FunctionArityError(2, 1)),
+                Lists.newArrayList(new FunctionArityError(2, 1, Position.at(1, 28))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -644,7 +654,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 'a')", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 32))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -671,7 +681,8 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(
                     new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+                    Position.at(1, 6)
                 )),
                 typeChecker.errors
             );
@@ -704,7 +715,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("halve('asdf')", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new IllegalOperatorError("/", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new IllegalOperatorError("/", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 20))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -723,7 +734,7 @@ class TypeCheckerExpectedTypeTest {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.STRING);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 28))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, type);
@@ -746,7 +757,7 @@ class TypeCheckerExpectedTypeTest {
             IndexExpression indexExpr = parseExpression("'asdf'[0]", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING)),
+                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -758,7 +769,7 @@ class TypeCheckerExpectedTypeTest {
             env.addBindingWithType("arr", PrimitiveTypes.STRING, true);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING)),
+                Lists.newArrayList(new UnindexableTypeError(PrimitiveTypes.STRING, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(TypeChecker.unknownType, type);
@@ -769,7 +780,7 @@ class TypeCheckerExpectedTypeTest {
             IndexExpression indexExpr = parseExpression("[1, 2]['ab']", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 8))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.INTEGER, type);
@@ -780,7 +791,7 @@ class TypeCheckerExpectedTypeTest {
             IndexExpression indexExpr = parseExpression("[1, 2][1]", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 7))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.STRING, type);
@@ -804,7 +815,7 @@ class TypeCheckerExpectedTypeTest {
             env.addBindingWithType("a", PrimitiveTypes.STRING, false);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 5))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.UNIT, type);
@@ -815,7 +826,7 @@ class TypeCheckerExpectedTypeTest {
             AssignmentExpression assignmentExpr = parseExpression("a = 4 + 4.3", AssignmentExpression.class);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new UnknownIdentifierError("a")),
+                Lists.newArrayList(new UnknownIdentifierError("a", Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.UNIT, type);
@@ -827,7 +838,7 @@ class TypeCheckerExpectedTypeTest {
             env.addBindingWithType("a", PrimitiveTypes.STRING, true);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
             assertEquals(
-                Lists.newArrayList(new MutabilityError("a")),
+                Lists.newArrayList(new MutabilityError("a", Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.UNIT, type);
@@ -838,7 +849,7 @@ class TypeCheckerExpectedTypeTest {
             AssignmentExpression assignmentExpr = parseExpression("a = 4", AssignmentExpression.class);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.UNIT)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.UNIT, Position.at(1, 3))),
                 typeChecker.errors
             );
             assertEquals(PrimitiveTypes.UNIT, type);
@@ -853,7 +864,7 @@ class TypeCheckerExpectedTypeTest {
             RangeExpression rangeExpression = parseExpression("'a'..4", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 1))),
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
@@ -864,7 +875,7 @@ class TypeCheckerExpectedTypeTest {
             RangeExpression rangeExpression = parseExpression("1..1.3", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)),
+                Lists.newArrayList(new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 4))),
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
@@ -875,7 +886,7 @@ class TypeCheckerExpectedTypeTest {
             RangeExpression rangeExpression = parseExpression("1..3", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.FLOAT));
             assertEquals(
-                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), arrayOf.apply(PrimitiveTypes.INTEGER))),
+                Lists.newArrayList(new TypeMismatchError(arrayOf.apply(PrimitiveTypes.FLOAT), arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 2))),
                 typeChecker.errors
             );
             assertEquals(arrayOf.apply(PrimitiveTypes.FLOAT), type);

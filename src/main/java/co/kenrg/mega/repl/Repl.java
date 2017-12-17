@@ -62,7 +62,7 @@ public class Repl {
         if (typecheckResult.hasErrors()) {
             System.out.println("Type errors:");
             for (TypeCheckerError error : typecheckResult.errors) {
-                System.out.println("  " + error.message());
+                System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message()));
             }
 
             return;

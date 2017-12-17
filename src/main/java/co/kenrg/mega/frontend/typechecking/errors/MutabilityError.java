@@ -1,9 +1,12 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class MutabilityError extends TypeCheckerError {
     public final String name;
 
-    public MutabilityError(String name) {
+    public MutabilityError(String name, Position position) {
+        super(position);
         this.name = name;
     }
 
