@@ -1,9 +1,12 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class UnknownIdentifierError extends TypeCheckerError {
     public final String name;
 
-    public UnknownIdentifierError(String name) {
+    public UnknownIdentifierError(String name, Position position) {
+        super(position);
         this.name = name;
     }
 

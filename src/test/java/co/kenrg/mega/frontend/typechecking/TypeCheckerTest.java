@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
@@ -202,20 +203,20 @@ class TypeCheckerTest {
 
     @TestFactory
     public List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
-        List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
-            Triple.of("let s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
-            Triple.of("let i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
-            Triple.of("let f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
-            Triple.of("let b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("let b: Bool = (123)", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("let arr: Array[Int] = ['abc']", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+        List<Triple<String, Pair<MegaType, MegaType>, Position>> testCases = Lists.newArrayList(
+            Triple.of("let s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
+            Triple.of("let i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
+            Triple.of("let f: Float = 123", Pair.of(PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("let b: Bool = 123", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 15)),
+            Triple.of("let b: Bool = (123)", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("let arr: Array[Int] = ['abc']", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 24)),
 
-            Triple.of("var s: String = 123", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
-            Triple.of("var i: Int = \"asdf\"", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
-            Triple.of("var f: Float = 123", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER),
-            Triple.of("var b: Bool = 123", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("var b: Bool = (123)", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER),
-            Triple.of("var arr: Array[Int] = ['abc']", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+            Triple.of("var s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
+            Triple.of("var i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
+            Triple.of("var f: Float = 123", Pair.of(PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("var b: Bool = 123", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 15)),
+            Triple.of("var b: Bool = (123)", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("var arr: Array[Int] = ['abc']", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 24))
         );
 
         return testCases.stream()
@@ -227,7 +228,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(testCase.getMiddle(), testCase.getRight()),
+                        new TypeMismatchError(testCase.getMiddle().getLeft(), testCase.getMiddle().getRight(), testCase.getRight()),
                         result.errors.get(0)
                     );
                 });
@@ -272,7 +273,7 @@ class TypeCheckerTest {
 
         assertTrue(result.hasErrors());
         assertEquals(
-            new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+            new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 31)),
             result.errors.get(0)
         );
     }
@@ -296,6 +297,11 @@ class TypeCheckerTest {
             Triple.of("for x in \"asdf\" { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
             Triple.of("for x in [1, 2, 3] { let a: Float = x }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
         );
+        Map<String, Position> positions = ImmutableMap.of(
+            "for x in 123 { }", Position.at(1, 10),
+            "for x in \"asdf\" { }", Position.at(1, 10),
+            "for x in [1, 2, 3] { let a: Float = x }", Position.at(1, 37)
+        );
 
         return testCases.stream()
             .map(testCase -> {
@@ -306,7 +312,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(testCase.getMiddle(), testCase.getRight()),
+                        new TypeMismatchError(testCase.getMiddle(), testCase.getRight(), positions.get(testCase.getLeft())),
                         result.errors.get(0)
                     );
                 });
@@ -364,38 +370,38 @@ class TypeCheckerTest {
         List<TestCase> testCases = Lists.newArrayList(
             new TestCase(
                 "type MyType = Identifier",
-                new UnknownTypeError("Identifier"),
+                new UnknownTypeError("Identifier", Position.at(1, 15)),
                 TypeChecker.unknownType,
                 ImmutableMap.of()
             ),
             new TestCase(
                 "type MyType = Array[Identifier]",
-                new UnknownTypeError("Identifier"),
+                new UnknownTypeError("Identifier", Position.at(1, 21)),
                 arrayOf.apply(TypeChecker.unknownType),
                 ImmutableMap.of()
             ),
             new TestCase(
                 "type MyType = Identifier => Int",
-                new UnknownTypeError("Identifier"),
+                new UnknownTypeError("Identifier", Position.at(1, 15)),
                 new FunctionType(Lists.newArrayList(TypeChecker.unknownType), PrimitiveTypes.INTEGER),
                 ImmutableMap.of()
             ),
             new TestCase(
                 "type MyType = Int => Identifier",
-                new UnknownTypeError("Identifier"),
+                new UnknownTypeError("Identifier", Position.at(1, 22)),
                 new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
                 ImmutableMap.of()
             ),
             new TestCase(
                 "type MyType = { name: String, someField: BogusType }",
-                new UnknownTypeError("BogusType"),
+                new UnknownTypeError("BogusType", Position.at(1, 42)),
                 new StructType("MyType", ImmutableMap.of("name", PrimitiveTypes.STRING, "someField", TypeChecker.unknownType)),
                 ImmutableMap.of()
             ),
 
             new TestCase(
                 "type MyType = String",
-                new DuplicateTypeError("MyType"),
+                new DuplicateTypeError("MyType", Position.at(1, 1)),
                 PrimitiveTypes.INTEGER,
                 ImmutableMap.of("MyType", PrimitiveTypes.INTEGER)
             )
@@ -433,27 +439,29 @@ class TypeCheckerTest {
             public final MegaType arrayType;
             public final MegaType elementType;
             public final MegaType erroneousType;
+            public final Position errorPos;
 
-            public TestCase(String input, MegaType arrayType, MegaType elementType, MegaType erroneousType) {
+            public TestCase(String input, MegaType arrayType, MegaType elementType, MegaType erroneousType, Position errorPos) {
                 this.input = input;
                 this.arrayType = arrayType;
                 this.elementType = elementType;
                 this.erroneousType = erroneousType;
+                this.errorPos = errorPos;
             }
         }
         ArrayType intArray = arrayOf.apply(PrimitiveTypes.INTEGER);
         ArrayType strArray = arrayOf.apply(PrimitiveTypes.STRING);
 
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("[1, \"a\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
-            new TestCase("[1, 2, \"a\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
-            new TestCase("[1, \"a\", \"b\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
-            new TestCase("[\"a\", \"b\", 3]", strArray, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+            new TestCase("[1, \"a\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 5)),
+            new TestCase("[1, 2, \"a\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 8)),
+            new TestCase("[1, \"a\", \"b\"]", intArray, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 10)),
+            new TestCase("[\"a\", \"b\", 3]", strArray, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 12)),
 
             // Test typechecking of arrays of arrays of disparate types
-            new TestCase("[[\"a\", \"b\"], 3]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER),
-            new TestCase("[[\"a\", \"b\"], [\"c\", 4]]", arrayOf.apply(strArray), PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
-            new TestCase("[[\"a\", \"b\"], [3, 4]]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), arrayOf.apply(PrimitiveTypes.INTEGER))
+            new TestCase("[[\"a\", \"b\"], 3]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), PrimitiveTypes.INTEGER, Position.at(1, 14)),
+            new TestCase("[[\"a\", \"b\"], [\"c\", 4]]", arrayOf.apply(strArray), PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 20)),
+            new TestCase("[[\"a\", \"b\"], [3, 4]]", arrayOf.apply(strArray), arrayOf.apply(PrimitiveTypes.STRING), arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 14))
         );
 
         return testCases.stream()
@@ -465,7 +473,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(testCase.elementType, testCase.erroneousType),
+                        new TypeMismatchError(testCase.elementType, testCase.erroneousType, testCase.errorPos),
                         result.errors.get(0)
                     );
                 });
@@ -616,7 +624,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(PrimitiveTypes.NUMBER, type),
+                        new TypeMismatchError(PrimitiveTypes.NUMBER, type, Position.at(1, 1)),
                         result.errors.get(0)
                     );
                 });
@@ -719,43 +727,43 @@ class TypeCheckerTest {
             // Inequalities
             new TestCase(
                 "\"a\" < 3",
-                new IllegalOperatorError("<", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER),
+                new IllegalOperatorError("<", PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 5)),
                 PrimitiveTypes.BOOLEAN
             ),
             new TestCase(
                 "3 > \"a\"",
-                new IllegalOperatorError(">", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+                new IllegalOperatorError(">", PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 3)),
                 PrimitiveTypes.BOOLEAN
             ),
             new TestCase(
                 "[3, 4] <= 3",
-                new IllegalOperatorError("<=", arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
+                new IllegalOperatorError("<=", arrayOf.apply(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER, Position.at(1, 8)),
                 PrimitiveTypes.BOOLEAN
             ),
             new TestCase(
                 "3 >= [3, 4]",
-                new IllegalOperatorError(">=", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER)),
+                new IllegalOperatorError(">=", PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 3)),
                 PrimitiveTypes.BOOLEAN
             ),
 
             new TestCase(
                 "'asdf' * 1.3",
-                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.FLOAT),
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.FLOAT, Position.at(1, 8)),
                 TypeChecker.unknownType
             ),
             new TestCase(
                 "'asdf' * [1.3]",
-                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.FLOAT)),
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.FLOAT), Position.at(1, 8)),
                 TypeChecker.unknownType
             ),
             new TestCase(
                 "'asdf' * [1, 2]",
-                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.INTEGER)),
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 8)),
                 TypeChecker.unknownType
             ),
             new TestCase(
                 "'asdf' * 'asdf'",
-                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.STRING),
+                new IllegalOperatorError("*", PrimitiveTypes.STRING, PrimitiveTypes.STRING, Position.at(1, 8)),
                 TypeChecker.unknownType
             )
         );
@@ -808,18 +816,20 @@ class TypeCheckerTest {
             public final MegaType expected;
             public final MegaType actual;
             public final MegaType overallType;
+            public final Position errorPos;
 
-            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType) {
+            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType, Position errorPos) {
                 this.input = input;
                 this.expected = expected;
                 this.actual = actual;
                 this.overallType = overallType;
+                this.errorPos = errorPos;
             }
         }
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-            new TestCase("if true { 1.2 } else { 2 }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT),
-            new TestCase("if true { 1 } else { 2.1 }", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
+            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, Position.at(1, 6)), // TODO: "Position" of infix expr is counted as its operator
+            new TestCase("if true { 1.2 } else { 2 }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 22)),
+            new TestCase("if true { 1 } else { 2.1 }", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, Position.at(1, 20))
         );
 
         return testCases.stream()
@@ -832,7 +842,7 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(
-                        new TypeMismatchError(testCase.expected, testCase.actual),
+                        new TypeMismatchError(testCase.expected, testCase.actual, testCase.errorPos),
                         result.errors.get(0)
                     );
                 });
@@ -916,24 +926,24 @@ class TypeCheckerTest {
     public List<DynamicTest> testTypecheckCallExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
             // Uninvokeable type errors
-            Triple.of("[1, 2, 3](1.3)", new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER)), TypeChecker.unknownType),
-            Triple.of("(1 + 3)(1)", new UninvokeableTypeError(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
-            Triple.of("\"asdf\"(3)", new UninvokeableTypeError(PrimitiveTypes.STRING), TypeChecker.unknownType),
+            Triple.of("[1, 2, 3](1.3)", new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 1)), TypeChecker.unknownType),
+            Triple.of("(1 + 3)(1)", new UninvokeableTypeError(PrimitiveTypes.INTEGER, Position.at(1, 1)), TypeChecker.unknownType),
+            Triple.of("\"asdf\"(3)", new UninvokeableTypeError(PrimitiveTypes.STRING, Position.at(1, 1)), TypeChecker.unknownType),
 
             // Arity errors
-            Triple.of("((a: Int) => a + 1)(3, 3)", new FunctionArityError(1, 2), PrimitiveTypes.INTEGER),
-            Triple.of("(() => 'asdf')(3)", new FunctionArityError(0, 1), PrimitiveTypes.STRING),
-            Triple.of("((a: Int, b: Int) => a + b)(3)", new FunctionArityError(2, 1), PrimitiveTypes.INTEGER),
+            Triple.of("((a: Int) => a + 1)(3, 3)", new FunctionArityError(1, 2, Position.at(1, 20)), PrimitiveTypes.INTEGER),
+            Triple.of("(() => 'asdf')(3)", new FunctionArityError(0, 1, Position.at(1, 15)), PrimitiveTypes.STRING),
+            Triple.of("((a: Int, b: Int) => a + b)(3)", new FunctionArityError(2, 1, Position.at(1, 28)), PrimitiveTypes.INTEGER),
 
             // Param type errors
             Triple.of(
                 "((a: Int, b: Int) => a + b)(3, 'asdf')",
-                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 32)),
                 PrimitiveTypes.INTEGER
             ),
             Triple.of(
                 "((a: Int, b: Int, c: Int) => [a, b])(3, ['asdf'], 3)",
-                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.STRING)),
+                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.STRING), Position.at(1, 41)),
                 arrayOf.apply(PrimitiveTypes.INTEGER)
             )
         );
@@ -980,9 +990,9 @@ class TypeCheckerTest {
     @TestFactory
     public List<DynamicTest> testTypecheckIndexExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
-            Triple.of("[1, 2, 3][1.3]", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT), PrimitiveTypes.INTEGER),
-            Triple.of("[1, 2, 3]['a']", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), PrimitiveTypes.INTEGER),
-            Triple.of("'abc'[0]", new UnindexableTypeError(PrimitiveTypes.STRING), TypeChecker.unknownType)
+            Triple.of("[1, 2, 3][1.3]", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 11)), PrimitiveTypes.INTEGER),
+            Triple.of("[1, 2, 3]['a']", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 11)), PrimitiveTypes.INTEGER),
+            Triple.of("'abc'[0]", new UnindexableTypeError(PrimitiveTypes.STRING, Position.at(1, 1)), TypeChecker.unknownType)
         );
 
         return testCases.stream()
@@ -1033,17 +1043,17 @@ class TypeCheckerTest {
             Triple.of(
                 "a = 'hello'",
                 ImmutableMap.of("a", Pair.of(PrimitiveTypes.INTEGER, false)),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 5))
             ),
             Triple.of(
                 "a = 'world'",
                 ImmutableMap.of("a", Pair.of(PrimitiveTypes.STRING, true)),
-                new MutabilityError("a")
+                new MutabilityError("a", Position.at(1, 1))
             ),
             Triple.of(
                 "a = 'world'",
                 ImmutableMap.of(),
-                new UnknownIdentifierError("a")
+                new UnknownIdentifierError("a", Position.at(1, 1))
             )
         );
 
@@ -1094,32 +1104,32 @@ class TypeCheckerTest {
             Triple.of(
                 "'a'..'z'",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING)
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 1))
             ),
             Triple.of(
                 "1.4..1.9",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 1))
             ),
             Triple.of(
                 "true..false",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.BOOLEAN)
+                new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.BOOLEAN, Position.at(1, 1))
             ),
             Triple.of(
                 "[1, 2]..[4, 5]",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER))
+                new TypeMismatchError(PrimitiveTypes.INTEGER, arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 1))
             ),
             Triple.of(
                 "a..d",
                 ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER))),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
+                new TypeMismatchError(PrimitiveTypes.INTEGER, new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)), Position.at(1, 4))
             ),
             Triple.of(
                 "((a: Int) => a)..((b: Int) => b)",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+                new TypeMismatchError(PrimitiveTypes.INTEGER, new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER), Position.at(1, 2))
             )
         );
 

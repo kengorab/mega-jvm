@@ -1,5 +1,6 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class IllegalOperatorError extends TypeCheckerError {
@@ -7,7 +8,8 @@ public class IllegalOperatorError extends TypeCheckerError {
     public final MegaType left;
     public final MegaType right;
 
-    public IllegalOperatorError(String operator, MegaType left, MegaType right) {
+    public IllegalOperatorError(String operator, MegaType left, MegaType right, Position position) {
+        super(position);
         this.operator = operator;
         this.left = left;
         this.right = right;

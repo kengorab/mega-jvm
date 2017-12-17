@@ -1,10 +1,13 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class FunctionArityError extends TypeCheckerError {
     public final int expectedArity;
     public final int actualArity;
 
-    public FunctionArityError(int expectedArity, int actualArity) {
+    public FunctionArityError(int expectedArity, int actualArity, Position position) {
+        super(position);
         this.expectedArity = expectedArity;
         this.actualArity = actualArity;
     }

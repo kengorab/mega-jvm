@@ -1,9 +1,12 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class UnparametrizableTypeError extends TypeCheckerError {
     public final String typeName;
 
-    public UnparametrizableTypeError(String typeName) {
+    public UnparametrizableTypeError(String typeName, Position position) {
+        super(position);
         this.typeName = typeName;
     }
 
