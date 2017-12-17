@@ -259,8 +259,9 @@ public class Parser {
         // 6. A map describing the structure:           { num: Int, func: (Int, Int) => Int }
 
         // Handle cases which begin with an identifier (1, 2, 3)
+        Token startToken = this.curTok;
         if (this.curTokenIs(TokenType.IDENT)) {
-            String baseType = this.curTok.literal;
+            String baseType = startToken.literal;
 
             if (this.peekTokenIs(TokenType.LBRACK)) {
                 this.nextToken();
@@ -279,16 +280,20 @@ public class Parser {
                 if (!expectPeek(TokenType.RBRACK)) {
                     return null;
                 }
-                return new ParametrizedTypeExpression(baseType, typeArgs);
+                return new ParametrizedTypeExpression(baseType, typeArgs, startToken.position);
             } else if (this.peekTokenIs(TokenType.ARROW)) {
                 this.nextToken();
                 this.nextToken();
 
                 TypeExpression returnTypeExpr = this.parseTypeExpression(allowInlineStruct);
-                return new FunctionTypeExpression(Lists.newArrayList(new BasicTypeExpression(baseType)), returnTypeExpr);
+                return new FunctionTypeExpression(
+                    Lists.newArrayList(new BasicTypeExpression(baseType, startToken.position)),
+                    returnTypeExpr,
+                    startToken.position
+                );
             }
 
-            return new BasicTypeExpression(baseType);
+            return new BasicTypeExpression(baseType, this.curTok.position);
         }
 
         // Handle cases which begin with a left paren (4, 5)
@@ -314,7 +319,7 @@ public class Parser {
             this.nextToken();
 
             TypeExpression returnType = this.parseTypeExpression(allowInlineStruct);
-            return new FunctionTypeExpression(typeArgs, returnType);
+            return new FunctionTypeExpression(typeArgs, returnType, startToken.position);
         }
 
         if (this.curTokenIs(TokenType.LBRACE)) {
@@ -350,7 +355,7 @@ public class Parser {
             }
 
             if (allowInlineStruct) {
-                return new StructTypeExpression(propTypes);
+                return new StructTypeExpression(propTypes, startToken.position);
             } else {
                 this.errors.add(new SyntaxError("Unexpected struct-based type definition"));
             }

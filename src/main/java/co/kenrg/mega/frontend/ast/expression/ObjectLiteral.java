@@ -53,6 +53,6 @@ public class ObjectLiteral extends Expression {
 
     @Override
     public Token getToken() {
-        return null;
+        return this.token;
     }
 }

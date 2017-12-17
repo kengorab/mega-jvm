@@ -4,11 +4,14 @@ import static java.util.stream.Collectors.joining;
 
 import java.util.List;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class FunctionTypeExpression extends TypeExpression {
     public final List<TypeExpression> paramTypes;
     public final TypeExpression returnType;
 
-    public FunctionTypeExpression(List<TypeExpression> paramTypes, TypeExpression returnType) {
+    public FunctionTypeExpression(List<TypeExpression> paramTypes, TypeExpression returnType, Position position) {
+        super(position);
         this.paramTypes = paramTypes;
         this.returnType = returnType;
     }

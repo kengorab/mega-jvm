@@ -1,9 +1,12 @@
 package co.kenrg.mega.frontend.typechecking.errors;
 
+import co.kenrg.mega.frontend.token.Position;
+
 public class UnknownOperatorError extends TypeCheckerError {
     public final String operator;
 
-    public UnknownOperatorError(String operator) {
+    public UnknownOperatorError(String operator, Position position) {
+        super(position);
         this.operator = operator;
     }
 

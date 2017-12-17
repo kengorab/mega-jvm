@@ -1,21 +1,24 @@
-package co.kenrg.mega.frontend.typechecking.errors;
+package co.kenrg.mega.frontend.token;
 
-import co.kenrg.mega.frontend.token.Position;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-public abstract class TypeCheckerError {
-    public final Position position;
+public class Position {
+    public final int line;
+    public final int col;
 
-    public TypeCheckerError(Position position) {
-        this.position = position;
+    private Position(int line, int col) {
+        this.line = line;
+        this.col = col;
     }
 
-    public abstract String message();
+    public static Position at(int line, int col) {
+        return new Position(line, col);
+    }
 
     @Override
     public String toString() {
-        return String.format("%s: %s", this.position, message());
+        return String.format("(%d, %d)", this.line, this.col);
     }
 
     @Override
