@@ -1,5 +1,6 @@
 package co.kenrg.mega.frontend.lexer;
 
+import static co.kenrg.mega.frontend.token.TokenType.AND;
 import static co.kenrg.mega.frontend.token.TokenType.ARROW;
 import static co.kenrg.mega.frontend.token.TokenType.ASSIGN;
 import static co.kenrg.mega.frontend.token.TokenType.BANG;
@@ -20,6 +21,7 @@ import static co.kenrg.mega.frontend.token.TokenType.LPAREN;
 import static co.kenrg.mega.frontend.token.TokenType.LTE;
 import static co.kenrg.mega.frontend.token.TokenType.MINUS;
 import static co.kenrg.mega.frontend.token.TokenType.NEQ;
+import static co.kenrg.mega.frontend.token.TokenType.OR;
 import static co.kenrg.mega.frontend.token.TokenType.PLUS;
 import static co.kenrg.mega.frontend.token.TokenType.RANGLE;
 import static co.kenrg.mega.frontend.token.TokenType.RBRACE;
@@ -107,6 +109,22 @@ public class Lexer {
                     token = new Token(NEQ, "!=", Position.at(this.line, this.col - 1));
                 } else {
                     token = new Token(BANG, this.ch, pos);
+                }
+                break;
+            case '&':
+                if (peekChar() == '&') {
+                    this.readChar();
+                    token = new Token(AND, "&&", Position.at(this.line, this.col - 1));
+                } else {
+                    token = new Token(ILLEGAL, this.ch, pos);
+                }
+                break;
+            case '|':
+                if (peekChar() == '|') {
+                    this.readChar();
+                    token = new Token(OR, "||", Position.at(this.line, this.col - 1));
+                } else {
+                    token = new Token(ILLEGAL, this.ch, pos);
                 }
                 break;
             case '+':

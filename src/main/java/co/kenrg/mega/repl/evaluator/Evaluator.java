@@ -14,6 +14,7 @@ import static co.kenrg.mega.repl.object.EvalError.unsupportedIndexTargetError;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Supplier;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -291,6 +292,11 @@ public class Evaluator {
             return leftResult;
         }
 
+        // If ltype is boolean, attempt short-circuit
+        if (leftResult.getType() == ObjectType.BOOLEAN && (expr.operator.equals("||") || expr.operator.equals("&&"))) {
+            return evalBooleanInfixExpression(expr.operator, leftResult, () -> eval(expr.right, env));
+        }
+
         Obj rightResult = eval(expr.right, env);
         if (rightResult.isError()) {
             return rightResult;
@@ -416,13 +422,13 @@ public class Evaluator {
             case "/":
                 return new IntegerObj(lval / rval);
             case "<":
-                return new BooleanObj(lval < rval);
+                return BooleanObj.of(lval < rval);
             case ">":
-                return new BooleanObj(lval > rval);
+                return BooleanObj.of(lval > rval);
             case "<=":
-                return new BooleanObj(lval <= rval);
+                return BooleanObj.of(lval <= rval);
             case ">=":
-                return new BooleanObj(lval >= rval);
+                return BooleanObj.of(lval >= rval);
             default:
                 return null;
         }
@@ -439,15 +445,42 @@ public class Evaluator {
             case "/":
                 return new FloatObj(lval / rval);
             case "<":
-                return new BooleanObj(lval < rval);
+                return BooleanObj.of(lval < rval);
             case ">":
-                return new BooleanObj(lval > rval);
+                return BooleanObj.of(lval > rval);
             case "<=":
-                return new BooleanObj(lval <= rval);
+                return BooleanObj.of(lval <= rval);
             case ">=":
-                return new BooleanObj(lval >= rval);
+                return BooleanObj.of(lval >= rval);
             default:
                 return null;
+        }
+    }
+
+    private static Obj evalBooleanInfixExpression(String operator, Obj left, Supplier<Obj> getRight) {
+        // rval will come from lambda to delay its execution, supporting short-circuiting
+        boolean lval = ((BooleanObj) left).value;
+
+        switch (operator) {
+            case "||": {
+                if (lval) {
+                    return BooleanObj.TRUE;
+                }
+                Obj right = getRight.get();
+                boolean rval = ((BooleanObj) right).value;
+                return BooleanObj.of(rval);
+            }
+            case "&&": {
+                if (!lval) {
+                    return BooleanObj.FALSE;
+                }
+                Obj right = getRight.get();
+                boolean rval = ((BooleanObj) right).value;
+                return BooleanObj.of(rval);
+            }
+            default:
+                Obj right = getRight.get();
+                return unknownInfixOperatorError(operator, left, right);
         }
     }
 

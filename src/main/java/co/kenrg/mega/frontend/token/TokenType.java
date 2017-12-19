@@ -19,6 +19,8 @@ public enum TokenType {
     NEQ("!="),
     GTE(">="),
     LTE("<="),
+    AND("&&"),
+    OR("||"),
     DOTDOT(".."),
     ARROW("=>"),
 

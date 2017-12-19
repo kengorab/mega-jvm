@@ -95,6 +95,8 @@ public class Parser {
         this.registerInfix(TokenType.LTE, this::parseInfixExpression);
         this.registerInfix(TokenType.RANGLE, this::parseInfixExpression);
         this.registerInfix(TokenType.GTE, this::parseInfixExpression);
+        this.registerInfix(TokenType.AND, this::parseInfixExpression);
+        this.registerInfix(TokenType.OR, this::parseInfixExpression);
         this.registerInfix(TokenType.ARROW, this::parseSingleParamArrowFunctionExpression);
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);

@@ -52,7 +52,7 @@ class LexerTest {
 
     @Test
     public void testNextToken_multiCharSymbols() {
-        String input = "== != <= >= => ..";
+        String input = "== != <= >= => .. && ||";
 
         List<Token> expectedTokens = Lists.newArrayList(
             new Token(TokenType.EQ, "==", Position.at(1, 1)),
@@ -60,7 +60,9 @@ class LexerTest {
             new Token(TokenType.LTE, "<=", Position.at(1, 7)),
             new Token(TokenType.GTE, ">=", Position.at(1, 10)),
             new Token(TokenType.ARROW, "=>", Position.at(1, 13)),
-            new Token(TokenType.DOTDOT, "..", Position.at(1, 16))
+            new Token(TokenType.DOTDOT, "..", Position.at(1, 16)),
+            new Token(TokenType.AND, "&&", Position.at(1, 19)),
+            new Token(TokenType.OR, "||", Position.at(1, 22))
         );
 
         assertTokensForInput(expectedTokens, input);

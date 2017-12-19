@@ -36,6 +36,9 @@ class EvaluatorTest {
         Parser p = new Parser(new Lexer(input));
         Module module = p.parseModule();
 
+        // Note the missing typecheck pass; much of what's tested in this suite isn't possible to reach when
+        // a typechecking pass is made. It's still worthwhile to test, though, I think.
+
         return Evaluator.eval(module, env);
     }
 
@@ -188,7 +191,25 @@ class EvaluatorTest {
                 String name = String.format("'%s' should evaluate to '%b'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
                     Obj result = testEval(testCase.getKey());
-                    assertEquals(new BooleanObj(testCase.getValue()), result);
+                    assertEquals(BooleanObj.of(testCase.getValue()), result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    public List<DynamicTest> testEvalBooleanInfixExpression_shortCircuiting() {
+        List<Pair<String, Boolean>> testCases = Lists.newArrayList(
+            Pair.of("func retTrue() { true }; func retFalseWithEvalError() { 5 + true; false }; retTrue() || retFalse()", true),
+            Pair.of("func retTrueWithEvalError() { 5 + true; true }; func retFalse() { false }; retFalse() && retTrue()", false)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should evaluate to '%s', short-circuiting and throwing no error", testCase.getKey(), testCase.getValue());
+                return dynamicTest(name, () -> {
+                    Obj result = testEval(testCase.getKey());
+                    assertEquals(BooleanObj.of(testCase.getValue()), result);
                 });
             })
             .collect(toList());
@@ -238,7 +259,7 @@ class EvaluatorTest {
                 String name = String.format("'%s' should evaluate to '%b'", testCase.getKey(), testCase.getValue());
                 return dynamicTest(name, () -> {
                     Obj result = testEval(testCase.getKey());
-                    assertEquals(new BooleanObj(testCase.getValue()), result);
+                    assertEquals(BooleanObj.of(testCase.getValue()), result);
                 });
             })
             .collect(toList());

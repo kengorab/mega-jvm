@@ -24,6 +24,8 @@ enum Precedence {
             case RANGLE:
             case LTE:
             case GTE:
+            case AND:
+            case OR:
                 return LESSGREATER;
             case LBRACK:
                 return INDEX;
