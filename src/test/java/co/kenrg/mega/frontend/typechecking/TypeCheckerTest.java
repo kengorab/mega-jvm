@@ -833,7 +833,7 @@ class TypeCheckerTest {
             }
         }
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, Position.at(1, 6)), // TODO: "Position" of infix expr is counted as its operator
+            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, Position.at(1, 6)),
             new TestCase("if true { 1.2 } else { 2 }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 22)),
             new TestCase("if true { 1 } else { 2.1 }", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, Position.at(1, 20))
         );
