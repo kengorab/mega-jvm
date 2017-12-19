@@ -22,7 +22,6 @@ public class OperatorTypeChecker {
         }
     }
 
-    //TODO: Implement lexing/parsing of boolean and/or (&&, ||) infix operators
     private static Map<String, List<OperatorSignature>> operators = ImmutableMap.<String, List<OperatorSignature>>builder()
         .put(">", Lists.newArrayList(
             new OperatorSignature(PrimitiveTypes.NUMBER, PrimitiveTypes.NUMBER, PrimitiveTypes.BOOLEAN)
@@ -70,10 +69,16 @@ public class OperatorTypeChecker {
             new OperatorSignature(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.FLOAT),
             new OperatorSignature(PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT)
         ))
+        .put("&&", Lists.newArrayList(
+            new OperatorSignature(PrimitiveTypes.BOOLEAN, PrimitiveTypes.BOOLEAN, PrimitiveTypes.BOOLEAN)
+        ))
+        .put("||", Lists.newArrayList(
+            new OperatorSignature(PrimitiveTypes.BOOLEAN, PrimitiveTypes.BOOLEAN, PrimitiveTypes.BOOLEAN)
+        ))
         .build();
 
     private static List<String> booleanOperators = Lists.newArrayList(
-        ">", ">=", "<", "<=", "==", "!="
+        ">", ">=", "<", "<=", "==", "!=", "&&", "||"
     );
 
     @Nullable

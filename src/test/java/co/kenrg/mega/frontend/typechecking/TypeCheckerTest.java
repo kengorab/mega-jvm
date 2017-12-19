@@ -635,10 +635,9 @@ class TypeCheckerTest {
     @TestFactory
     public List<DynamicTest> testTypecheckInfixOperator() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            //TODO: Implement lexing/parsing of boolean and/or (&&, ||) infix operators
             // Boolean and/or
-            // Pair.of("true && false", PrimitiveTypes.BOOLEAN),
-            // Pair.of("true || false", PrimitiveTypes.BOOLEAN),
+            Pair.of("true && false", PrimitiveTypes.BOOLEAN),
+            Pair.of("true || false", PrimitiveTypes.BOOLEAN),
 
             // Inequalities
             Pair.of("1 < 2", PrimitiveTypes.BOOLEAN),
@@ -719,10 +718,17 @@ class TypeCheckerTest {
         }
 
         List<TestCase> testCases = Lists.newArrayList(
-            //TODO: Implement error testing of boolean and/or
             // Boolean and/or
-            // Pair.of("true && false", PrimitiveTypes.BOOLEAN),
-            // Pair.of("true || false", PrimitiveTypes.BOOLEAN),
+            new TestCase(
+                "'asdf' && true",
+                new IllegalOperatorError("&&", PrimitiveTypes.STRING, PrimitiveTypes.BOOLEAN, Position.at(1, 8)),
+                PrimitiveTypes.BOOLEAN
+            ),
+            new TestCase(
+                "false || 123",
+                new IllegalOperatorError("||", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, Position.at(1, 7)),
+                PrimitiveTypes.BOOLEAN
+            ),
 
             // Inequalities
             new TestCase(
@@ -827,7 +833,7 @@ class TypeCheckerTest {
             }
         }
         List<TestCase> testCases = Lists.newArrayList(
-            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, Position.at(1, 6)), // TODO: "Position" of infix expr is counted as its operator
+            new TestCase("if 1 + 2 { 1 } else { 2 }", PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, Position.at(1, 6)),
             new TestCase("if true { 1.2 } else { 2 }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 22)),
             new TestCase("if true { 1 } else { 2.1 }", PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER, Position.at(1, 20))
         );

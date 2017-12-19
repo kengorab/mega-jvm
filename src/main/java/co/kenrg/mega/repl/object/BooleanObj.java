@@ -9,8 +9,13 @@ public class BooleanObj extends Obj {
 
     public final boolean value;
 
-    public BooleanObj(boolean value) {
+    // Use the static initializer BooleanObj.of(boolean)
+    private BooleanObj(boolean value) {
         this.value = value;
+    }
+
+    public static BooleanObj of(boolean value) {
+        return value ? TRUE : FALSE;
     }
 
     @Override

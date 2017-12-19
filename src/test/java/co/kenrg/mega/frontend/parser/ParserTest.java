@@ -712,7 +712,10 @@ class ParserTest {
             new TestCase("5 > 5", ">", 5, 5, Position.at(1, 1), Position.at(1, 5)),
             new TestCase("5 >= 5", ">=", 5, 5, Position.at(1, 1), Position.at(1, 6)),
             new TestCase("5 == 5", "==", 5, 5, Position.at(1, 1), Position.at(1, 6)),
-            new TestCase("5 != 5", "!=", 5, 5, Position.at(1, 1), Position.at(1, 6))
+            new TestCase("5 != 5", "!=", 5, 5, Position.at(1, 1), Position.at(1, 6)),
+
+            new TestCase("true && true", "&&", true, true, Position.at(1, 1), Position.at(1, 9)),
+            new TestCase("false || true", "||", false, true, Position.at(1, 1), Position.at(1, 10))
         );
 
         return testCases.stream()
