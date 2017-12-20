@@ -1,10 +1,10 @@
-let sum = (a: Int, b: Int) => a + b
+val sum = (a: Int, b: Int) => a + b
 
-let numbers = [1, 2, 3]
+val numbers = [1, 2, 3]
 
 func calculateSum(numbers: Array[Int]): Int {
-  let sum1 = sum(numbers[0], numbers[1])
-  let sum2 = sum(sum1, numbers[1])
+  val sum1 = sum(numbers[0], numbers[1])
+  val sum2 = sum(sum1, numbers[1])
   sum(sum2, numbers[2])
 }
 
@@ -29,4 +29,4 @@ type Manager = {
   }
 }
 
-let numArray: Array[Int] = []
+val numArray: Array[Int] = []

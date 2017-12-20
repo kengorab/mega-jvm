@@ -22,7 +22,7 @@ import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
-import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.parser.ParserTestUtils;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
@@ -247,7 +247,7 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void expectedTypePassed_actualTypeHasInferences_inferredTypeMatchesExpected_returnsExpected() {
-            typeChecker.typecheckLetStatement(parseStatement("let identity = a => a", LetStatement.class), env);
+            typeChecker.typecheckValStatement(parseStatement("val identity = a => a", ValStatement.class), env);
 
             Identifier identifier = parseExpression("identity", Identifier.class);
             FunctionType expectedType = new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER);
@@ -662,8 +662,8 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
-            LetStatement letStmt = parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class);
-            typeChecker.typecheckLetStatement(letStmt, env);
+            ValStatement valStmt = parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class);
+            typeChecker.typecheckValStatement(valStmt, env);
 
             CallExpression callExpr = parseExpression("call(a => a, 1)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
@@ -673,8 +673,8 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeDoesntMatchParamType_returnsReturnType_hasMismatchError() {
-            LetStatement letStmt = parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class);
-            typeChecker.typecheckLetStatement(letStmt, env);
+            ValStatement valStmt = parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class);
+            typeChecker.typecheckValStatement(valStmt, env);
 
             CallExpression callExpr = parseExpression("call(a => a + '!', 1)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
@@ -691,8 +691,8 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void noExpectedType_identifierPassedThatRequiresInference_inferredTypeMatchesParamType_returnsReturnType() {
-            typeChecker.typecheckLetStatement(parseStatement("let call = (fn: Int => Int, a: Int) => fn(a)", LetStatement.class), env);
-            typeChecker.typecheckLetStatement(parseStatement("let identity = a => a", LetStatement.class), env);
+            typeChecker.typecheckValStatement(parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class), env);
+            typeChecker.typecheckValStatement(parseStatement("val identity = a => a", ValStatement.class), env);
 
             CallExpression callExpr = parseExpression("call(identity, 1)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
@@ -710,7 +710,7 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         public void noExpectedType_targetRequiresInference_targetTypeDoesntMatchInference_returnsUnknown() {
-            typeChecker.typecheckLetStatement(parseStatement("let halve = a => a / 2", LetStatement.class), env);
+            typeChecker.typecheckValStatement(parseStatement("val halve = a => a / 2", ValStatement.class), env);
 
             CallExpression callExpr = parseExpression("halve('asdf')", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);

@@ -9,13 +9,13 @@ import org.junit.jupiter.api.Test;
 class AstTest {
 
     @Test
-    public void testRepr_letStatement() {
-        String input = "let  x    =  abc";
+    public void testRepr_valStatement() {
+        String input = "val  x    =  abc";
         Parser p = new Parser(new Lexer(input));
 
         String repr = p.parseModule().repr(true, 0);
         assertEquals(
-            "let x = abc",
+            "val x = abc",
             repr
         );
     }

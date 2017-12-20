@@ -121,10 +121,10 @@ class EvaluatorTest {
             Pair.of("'hello \\u1215!'", "hello ሕ!"),
             Pair.of("'Meet me at\n the \\uCAFE?'", "Meet me at\n the 쫾?"),
 
-            Pair.of("let a = 24; \"$a hrs\"", "24 hrs"),
-            Pair.of("let a = 24; \"${a} hrs\"", "24 hrs"),
-            Pair.of("let a = [24]; \"${a[0]} hrs\"", "24 hrs"),
-            Pair.of("let a = [24]; \"$a[0] hrs\"", "[24][0] hrs")
+            Pair.of("val a = 24; \"$a hrs\"", "24 hrs"),
+            Pair.of("val a = 24; \"${a} hrs\"", "24 hrs"),
+            Pair.of("val a = [24]; \"${a[0]} hrs\"", "24 hrs"),
+            Pair.of("val a = [24]; \"$a[0] hrs\"", "[24][0] hrs")
         );
 
         return testCases.stream()
@@ -142,11 +142,11 @@ class EvaluatorTest {
     @Disabled
     public List<DynamicTest> testEvalStringLiteral_withInterpolations() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
-            Pair.of("let a = 24; \"$a hrs\"", "24 hrs"),
-            Pair.of("let a = 24; \"${a} hrs\"", "24 hrs"),
-            Pair.of("let a = [24]; \"${a[0]} hrs\"", "24 hrs"),
-            Pair.of("let a = [24]; \"$a[0] hrs\"", "[24][0] hrs"),
-            Pair.of("let a = \"24\"; \"$a hrs\"", "24 hrs")
+            Pair.of("val a = 24; \"$a hrs\"", "24 hrs"),
+            Pair.of("val a = 24; \"${a} hrs\"", "24 hrs"),
+            Pair.of("val a = [24]; \"${a[0]} hrs\"", "24 hrs"),
+            Pair.of("val a = [24]; \"$a[0] hrs\"", "[24][0] hrs"),
+            Pair.of("val a = \"24\"; \"$a hrs\"", "24 hrs")
         );
 
         return testCases.stream()
@@ -317,16 +317,16 @@ class EvaluatorTest {
             Pair.of("[]()", "cannot invoke [] as a function: incompatible type ARRAY"),
             Pair.of("{}()", "cannot invoke {} as a function: incompatible type OBJECT"),
 
-            Pair.of("let s = \"asdf\"; let s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("val s = \"asdf\"; val s = 3", "duplicate binding: s already defined in this context"),
 
-            Pair.of("let a = \"asdf\"; a = \"qwer\"", "cannot reassign to immutable binding: a"),
+            Pair.of("val a = \"asdf\"; a = \"qwer\"", "cannot reassign to immutable binding: a"),
             Pair.of("b = \"qwer\"", "unknown identifier: b"),
 
             Pair.of("var s = \"asdf\"; var s = 3", "duplicate binding: s already defined in this context"),
-            Pair.of("let s = \"asdf\"; var s = 3", "duplicate binding: s already defined in this context"),
-            Pair.of("let s = \"asdf\"; let s = 3", "duplicate binding: s already defined in this context"),
-            Pair.of("func abc(x) { x }; let abc = 3", "duplicate binding: abc already defined in this context"),
-            Pair.of("let abc = 3; func abc(x) { x }", "duplicate binding: abc already defined in this context")
+            Pair.of("val s = \"asdf\"; var s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("val s = \"asdf\"; val s = 3", "duplicate binding: s already defined in this context"),
+            Pair.of("func abc(x) { x }; val abc = 3", "duplicate binding: abc already defined in this context"),
+            Pair.of("val abc = 3; func abc(x) { x }", "duplicate binding: abc already defined in this context")
         );
 
         return testCases.stream()
@@ -347,12 +347,12 @@ class EvaluatorTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testLetStatementBinding() {
+    public List<DynamicTest> testValStatementBinding() {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
-            Pair.of("let a = 5; a;", 5),
-            Pair.of("let a = 5 * 5; a", 25),
-            Pair.of("let a = 5; let b = a; b;", 5),
-            Pair.of("let a = 5; let b = a; let c = a + b + 5; c;", 15)
+            Pair.of("val a = 5; a;", 5),
+            Pair.of("val a = 5 * 5; a", 25),
+            Pair.of("val a = 5; val b = a; b;", 5),
+            Pair.of("val a = 5; val b = a; val c = a + b + 5; c;", 15)
         );
 
         return testCases.stream()
@@ -401,7 +401,7 @@ class EvaluatorTest {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
             Pair.of("var a = 5; a = 6; a", 6),
             Pair.of("var a = 5; a = a * 5; a", 25),
-            Pair.of("let a = 5; var b = a + 1; b + a;", 11)
+            Pair.of("val a = 5; var b = a + 1; b + a;", 11)
         );
 
         return testCases.stream()
@@ -423,9 +423,9 @@ class EvaluatorTest {
     @TestFactory
     public List<DynamicTest> testFunctionApplication() {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
-            Pair.of("let identity = x => x; identity(5);", 5),
-            Pair.of("let identity = (x) => x; identity(5);", 5),
-            Pair.of("let add = (a, b) => a + b; add(add(1, 2), add(1, 1))", 5),
+            Pair.of("val identity = x => x; identity(5);", 5),
+            Pair.of("val identity = (x) => x; identity(5);", 5),
+            Pair.of("val add = (a, b) => a + b; add(add(1, 2), add(1, 1))", 5),
             Pair.of("((a, b) => a + b)(1 + 1, 4 - 1)", 5),
 
             Pair.of("func sum(a, b) { a + b }; sum(4, 1)", 5)
@@ -450,8 +450,8 @@ class EvaluatorTest {
     @TestFactory
     public List<DynamicTest> testFunctionClosures() {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
-            Pair.of("let adder = x => n => x + n; let addOne = adder(1); addOne(4)", 5),
-            Pair.of("let a = 2; let addA = x => x + a; addA(3)", 5)
+            Pair.of("val adder = x => n => x + n; val addOne = adder(1); addOne(4)", 5),
+            Pair.of("val a = 2; val addA = x => x + a; addA(3)", 5)
         );
 
         return testCases.stream()
@@ -479,8 +479,8 @@ class EvaluatorTest {
             Pair.of("[1, 2, 3][3]", null),
             Pair.of("[1, 2, 3][-1]", null),
 
-            Pair.of("let i = 0; [1, 2, 3][i]", 1),
-            Pair.of("let arr = [1, 2, 3]; arr[arr[0]]", 2)
+            Pair.of("val i = 0; [1, 2, 3][i]", 1),
+            Pair.of("val arr = [1, 2, 3]; arr[arr[0]]", 2)
         );
 
         return testCases.stream()
@@ -505,7 +505,7 @@ class EvaluatorTest {
     @Test
     public void testForInLoop() {
         String input = "" +
-            "let arr = [1, 2, 3]\n" +
+            "val arr = [1, 2, 3]\n" +
             "var a = 1\n" +
             "for x in arr {\n" +
             "  a = a * x\n" +
@@ -534,9 +534,9 @@ class EvaluatorTest {
             Pair.of("1..3", Lists.newArrayList(1, 2)),
             Pair.of("1..3", Lists.newArrayList(1, 2)),
 
-            Pair.of("let x = 1; x..3", Lists.newArrayList(1, 2)),
-            Pair.of("let x = 1; (x - 1)..3", Lists.newArrayList(0, 1, 2)),
-            Pair.of("let x = 1; (x)..4-1", Lists.newArrayList(1, 2)),
+            Pair.of("val x = 1; x..3", Lists.newArrayList(1, 2)),
+            Pair.of("val x = 1; (x - 1)..3", Lists.newArrayList(0, 1, 2)),
+            Pair.of("val x = 1; (x)..4-1", Lists.newArrayList(1, 2)),
 
             Pair.of("(1..5)[0]..(4..7)[1]", Lists.newArrayList(1, 2, 3, 4))
         );

@@ -49,7 +49,7 @@ public enum TokenType {
     FALSE("FALSE"),
     IF("IF"),
     ELSE("ELSE"),
-    LET("LET"),
+    VAL("VAL"),
     VAR("VAR"),
     FOR("FOR"),
     IN("IN"),
@@ -63,7 +63,7 @@ public enum TokenType {
 
     private static Map<String, TokenType> KEYWORDS = ImmutableMap.<String, TokenType>builder()
         .put("func", FUNCTION)
-        .put("let", LET)
+        .put("val", VAL)
         .put("var", VAR)
         .put("true", TRUE)
         .put("false", FALSE)

@@ -34,7 +34,7 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
@@ -178,8 +178,8 @@ public class Parser {
 
     private Statement parseStatement() {
         switch (this.curTok.type) {
-            case LET:
-                return this.parseLetStatement();
+            case VAL:
+                return this.parseValStatement();
             case VAR:
                 return this.parseVarStatement();
             case FUNCTION:
@@ -193,15 +193,15 @@ public class Parser {
         }
     }
 
-    // let <ident> = <expr>
-    private Statement parseLetStatement() {
-        Token t = this.curTok;  // The 'let' token
+    // val <ident> = <expr>
+    private Statement parseValStatement() {
+        Token t = this.curTok;  // The 'val' token
 
         Pair<Identifier, Expression> binding = this.parseBinding();
         if (binding == null) {
             return null;
         }
-        return new LetStatement(t, binding.getLeft(), binding.getRight());
+        return new ValStatement(t, binding.getLeft(), binding.getRight());
     }
 
     // var <ident> = <expr>

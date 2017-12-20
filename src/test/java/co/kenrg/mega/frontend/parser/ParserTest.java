@@ -47,7 +47,7 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
@@ -69,24 +69,24 @@ import org.junit.jupiter.api.TestFactory;
 class ParserTest {
 
     @TestFactory
-    public List<DynamicTest> testLetStatements() {
+    public List<DynamicTest> testValStatements() {
         List<Pair<String, String>> tests = Lists.newArrayList(
-            Pair.of("let x = 4", "x"),
-            Pair.of("let y = 10", "y"),
-            Pair.of("let foobar = 12.45", "foobar")
+            Pair.of("val x = 4", "x"),
+            Pair.of("val y = 10", "y"),
+            Pair.of("val foobar = 12.45", "foobar")
         );
 
         return tests.stream()
             .map(testCase -> {
-                    String letStmt = testCase.getLeft();
+                    String valStmt = testCase.getLeft();
                     String ident = testCase.getRight();
 
-                    String testName = String.format("The let-stmt `%s` should have ident `%s`", letStmt, ident);
+                    String testName = String.format("The val-stmt `%s` should have ident `%s`", valStmt, ident);
                     return dynamicTest(testName, () -> {
-                        Statement statement = parseStatement(letStmt);
-                        assertTrue(statement instanceof LetStatement);
+                        Statement statement = parseStatement(valStmt);
+                        assertTrue(statement instanceof ValStatement);
 
-                        assertEquals(ident, ((LetStatement) statement).name.value);
+                        assertEquals(ident, ((ValStatement) statement).name.value);
                     });
                 }
             )
@@ -109,43 +109,43 @@ class ParserTest {
             }
         }
 
-        Function<Statement, Identifier> getLetStmtIdent = s -> ((LetStatement) s).name;
+        Function<Statement, Identifier> getValStmtIdent = s -> ((ValStatement) s).name;
         Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
         Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
         Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i);
         List<TestCase> tests = Lists.newArrayList(
             new TestCase(
-                "let x: Int = 4",
+                "val x: Int = 4",
                 "x",
                 new BasicTypeExpression("Int", Position.at(1, 8)),
-                getLetStmtIdent
+                getValStmtIdent
             ),
             new TestCase(
-                "let s: String = \"asdf\"",
+                "val s: String = \"asdf\"",
                 "s",
                 new BasicTypeExpression("String", Position.at(1, 8)),
-                getLetStmtIdent
+                getValStmtIdent
             ),
             new TestCase(
-                "let s: Array[String] = [\"asdf\"]",
+                "val s: Array[String] = [\"asdf\"]",
                 "s",
                 new ParametrizedTypeExpression("Array", Lists.newArrayList(new BasicTypeExpression("String", Position.at(1, 14))), Position.at(1, 8)),
-                getLetStmtIdent
+                getValStmtIdent
             ),
             new TestCase(
-                "let s: Array[Array[String]] = [[\"asdf\"]]",
+                "val s: Array[Array[String]] = [[\"asdf\"]]",
                 "s",
                 new ParametrizedTypeExpression("Array", Lists.newArrayList(new ParametrizedTypeExpression("Array", Lists.newArrayList(new BasicTypeExpression("String", Position.at(1, 20))), Position.at(1, 14))), Position.at(1, 8)),
-                getLetStmtIdent
+                getValStmtIdent
             ),
             new TestCase(
-                "let s: SomeType[A, B] = [[\"asdf\"]]",
+                "val s: SomeType[A, B] = [[\"asdf\"]]",
                 "s",
                 new ParametrizedTypeExpression("SomeType", Lists.newArrayList(
                     new BasicTypeExpression("A", Position.at(1, 17)),
                     new BasicTypeExpression("B", Position.at(1, 20))
                 ), Position.at(1, 8)),
-                getLetStmtIdent
+                getValStmtIdent
             ),
 
             new TestCase("var x: Int = 4", "x", new BasicTypeExpression("Int", Position.at(1, 8)), getVarStmtIdent),
@@ -228,10 +228,10 @@ class ParserTest {
 
     @Test
     public void testTypeAnnotations_structTypeExpression_syntaxError() {
-        String input = "let person: { name: String } = { name: 'Ken' }";
+        String input = "val person: { name: String } = { name: 'Ken' }";
         Pair<Statement, List<SyntaxError>> result = parseStatementAndGetErrors(input);
-        LetStatement letStatement = (LetStatement) result.getLeft();
-        assertEquals(null, letStatement.name.typeAnnotation);
+        ValStatement valStatement = (ValStatement) result.getLeft();
+        assertEquals(null, valStatement.name.typeAnnotation);
 
         assertEquals(
             "Unexpected struct-based type definition",
@@ -240,8 +240,8 @@ class ParserTest {
     }
 
     @Test
-    public void testLetStatement_syntaxErrors() {
-        String input = "let x 4";
+    public void testValStatement_syntaxErrors() {
+        String input = "val x 4";
         Parser parser = new Parser(new Lexer(input));
         parser.parseModule();
 

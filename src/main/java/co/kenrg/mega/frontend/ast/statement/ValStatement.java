@@ -5,12 +5,12 @@ import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.token.Token;
 
-public class LetStatement extends Statement {
+public class ValStatement extends Statement {
     public final Token token;
     public final Identifier name;
     public final Expression value;
 
-    public LetStatement(Token token, Identifier name, Expression value) {
+    public ValStatement(Token token, Identifier name, Expression value) {
         this.token = token;
         this.name = name;
         this.value = value;

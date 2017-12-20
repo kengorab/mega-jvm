@@ -125,18 +125,18 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckBindingDeclarationStatements_letAndVar() {
+    public List<DynamicTest> testTypecheckBindingDeclarationStatements_valAndVar() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
-            Triple.of("let s = \"asdf\"", "s", PrimitiveTypes.STRING),
-            Triple.of("let s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
-            Triple.of("let i = 123", "i", PrimitiveTypes.INTEGER),
-            Triple.of("let i: Int = 123", "i", PrimitiveTypes.INTEGER),
-            Triple.of("let f = 12.34", "f", PrimitiveTypes.FLOAT),
-            Triple.of("let f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
-            Triple.of("let b = true", "b", PrimitiveTypes.BOOLEAN),
-            Triple.of("let b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
-            Triple.of("let arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Triple.of("let sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("val s = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("val s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
+            Triple.of("val i = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("val i: Int = 123", "i", PrimitiveTypes.INTEGER),
+            Triple.of("val f = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("val f: Float = 12.34", "f", PrimitiveTypes.FLOAT),
+            Triple.of("val b = true", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("val b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
+            Triple.of("val arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
+            Triple.of("val sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
 
             Triple.of("var s = \"asdf\"", "s", PrimitiveTypes.STRING),
             Triple.of("var s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
@@ -173,9 +173,9 @@ class TypeCheckerTest {
         StructType teamType = new StructType("Team", ImmutableMap.of("manager", personType, "members", arrayOf.apply(personType)));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("let p: Person = { name: 'Ken', age: 25 }", personType),
-            Pair.of("let p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
-            Pair.of("let p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
+            Pair.of("val p: Person = { name: 'Ken', age: 25 }", personType),
+            Pair.of("val p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
+            Pair.of("val p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
 
             Pair.of("var p: Person = { name: 'Ken', age: 25 }", personType),
             Pair.of("var p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
@@ -204,12 +204,12 @@ class TypeCheckerTest {
     @TestFactory
     public List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
         List<Triple<String, Pair<MegaType, MegaType>, Position>> testCases = Lists.newArrayList(
-            Triple.of("let s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
-            Triple.of("let i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
-            Triple.of("let f: Float = 123", Pair.of(PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER), Position.at(1, 16)),
-            Triple.of("let b: Bool = 123", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 15)),
-            Triple.of("let b: Bool = (123)", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 16)),
-            Triple.of("let arr: Array[Int] = ['abc']", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 24)),
+            Triple.of("val s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
+            Triple.of("val i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
+            Triple.of("val f: Float = 123", Pair.of(PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("val b: Bool = 123", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 15)),
+            Triple.of("val b: Bool = (123)", Pair.of(PrimitiveTypes.BOOLEAN, PrimitiveTypes.INTEGER), Position.at(1, 16)),
+            Triple.of("val arr: Array[Int] = ['abc']", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 24)),
 
             Triple.of("var s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
             Triple.of("var i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
@@ -280,7 +280,7 @@ class TypeCheckerTest {
 
     @Test
     public void testTypecheckForLoopStatement() {
-        String input = "for x in arr { let a: Int = x }";
+        String input = "for x in arr { val a: Int = x }";
 
         TypeEnvironment env = new TypeEnvironment();
         env.addBindingWithType("arr", arrayOf.apply(PrimitiveTypes.INTEGER), true);
@@ -295,12 +295,12 @@ class TypeCheckerTest {
         List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
             Triple.of("for x in 123 { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.INTEGER),
             Triple.of("for x in \"asdf\" { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
-            Triple.of("for x in [1, 2, 3] { let a: Float = x }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
+            Triple.of("for x in [1, 2, 3] { val a: Float = x }", PrimitiveTypes.FLOAT, PrimitiveTypes.INTEGER)
         );
         Map<String, Position> positions = ImmutableMap.of(
             "for x in 123 { }", Position.at(1, 10),
             "for x in \"asdf\" { }", Position.at(1, 10),
-            "for x in [1, 2, 3] { let a: Float = x }", Position.at(1, 37)
+            "for x in [1, 2, 3] { val a: Float = x }", Position.at(1, 37)
         );
 
         return testCases.stream()
@@ -794,7 +794,7 @@ class TypeCheckerTest {
             // When given no else-block, if-expr is typed to Unit
             Pair.of("if true { 1 + 2 }", PrimitiveTypes.UNIT),
             Pair.of("if true { \"asdf\" + 2 }", PrimitiveTypes.UNIT),
-            Pair.of("if true { let a = 1; 1 + 2 }", PrimitiveTypes.UNIT),
+            Pair.of("if true { val a = 1; 1 + 2 }", PrimitiveTypes.UNIT),
 
             Pair.of("if true { 1 } else { 2 }", PrimitiveTypes.INTEGER),
             Pair.of("if true { 1.2 } else { 2.3 }", PrimitiveTypes.FLOAT),
