@@ -206,10 +206,10 @@ class LexerTest {
 
     @Test
     public void testNextToken_keywords() {
-        String input = "let var func if else for in";
+        String input = "val var func if else for in";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.LET, "let", Position.at(1, 1)),
+            new Token(TokenType.VAL, "val", Position.at(1, 1)),
             new Token(TokenType.VAR, "var", Position.at(1, 5)),
             new Token(TokenType.FUNCTION, "func", Position.at(1, 9)),
             new Token(TokenType.IF, "if", Position.at(1, 14)),
@@ -222,14 +222,14 @@ class LexerTest {
 
     @Test
     public void testNextToken_skipsWhitespaceAndNewlines() {
-        String input = "let five = 5\n" +
-            "let ten = 10";
+        String input = "val five = 5\n" +
+            "val ten = 10";
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.LET, "let", Position.at(1, 1)),
+            new Token(TokenType.VAL, "val", Position.at(1, 1)),
             new Token(TokenType.IDENT, "five", Position.at(1, 5)),
             new Token(TokenType.ASSIGN, "=", Position.at(1, 10)),
             new Token(TokenType.INT, "5", Position.at(1, 12)),
-            new Token(TokenType.LET, "let", Position.at(2, 1)),
+            new Token(TokenType.VAL, "val", Position.at(2, 1)),
             new Token(TokenType.IDENT, "ten", Position.at(2, 5)),
             new Token(TokenType.ASSIGN, "=", Position.at(2, 9)),
             new Token(TokenType.INT, "10", Position.at(2, 11))

@@ -41,7 +41,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.repl.object.ArrayObj;
 import co.kenrg.mega.repl.object.ArrowFunctionObj;
@@ -69,8 +69,8 @@ public class Evaluator {
         // Statements
         if (node instanceof ExpressionStatement) {
             return eval(((ExpressionStatement) node).expression, env);
-        } else if (node instanceof LetStatement) {
-            return evalLetStatement((LetStatement) node, env);
+        } else if (node instanceof ValStatement) {
+            return evalValStatement((ValStatement) node, env);
         } else if (node instanceof VarStatement) {
             return evalVarStatement((VarStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
@@ -121,7 +121,7 @@ public class Evaluator {
         }
     }
 
-    private static Obj evalLetStatement(LetStatement statement, Environment env) {
+    private static Obj evalValStatement(ValStatement statement, Environment env) {
         Obj value = eval(statement.value, env);
         if (value.isError()) {
             return value;

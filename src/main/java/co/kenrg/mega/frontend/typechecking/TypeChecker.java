@@ -34,7 +34,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.LetStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
@@ -118,8 +118,8 @@ public class TypeChecker {
         } else if (node instanceof ExpressionStatement) {
             TypedNode<Expression> typedNode = typecheckNode(((ExpressionStatement) node).expression, env, expectedType);
             return new TypedNode<>(node, typedNode.type);
-        } else if (node instanceof LetStatement) {
-            this.typecheckLetStatement((LetStatement) node, env);
+        } else if (node instanceof ValStatement) {
+            this.typecheckValStatement((ValStatement) node, env);
         } else if (node instanceof VarStatement) {
             this.typecheckVarStatement((VarStatement) node, env);
         } else if (node instanceof FunctionDeclarationStatement) {
@@ -240,7 +240,7 @@ public class TypeChecker {
     }
 
     @VisibleForTesting
-    void typecheckLetStatement(LetStatement statement, TypeEnvironment env) {
+    void typecheckValStatement(ValStatement statement, TypeEnvironment env) {
         typecheckBindingStatement(statement.name, statement.value, true, env);
     }
 

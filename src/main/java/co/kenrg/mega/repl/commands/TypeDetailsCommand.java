@@ -19,7 +19,7 @@ public class TypeDetailsCommand implements ReplCommand {
     public String detailedDescription() {
         return "Provides type information about an identifier in the current visible context.\n" +
             "For example, if you have run the following code in the REPL:\n" +
-            "  let sum = (a: Int, b: Int) => a + b\n\n" +
+            "  val sum = (a: Int, b: Int) => a + b\n\n" +
             "then running `:t sum` will output:\n" +
             "  sum: (Int, Int) => Int\n\n" +
             "A warning will be displayed if no identifier in the current context matches.";
