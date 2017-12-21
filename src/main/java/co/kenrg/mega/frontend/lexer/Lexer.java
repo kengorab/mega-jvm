@@ -95,10 +95,10 @@ public class Lexer {
             case '=':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(EQ, "==", Position.at(this.line, this.col - 1));
+                    token = new Token(EQ, "==", pos);
                 } else if (peekChar() == '>') {
                     this.readChar();
-                    token = new Token(ARROW, "=>", Position.at(this.line, this.col - 1));
+                    token = new Token(ARROW, "=>", pos);
                 } else {
                     token = new Token(ASSIGN, this.ch, pos);
                 }
@@ -106,7 +106,7 @@ public class Lexer {
             case '!':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(NEQ, "!=", Position.at(this.line, this.col - 1));
+                    token = new Token(NEQ, "!=", pos);
                 } else {
                     token = new Token(BANG, this.ch, pos);
                 }
@@ -114,7 +114,7 @@ public class Lexer {
             case '&':
                 if (peekChar() == '&') {
                     this.readChar();
-                    token = new Token(AND, "&&", Position.at(this.line, this.col - 1));
+                    token = new Token(AND, "&&", pos);
                 } else {
                     token = new Token(ILLEGAL, this.ch, pos);
                 }
@@ -122,7 +122,7 @@ public class Lexer {
             case '|':
                 if (peekChar() == '|') {
                     this.readChar();
-                    token = new Token(OR, "||", Position.at(this.line, this.col - 1));
+                    token = new Token(OR, "||", pos);
                 } else {
                     token = new Token(ILLEGAL, this.ch, pos);
                 }
@@ -148,7 +148,7 @@ public class Lexer {
             case '.':
                 if (peekChar() == '.') {
                     this.readChar();
-                    token = new Token(DOTDOT, "..", Position.at(this.line, this.col - 1));
+                    token = new Token(DOTDOT, "..", pos);
                 } else {
                     // This is unused (for now)
                     token = new Token(DOT, this.ch, pos);
@@ -178,7 +178,7 @@ public class Lexer {
             case '<':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(LTE, "<=", Position.at(this.line, this.col - 1));
+                    token = new Token(LTE, "<=", pos);
                 } else {
                     token = new Token(LANGLE, this.ch, pos);
                 }
@@ -186,7 +186,7 @@ public class Lexer {
             case '>':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(GTE, ">=", Position.at(this.line, this.col - 1));
+                    token = new Token(GTE, ">=", pos);
                 } else {
                     token = new Token(RANGLE, this.ch, pos);
                 }
