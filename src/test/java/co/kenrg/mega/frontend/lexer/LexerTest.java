@@ -10,7 +10,6 @@ import java.util.stream.IntStream;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
-import co.kenrg.mega.frontend.token.TokenType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -27,24 +26,24 @@ class LexerTest {
             "+ - / * = ! < >";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.LPAREN, "(", Position.at(1, 1)),
-            new Token(TokenType.RPAREN, ")", Position.at(1, 3)),
-            new Token(TokenType.LBRACE, "{", Position.at(1, 5)),
-            new Token(TokenType.RBRACE, "}", Position.at(1, 7)),
-            new Token(TokenType.LBRACK, "[", Position.at(1, 9)),
-            new Token(TokenType.RBRACK, "]", Position.at(1, 11)),
-            new Token(TokenType.COMMA, ",", Position.at(1, 13)),
-            new Token(TokenType.SEMICOLON, ";", Position.at(1, 15)),
-            new Token(TokenType.COLON, ":", Position.at(1, 17)),
-            new Token(TokenType.DOT, ".", Position.at(1, 19)),
-            new Token(TokenType.PLUS, "+", Position.at(2, 1)),
-            new Token(TokenType.MINUS, "-", Position.at(2, 3)),
-            new Token(TokenType.SLASH, "/", Position.at(2, 5)),
-            new Token(TokenType.STAR, "*", Position.at(2, 7)),
-            new Token(TokenType.ASSIGN, "=", Position.at(2, 9)),
-            new Token(TokenType.BANG, "!", Position.at(2, 11)),
-            new Token(TokenType.LANGLE, "<", Position.at(2, 13)),
-            new Token(TokenType.RANGLE, ">", Position.at(2, 15))
+            Token.lparen(Position.at(1, 1)),
+            Token.rparen(Position.at(1, 3)),
+            Token.lbrace(Position.at(1, 5)),
+            Token.rbrace(Position.at(1, 7)),
+            Token.lbrack(Position.at(1, 9)),
+            Token.rbrack(Position.at(1, 11)),
+            Token.comma(Position.at(1, 13)),
+            Token.semicolon(Position.at(1, 15)),
+            Token.colon(Position.at(1, 17)),
+            Token.dot(Position.at(1, 19)),
+            Token.plus(Position.at(2, 1)),
+            Token.minus(Position.at(2, 3)),
+            Token.slash(Position.at(2, 5)),
+            Token.star(Position.at(2, 7)),
+            Token.assign(Position.at(2, 9)),
+            Token.bang(Position.at(2, 11)),
+            Token.langle(Position.at(2, 13)),
+            Token.rangle(Position.at(2, 15))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -55,14 +54,14 @@ class LexerTest {
         String input = "== != <= >= => .. && ||";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.EQ, "==", Position.at(1, 1)),
-            new Token(TokenType.NEQ, "!=", Position.at(1, 4)),
-            new Token(TokenType.LTE, "<=", Position.at(1, 7)),
-            new Token(TokenType.GTE, ">=", Position.at(1, 10)),
-            new Token(TokenType.ARROW, "=>", Position.at(1, 13)),
-            new Token(TokenType.DOTDOT, "..", Position.at(1, 16)),
-            new Token(TokenType.AND, "&&", Position.at(1, 19)),
-            new Token(TokenType.OR, "||", Position.at(1, 22))
+            Token.eq(Position.at(1, 1)),
+            Token.neq(Position.at(1, 4)),
+            Token.lte(Position.at(1, 7)),
+            Token.gte(Position.at(1, 10)),
+            Token.arrow(Position.at(1, 13)),
+            Token.dotdot(Position.at(1, 16)),
+            Token.and(Position.at(1, 19)),
+            Token.or(Position.at(1, 22))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -73,10 +72,10 @@ class LexerTest {
         String input = "1 55 155 1.";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.INT, "1", Position.at(1, 1)),
-            new Token(TokenType.INT, "55", Position.at(1, 3)),
-            new Token(TokenType.INT, "155", Position.at(1, 6)),
-            new Token(TokenType.INT, "1", Position.at(1, 10))
+            Token._int("1", Position.at(1, 1)),
+            Token._int("55", Position.at(1, 3)),
+            Token._int("155", Position.at(1, 6)),
+            Token._int("1", Position.at(1, 10))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -87,10 +86,10 @@ class LexerTest {
         String input = "1.0 5.5 0.155 0.003";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.FLOAT, "1.0", Position.at(1, 1)),
-            new Token(TokenType.FLOAT, "5.5", Position.at(1, 5)),
-            new Token(TokenType.FLOAT, "0.155", Position.at(1, 9)),
-            new Token(TokenType.FLOAT, "0.003", Position.at(1, 15))
+            Token._float("1.0", Position.at(1, 1)),
+            Token._float("5.5", Position.at(1, 5)),
+            Token._float("0.155", Position.at(1, 9)),
+            Token._float("0.003", Position.at(1, 15))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -101,8 +100,8 @@ class LexerTest {
         String input = "true false";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.TRUE, "true", Position.at(1, 1)),
-            new Token(TokenType.FALSE, "false", Position.at(1, 6))
+            Token._true(Position.at(1, 1)),
+            Token._false(Position.at(1, 6))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -127,7 +126,7 @@ class LexerTest {
                 String name = String.format("'%s' should lex to a string token, with literal '%s'", input, testCase);
                 return dynamicTest(name, () -> {
                     List<Token> expectedTokens = Lists.newArrayList(
-                        new Token(TokenType.STRING, testCase, Position.at(1, 1))
+                        Token.string(testCase, Position.at(1, 1))
                     );
 
                     assertTokensForInput(expectedTokens, input);
@@ -157,7 +156,7 @@ class LexerTest {
                 String name = String.format("'%s' should lex to a string token, with literal '%s'", input, testCase);
                 return dynamicTest(name, () -> {
                     List<Token> expectedTokens = Lists.newArrayList(
-                        new Token(TokenType.STRING, testCase.getRight(), Position.at(1, 1))
+                        Token.string(testCase.getRight(), Position.at(1, 1))
                     );
 
                     assertTokensForInput(expectedTokens, input);
@@ -194,11 +193,11 @@ class LexerTest {
         String input = "someVar foo bar fooBar ab1";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.IDENT, "someVar", Position.at(1, 1)),
-            new Token(TokenType.IDENT, "foo", Position.at(1, 9)),
-            new Token(TokenType.IDENT, "bar", Position.at(1, 13)),
-            new Token(TokenType.IDENT, "fooBar", Position.at(1, 17)),
-            new Token(TokenType.IDENT, "ab1", Position.at(1, 24))
+            Token.ident("someVar", Position.at(1, 1)),
+            Token.ident("foo", Position.at(1, 9)),
+            Token.ident("bar", Position.at(1, 13)),
+            Token.ident("fooBar", Position.at(1, 17)),
+            Token.ident("ab1", Position.at(1, 24))
         );
 
         assertTokensForInput(expectedTokens, input);
@@ -209,13 +208,13 @@ class LexerTest {
         String input = "val var func if else for in";
 
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.VAL, "val", Position.at(1, 1)),
-            new Token(TokenType.VAR, "var", Position.at(1, 5)),
-            new Token(TokenType.FUNCTION, "func", Position.at(1, 9)),
-            new Token(TokenType.IF, "if", Position.at(1, 14)),
-            new Token(TokenType.ELSE, "else", Position.at(1, 17)),
-            new Token(TokenType.FOR, "for", Position.at(1, 22)),
-            new Token(TokenType.IN, "in", Position.at(1, 26))
+            Token.val(Position.at(1, 1)),
+            Token.var(Position.at(1, 5)),
+            Token.function(Position.at(1, 9)),
+            Token._if(Position.at(1, 14)),
+            Token._else(Position.at(1, 17)),
+            Token._for(Position.at(1, 22)),
+            Token.in(Position.at(1, 26))
         );
         assertTokensForInput(expectedTokens, input);
     }
@@ -225,14 +224,14 @@ class LexerTest {
         String input = "val five = 5\n" +
             "val ten = 10";
         List<Token> expectedTokens = Lists.newArrayList(
-            new Token(TokenType.VAL, "val", Position.at(1, 1)),
-            new Token(TokenType.IDENT, "five", Position.at(1, 5)),
-            new Token(TokenType.ASSIGN, "=", Position.at(1, 10)),
-            new Token(TokenType.INT, "5", Position.at(1, 12)),
-            new Token(TokenType.VAL, "val", Position.at(2, 1)),
-            new Token(TokenType.IDENT, "ten", Position.at(2, 5)),
-            new Token(TokenType.ASSIGN, "=", Position.at(2, 9)),
-            new Token(TokenType.INT, "10", Position.at(2, 11))
+            Token.val(Position.at(1, 1)),
+            Token.ident("five", Position.at(1, 5)),
+            Token.assign(Position.at(1, 10)),
+            Token._int("5", Position.at(1, 12)),
+            Token.val(Position.at(2, 1)),
+            Token.ident("ten", Position.at(2, 5)),
+            Token.assign(Position.at(2, 9)),
+            Token._int("10", Position.at(2, 11))
         );
         assertTokensForInput(expectedTokens, input);
     }

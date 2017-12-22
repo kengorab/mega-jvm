@@ -1,36 +1,7 @@
 package co.kenrg.mega.frontend.lexer;
 
-import static co.kenrg.mega.frontend.token.TokenType.AND;
-import static co.kenrg.mega.frontend.token.TokenType.ARROW;
-import static co.kenrg.mega.frontend.token.TokenType.ASSIGN;
-import static co.kenrg.mega.frontend.token.TokenType.BANG;
-import static co.kenrg.mega.frontend.token.TokenType.COLON;
-import static co.kenrg.mega.frontend.token.TokenType.COMMA;
-import static co.kenrg.mega.frontend.token.TokenType.DOT;
-import static co.kenrg.mega.frontend.token.TokenType.DOTDOT;
-import static co.kenrg.mega.frontend.token.TokenType.EOF;
-import static co.kenrg.mega.frontend.token.TokenType.EQ;
 import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
-import static co.kenrg.mega.frontend.token.TokenType.GTE;
-import static co.kenrg.mega.frontend.token.TokenType.ILLEGAL;
 import static co.kenrg.mega.frontend.token.TokenType.INT;
-import static co.kenrg.mega.frontend.token.TokenType.LANGLE;
-import static co.kenrg.mega.frontend.token.TokenType.LBRACE;
-import static co.kenrg.mega.frontend.token.TokenType.LBRACK;
-import static co.kenrg.mega.frontend.token.TokenType.LPAREN;
-import static co.kenrg.mega.frontend.token.TokenType.LTE;
-import static co.kenrg.mega.frontend.token.TokenType.MINUS;
-import static co.kenrg.mega.frontend.token.TokenType.NEQ;
-import static co.kenrg.mega.frontend.token.TokenType.OR;
-import static co.kenrg.mega.frontend.token.TokenType.PLUS;
-import static co.kenrg.mega.frontend.token.TokenType.RANGLE;
-import static co.kenrg.mega.frontend.token.TokenType.RBRACE;
-import static co.kenrg.mega.frontend.token.TokenType.RBRACK;
-import static co.kenrg.mega.frontend.token.TokenType.RPAREN;
-import static co.kenrg.mega.frontend.token.TokenType.SEMICOLON;
-import static co.kenrg.mega.frontend.token.TokenType.SLASH;
-import static co.kenrg.mega.frontend.token.TokenType.STAR;
-import static co.kenrg.mega.frontend.token.TokenType.STRING;
 import static java.lang.Character.isDigit;
 
 import java.util.Map;
@@ -95,100 +66,100 @@ public class Lexer {
             case '=':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(EQ, "==", pos);
+                    token = Token.eq(pos);
                 } else if (peekChar() == '>') {
                     this.readChar();
-                    token = new Token(ARROW, "=>", pos);
+                    token = Token.arrow(pos);
                 } else {
-                    token = new Token(ASSIGN, this.ch, pos);
+                    token = Token.assign(pos);
                 }
                 break;
             case '!':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(NEQ, "!=", pos);
+                    token = Token.neq(pos);
                 } else {
-                    token = new Token(BANG, this.ch, pos);
+                    token = Token.bang(pos);
                 }
                 break;
             case '&':
                 if (peekChar() == '&') {
                     this.readChar();
-                    token = new Token(AND, "&&", pos);
+                    token = Token.and(pos);
                 } else {
-                    token = new Token(ILLEGAL, this.ch, pos);
+                    token = Token.illegal(this.ch, pos);
                 }
                 break;
             case '|':
                 if (peekChar() == '|') {
                     this.readChar();
-                    token = new Token(OR, "||", pos);
+                    token = Token.or(pos);
                 } else {
-                    token = new Token(ILLEGAL, this.ch, pos);
+                    token = Token.illegal(this.ch, pos);
                 }
                 break;
             case '+':
-                token = new Token(PLUS, this.ch, pos);
+                token = Token.plus(pos);
                 break;
             case '-':
-                token = new Token(MINUS, this.ch, pos);
+                token = Token.minus(pos);
                 break;
             case '/':
-                token = new Token(SLASH, this.ch, pos);
+                token = Token.slash(pos);
                 break;
             case '*':
-                token = new Token(STAR, this.ch, pos);
+                token = Token.star(pos);
                 break;
             case ';':
-                token = new Token(SEMICOLON, this.ch, pos);
+                token = Token.semicolon(pos);
                 break;
             case ',':
-                token = new Token(COMMA, this.ch, pos);
+                token = Token.comma(pos);
                 break;
             case '.':
                 if (peekChar() == '.') {
                     this.readChar();
-                    token = new Token(DOTDOT, "..", pos);
+                    token = Token.dotdot(pos);
                 } else {
                     // This is unused (for now)
-                    token = new Token(DOT, this.ch, pos);
+                    token = Token.dot(pos);
                 }
                 break;
             case ':':
-                token = new Token(COLON, this.ch, pos);
+                token = Token.colon(pos);
                 break;
             case '(':
-                token = new Token(LPAREN, this.ch, pos);
+                token = Token.lparen(pos);
                 break;
             case ')':
-                token = new Token(RPAREN, this.ch, pos);
+                token = Token.rparen(pos);
                 break;
             case '{':
-                token = new Token(LBRACE, this.ch, pos);
+                token = Token.lbrace(pos);
                 break;
             case '}':
-                token = new Token(RBRACE, this.ch, pos);
+                token = Token.rbrace(pos);
                 break;
             case '[':
-                token = new Token(LBRACK, this.ch, pos);
+                token = Token.lbrack(pos);
                 break;
             case ']':
-                token = new Token(RBRACK, this.ch, pos);
+                token = Token.rbrack(pos);
                 break;
             case '<':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(LTE, "<=", pos);
+                    token = Token.lte(pos);
                 } else {
-                    token = new Token(LANGLE, this.ch, pos);
+                    token = Token.langle(pos);
                 }
                 break;
             case '>':
                 if (peekChar() == '=') {
                     this.readChar();
-                    token = new Token(GTE, ">=", pos);
+                    token = Token.gte(pos);
                 } else {
-                    token = new Token(RANGLE, this.ch, pos);
+                    token = Token.rangle(pos);
                 }
                 break;
             case '"':
@@ -197,14 +168,14 @@ public class Lexer {
                 Pair<String, SyntaxError> str = this.readString();
                 pos = Position.at(this.line, strStartCol);
                 if (str.getRight() != null) {
-                    token = new Token(ILLEGAL, this.ch, pos);
+                    token = Token.illegal(this.ch, pos);
                     error = str.getRight();
                 } else {
-                    token = new Token(STRING, str.getLeft(), pos);
+                    token = Token.string(str.getLeft(), pos);
                 }
                 break;
             case 0:
-                token = new Token(EOF, "", pos);
+                token = Token.eof(pos);
                 break;
             default:
                 if (Character.isLetter(this.ch)) {
@@ -214,7 +185,7 @@ public class Lexer {
                     Pair<String, TokenType> number = this.readNumber();
                     return Pair.of(new Token(number.getRight(), number.getLeft(), pos), null);
                 } else {
-                    token = new Token(ILLEGAL, this.ch, pos);
+                    token = Token.illegal(this.ch, pos);
                 }
         }
 

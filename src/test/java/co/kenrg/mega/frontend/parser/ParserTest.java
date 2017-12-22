@@ -3,13 +3,6 @@ package co.kenrg.mega.frontend.parser;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetErrors;
-import static co.kenrg.mega.frontend.token.TokenType.FALSE;
-import static co.kenrg.mega.frontend.token.TokenType.FLOAT;
-import static co.kenrg.mega.frontend.token.TokenType.IDENT;
-import static co.kenrg.mega.frontend.token.TokenType.INT;
-import static co.kenrg.mega.frontend.token.TokenType.PLUS;
-import static co.kenrg.mega.frontend.token.TokenType.STRING;
-import static co.kenrg.mega.frontend.token.TokenType.TRUE;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -47,8 +40,8 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -380,12 +373,12 @@ class ParserTest {
         assertEquals(
             Lists.newArrayList(
                 new ExpressionStatement(
-                    new Token(IDENT, "a", Position.at(1, 18)),
+                    Token.ident("a", Position.at(1, 18)),
                     new InfixExpression(
-                        new Token(PLUS, "+", Position.at(1, 20)),
+                        Token.plus(Position.at(1, 20)),
                         "+",
-                        new Identifier(new Token(IDENT, "a", Position.at(1, 18)), "a"),
-                        new Identifier(new Token(IDENT, "b", Position.at(1, 22)), "b")
+                        new Identifier(Token.ident("a", Position.at(1, 18)), "a"),
+                        new Identifier(Token.ident("b", Position.at(1, 22)), "b")
                     )
                 )
             ),
@@ -400,27 +393,27 @@ class ParserTest {
         ExpressionStatement statement = parseExpressionStatement(input);
         Expression identExpr = statement.expression;
 
-        assertEquals(identExpr, new Identifier(new Token(IDENT, "foobar", Position.at(1, 1)), "foobar"));
+        assertEquals(identExpr, new Identifier(Token.ident("foobar", Position.at(1, 1)), "foobar"));
     }
 
     private void assertLiteralExpression(Expression expr, Object expectedValue, Position position) {
         if (expectedValue instanceof Integer) {
             Integer value = (Integer) expectedValue;
             assertEquals(
-                new IntegerLiteral(new Token(INT, String.valueOf(value), position), value),
+                new IntegerLiteral(Token._int(String.valueOf(value), position), value),
                 expr
             );
         } else if (expectedValue instanceof Float) {
             Float value = (Float) expectedValue;
             assertEquals(
-                new FloatLiteral(new Token(FLOAT, String.valueOf(value), position), value),
+                new FloatLiteral(Token._float(String.valueOf(value), position), value),
                 expr
             );
         } else if (expectedValue instanceof Boolean) {
             Boolean value = (Boolean) expectedValue;
             Token token = value
-                ? new Token(TRUE, "true", position)
-                : new Token(FALSE, "false", position);
+                ? Token._true(position)
+                : Token._false(position);
             assertEquals(
                 new BooleanLiteral(token, value),
                 expr
@@ -428,7 +421,7 @@ class ParserTest {
         } else if (expectedValue instanceof String) {
             String value = (String) expectedValue;
             assertEquals(
-                new StringLiteral(new Token(STRING, value, position), value),
+                new StringLiteral(Token.string(value, position), value),
                 expr
             );
         } else {
@@ -437,7 +430,7 @@ class ParserTest {
     }
 
     private void assertIdentifier(Expression expr, String identName, Position position) {
-        assertEquals(expr, new Identifier(new Token(IDENT, identName, position), identName));
+        assertEquals(expr, new Identifier(Token.ident(identName, position), identName));
     }
 
     @TestFactory
@@ -531,26 +524,26 @@ class ParserTest {
         // This is an artifact of how I'm (kind of jankily) supporting these nested expressions...
         List<Pair<String, Map<String, Expression>>> testCases = Lists.newArrayList(
             Pair.of("\"$a bc\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a")
+                "$a", new Identifier(Token.ident("a", Position.at(1, 1)), "a")
             )),
             Pair.of("\"$a $bc\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
-                "$bc", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
+                "$a", new Identifier(Token.ident("a", Position.at(1, 1)), "a"),
+                "$bc", new Identifier(Token.ident("bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"$a ${bc}\"", ImmutableMap.of(
-                "$a", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
-                "${bc}", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
+                "$a", new Identifier(Token.ident("a", Position.at(1, 1)), "a"),
+                "${bc}", new Identifier(Token.ident("bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"${a} ${bc}\"", ImmutableMap.of(
-                "${a}", new Identifier(new Token(IDENT, "a", Position.at(1, 1)), "a"),
-                "${bc}", new Identifier(new Token(IDENT, "bc", Position.at(1, 1)), "bc")
+                "${a}", new Identifier(Token.ident("a", Position.at(1, 1)), "a"),
+                "${bc}", new Identifier(Token.ident("bc", Position.at(1, 1)), "bc")
             )),
             Pair.of("\"1 + 1 = ${1 + 1}\"", ImmutableMap.of(
                 "${1 + 1}", new InfixExpression(
-                    new Token(PLUS, "+", Position.at(1, 3)),
+                    Token.plus(Position.at(1, 3)),
                     "+",
-                    new IntegerLiteral(new Token(INT, "1", Position.at(1, 1)), 1),
-                    new IntegerLiteral(new Token(INT, "1", Position.at(1, 5)), 1)
+                    new IntegerLiteral(Token._int("1", Position.at(1, 1)), 1),
+                    new IntegerLiteral(Token._int("1", Position.at(1, 5)), 1)
                 )
             ))
         );
@@ -797,12 +790,12 @@ class ParserTest {
 
         InfixExpression condition = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition.operator);
-        assertEquals(condition.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
-        assertEquals(condition.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
+        assertEquals(condition.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
+        assertEquals(condition.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
         Identifier ident = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
-        assertEquals(ident, new Identifier(new Token(IDENT, "x", Position.at(1, 12)), "x"));
+        assertEquals(ident, new Identifier(Token.ident("x", Position.at(1, 12)), "x"));
 
         assertNull(ifExpression.elseExpr);
     }
@@ -816,16 +809,16 @@ class ParserTest {
 
         InfixExpression condition = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition.operator);
-        assertEquals(condition.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
-        assertEquals(condition.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
+        assertEquals(condition.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
+        assertEquals(condition.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
         Identifier thenExpr = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
-        assertEquals(thenExpr, new Identifier(new Token(IDENT, "x", Position.at(1, 12)), "x"));
+        assertEquals(thenExpr, new Identifier(Token.ident("x", Position.at(1, 12)), "x"));
 
         BlockExpression elseBlock = (BlockExpression) ifExpression.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
-        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y", Position.at(1, 23)), "y"));
+        assertEquals(elseExpr, new Identifier(Token.ident("y", Position.at(1, 23)), "y"));
     }
 
     @Test
@@ -844,8 +837,8 @@ class ParserTest {
 
         InfixExpression condition1 = (InfixExpression) ifExpression.condition;
         assertEquals("<", condition1.operator);
-        assertEquals(condition1.left, new Identifier(new Token(IDENT, "x", Position.at(1, 4)), "x"));
-        assertEquals(condition1.right, new Identifier(new Token(IDENT, "y", Position.at(1, 8)), "y"));
+        assertEquals(condition1.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
+        assertEquals(condition1.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
         BlockExpression thenBlock1 = (BlockExpression) ifExpression.thenExpr;
         IfExpression nestedIfExpr = (IfExpression) ((ExpressionStatement) thenBlock1.statements.get(0)).expression;
@@ -853,7 +846,7 @@ class ParserTest {
 
         InfixExpression condition2 = (InfixExpression) nestedIfExpr.condition;
         assertEquals(">", condition2.operator);
-        assertEquals(condition2.left, new Identifier(new Token(IDENT, "x", Position.at(2, 6)), "x"));
+        assertEquals(condition2.left, new Identifier(Token.ident("x", Position.at(2, 6)), "x"));
         assertLiteralExpression(condition2.right, 0, Position.at(2, 10));
 
         BlockExpression thenBlock2 = (BlockExpression) nestedIfExpr.thenExpr;
@@ -862,7 +855,7 @@ class ParserTest {
 
         BlockExpression elseBlock = (BlockExpression) nestedIfExpr.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
-        assertEquals(elseExpr, new Identifier(new Token(IDENT, "y", Position.at(5, 5)), "y"));
+        assertEquals(elseExpr, new Identifier(Token.ident("y", Position.at(5, 5)), "y"));
     }
 
     @TestFactory
@@ -939,10 +932,10 @@ class ParserTest {
         assertEquals(
             arrowFuncBody,
             new InfixExpression(
-                new Token(PLUS, "+", Position.at(1, 13)),
+                Token.plus(Position.at(1, 13)),
                 "+",
-                new Identifier(new Token(IDENT, "a", Position.at(1, 11)), "a"),
-                new Identifier(new Token(IDENT, "b", Position.at(1, 15)), "b")
+                new Identifier(Token.ident("a", Position.at(1, 11)), "a"),
+                new Identifier(Token.ident("b", Position.at(1, 15)), "b")
             )
         );
     }
@@ -1055,7 +1048,7 @@ class ParserTest {
         InfixExpression body = (InfixExpression) ((ExpressionStatement) forLoop.block.statements.get(0)).expression;
         assertEquals("+", body.operator);
         assertIdentifier(body.left, "x", Position.at(1, 16));
-        assertEquals(new IntegerLiteral(new Token(INT, "1", Position.at(1, 20)), 1), body.right);
+        assertEquals(new IntegerLiteral(Token._int("1", Position.at(1, 20)), 1), body.right);
     }
 
     @TestFactory
