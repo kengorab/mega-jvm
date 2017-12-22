@@ -1,6 +1,6 @@
-package co.kenrg.mega.repl.object.iface;
+package co.kenrg.mega.backend.evaluation.object.iface;
 
-import co.kenrg.mega.repl.object.EvalError;
+import co.kenrg.mega.backend.evaluation.object.EvalError;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;

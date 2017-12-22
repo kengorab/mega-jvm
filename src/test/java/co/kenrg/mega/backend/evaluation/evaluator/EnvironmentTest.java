@@ -1,10 +1,10 @@
-package co.kenrg.mega.repl.evaluator;
+package co.kenrg.mega.backend.evaluation.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import co.kenrg.mega.repl.evaluator.Environment.SetBindingStatus;
-import co.kenrg.mega.repl.object.IntegerObj;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment.SetBindingStatus;
+import co.kenrg.mega.backend.evaluation.object.IntegerObj;
 import org.junit.jupiter.api.Test;
 
 class EnvironmentTest {

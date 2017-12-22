@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
-import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 

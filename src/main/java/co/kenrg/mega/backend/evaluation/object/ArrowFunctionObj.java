@@ -1,16 +1,16 @@
-package co.kenrg.mega.repl.object;
+package co.kenrg.mega.backend.evaluation.object;
 
-import static co.kenrg.mega.repl.object.iface.ObjectType.FUNCTION;
+import static co.kenrg.mega.backend.evaluation.object.iface.ObjectType.FUNCTION;
 
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.iface.Expression;
-import co.kenrg.mega.repl.evaluator.Environment;
-import co.kenrg.mega.repl.object.iface.InvokeableObj;
-import co.kenrg.mega.repl.object.iface.Obj;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 
 public class ArrowFunctionObj extends Obj implements InvokeableObj {
     public final ArrowFunctionExpression function;

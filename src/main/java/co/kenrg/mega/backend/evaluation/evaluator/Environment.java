@@ -1,8 +1,8 @@
-package co.kenrg.mega.repl.evaluator;
+package co.kenrg.mega.backend.evaluation.evaluator;
 
 import java.util.Map;
 
-import co.kenrg.mega.repl.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import com.google.common.collect.Maps;
 
 public class Environment {

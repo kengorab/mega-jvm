@@ -1,7 +1,7 @@
-package co.kenrg.mega.repl.object;
+package co.kenrg.mega.backend.evaluation.object;
 
-import co.kenrg.mega.repl.object.iface.Obj;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 
 public class FloatObj extends Obj {
     public final float value;

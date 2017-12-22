@@ -1,11 +1,11 @@
-package co.kenrg.mega.repl.object;
+package co.kenrg.mega.backend.evaluation.object;
 
 import static java.util.stream.Collectors.joining;
 
 import java.util.Map;
 
-import co.kenrg.mega.repl.object.iface.Obj;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 import com.google.common.base.Strings;
 
 public class ObjectObj extends Obj {

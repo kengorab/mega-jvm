@@ -1,9 +1,9 @@
-package co.kenrg.mega.repl.object;
+package co.kenrg.mega.backend.evaluation.object;
 
-import static co.kenrg.mega.repl.object.iface.ObjectType.EVAL_ERROR;
+import static co.kenrg.mega.backend.evaluation.object.iface.ObjectType.EVAL_ERROR;
 
-import co.kenrg.mega.repl.object.iface.Obj;
-import co.kenrg.mega.repl.object.iface.ObjectType;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 
 public class EvalError extends Obj {
     public final String message;

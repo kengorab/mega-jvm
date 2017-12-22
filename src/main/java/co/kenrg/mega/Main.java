@@ -8,7 +8,7 @@ import java.util.List;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;
-import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
