@@ -233,10 +233,13 @@ public class TypeChecker {
         return unknownType;
     }
 
-    private void typecheckStatements(List<Statement> statements, TypeEnvironment env) {
+    private List<TypedNode> typecheckStatements(List<Statement> statements, TypeEnvironment env) {
+        List<TypedNode> typedStatements = Lists.newArrayListWithExpectedSize(statements.size());
         for (Statement statement : statements) {
-            this.typecheckNode(statement, env);
+            TypedNode<Statement> typedNode = this.typecheckNode(statement, env);
+            typedStatements.add(typedNode);
         }
+        return typedStatements;
     }
 
     @VisibleForTesting
