@@ -4,13 +4,16 @@ import java.util.List;
 
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class TypeCheckResult<T extends Node> {
-    public final TypedNode<T> node;
+    public final T node;
+    public final MegaType type;
     public final List<TypeCheckerError> errors;
 
-    public TypeCheckResult(TypedNode<T> node, List<TypeCheckerError> errors) {
+    public TypeCheckResult(T node, MegaType type, List<TypeCheckerError> errors) {
         this.node = node;
+        this.type = type;
         this.errors = errors;
     }
 

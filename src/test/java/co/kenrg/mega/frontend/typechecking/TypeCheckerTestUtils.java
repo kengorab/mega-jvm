@@ -2,6 +2,7 @@ package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -12,13 +13,15 @@ public class TypeCheckerTestUtils {
     public static MegaType testTypecheckExpression(String input) {
         TypeCheckResult typeCheckResult = testTypecheckExpressionAndGetResult(input);
         assertTrue(typeCheckResult.errors.isEmpty(), "There should be no typechecking errors");
-        return typeCheckResult.node.type;
+        assertEquals(typeCheckResult.type, typeCheckResult.node.getType(), "The result type should be set on the node");
+        return typeCheckResult.type;
     }
 
     public static MegaType testTypecheckExpression(String input, TypeEnvironment env) {
         TypeCheckResult typeCheckResult = testTypecheckExpressionAndGetResult(input, env);
         assertTrue(typeCheckResult.errors.isEmpty(), "There should be no typechecking errors");
-        return typeCheckResult.node.type;
+        assertEquals(typeCheckResult.type, typeCheckResult.node.getType(), "The result type should be set on the node");
+        return typeCheckResult.type;
     }
 
     public static TypeCheckResult testTypecheckExpressionAndGetResult(String input) {
@@ -46,7 +49,7 @@ public class TypeCheckerTestUtils {
     public static MegaType testTypecheckStatement(String input, TypeEnvironment env) {
         TypeCheckResult typecheckResult = testTypecheckStatementAndGetResult(input, env);
         assertTrue(typecheckResult.errors.isEmpty(), "There should be no typechecking errors");
-        return typecheckResult.node.type;
+        return typecheckResult.type;
     }
 
     public static TypeCheckResult testTypecheckStatementAndGetResult(String input) {

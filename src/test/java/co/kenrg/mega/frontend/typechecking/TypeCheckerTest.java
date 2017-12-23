@@ -224,7 +224,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should fail to typecheck", testCase.getLeft());
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft());
-                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+                    assertEquals(PrimitiveTypes.UNIT, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
@@ -269,7 +269,7 @@ class TypeCheckerTest {
         String input = "func doSomething(a: Int): Int { a + '!' }";
         TypeEnvironment env = new TypeEnvironment();
         TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
-        assertEquals(PrimitiveTypes.UNIT, result.node.type);
+        assertEquals(PrimitiveTypes.UNIT, result.type);
 
         assertTrue(result.hasErrors());
         assertEquals(
@@ -286,7 +286,7 @@ class TypeCheckerTest {
         env.addBindingWithType("arr", arrayOf.apply(PrimitiveTypes.INTEGER), true);
 
         TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
-        assertEquals(PrimitiveTypes.UNIT, result.node.type);
+        assertEquals(PrimitiveTypes.UNIT, result.type);
         assertTrue(result.errors.isEmpty(), "There should be no typechecking errors");
     }
 
@@ -308,7 +308,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should fail to typecheck", testCase.getLeft());
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft());
-                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+                    assertEquals(PrimitiveTypes.UNIT, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
@@ -414,7 +414,7 @@ class TypeCheckerTest {
                     TypeEnvironment typeEnv = new TypeEnvironment();
                     testCase.environment.forEach(typeEnv::addType);
                     TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.input, typeEnv);
-                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+                    assertEquals(PrimitiveTypes.UNIT, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.typeError, result.errors.get(0));
@@ -469,7 +469,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should fail to typecheck", testCase.input);
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.input);
-                    assertEquals(testCase.arrayType, result.node.type);
+                    assertEquals(testCase.arrayType, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
@@ -620,7 +620,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should fail to typecheck", input);
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(input);
-                    assertEquals(TypeChecker.unknownType, result.node.type);
+                    assertEquals(TypeChecker.unknownType, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
@@ -779,7 +779,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should fail to typecheck", testCase.input);
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.input);
-                    assertEquals(testCase.overallType, result.node.type);
+                    assertEquals(testCase.overallType, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.error, result.errors.get(0));
@@ -844,7 +844,7 @@ class TypeCheckerTest {
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.input);
                     // Even though typechecking fails, there should still be some kind of overall type returned, even if it's <unknown>.
-                    assertEquals(testCase.overallType, result.node.type);
+                    assertEquals(testCase.overallType, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(
@@ -960,7 +960,7 @@ class TypeCheckerTest {
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft());
                     // Even though typechecking fails, there should still be some kind of overall type returned, even if it's <unknown>.
-                    assertEquals(testCase.getRight(), result.node.type);
+                    assertEquals(testCase.getRight(), result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getMiddle(), result.errors.get(0));
@@ -1007,7 +1007,7 @@ class TypeCheckerTest {
                 return dynamicTest(name, () -> {
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft());
                     // Even though typechecking fails, there should still be some kind of overall type returned, even if it's <unknown>.
-                    assertEquals(testCase.getRight(), result.node.type);
+                    assertEquals(testCase.getRight(), result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getMiddle(), result.errors.get(0));
@@ -1070,7 +1070,7 @@ class TypeCheckerTest {
                     TypeEnvironment env = new TypeEnvironment();
                     testCase.getMiddle().forEach((key, value) -> env.addBindingWithType(key, value.getLeft(), value.getRight()));
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
-                    assertEquals(PrimitiveTypes.UNIT, result.node.type);
+                    assertEquals(PrimitiveTypes.UNIT, result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getRight(), result.errors.get(0));
@@ -1146,7 +1146,7 @@ class TypeCheckerTest {
                     TypeEnvironment env = new TypeEnvironment();
                     testCase.getMiddle().forEach((key, value) -> env.addBindingWithType(key, value, true));
                     TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft(), env);
-                    assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), result.node.type);
+                    assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), result.type);
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getRight(), result.errors.get(0));
