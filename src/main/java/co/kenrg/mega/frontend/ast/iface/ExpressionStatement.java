@@ -1,6 +1,9 @@
 package co.kenrg.mega.frontend.ast.iface;
 
+import javax.annotation.Nullable;
+
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
 
 public class ExpressionStatement extends Statement {
     public final Token token;
@@ -9,6 +12,12 @@ public class ExpressionStatement extends Statement {
     public ExpressionStatement(Token token, Expression expr) {
         this.token = token;
         this.expression = expr;
+    }
+
+    @Nullable
+    @Override
+    public MegaType getType() {
+        return this.expression.getType();
     }
 
     @Override
