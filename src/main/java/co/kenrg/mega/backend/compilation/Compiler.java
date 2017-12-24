@@ -10,7 +10,10 @@ import static org.objectweb.asm.Opcodes.V1_6;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -67,7 +70,13 @@ public class Compiler {
 
         // Expressions
         if (node instanceof IntegerLiteral) {
-            this.compileIntegerLiteral((IntegerLiteral) node);
+            this.compileLiteral(node);
+        } else if (node instanceof FloatLiteral) {
+            this.compileLiteral(node);
+        } else if (node instanceof BooleanLiteral) {
+            this.compileLiteral(node);
+        } else if (node instanceof StringLiteral) {
+            this.compileLiteral(node);
         }
     }
 
@@ -93,7 +102,15 @@ public class Compiler {
 //        data.vals.put(valName, ValBinding.Static(valName, valDeclExprType))
     }
 
-    private void compileIntegerLiteral(IntegerLiteral intLit) {
-        this.focusedMethod.writer.visitLdcInsn(intLit.value);
+    private void compileLiteral(Node node) {
+        if (node instanceof IntegerLiteral) {
+            this.focusedMethod.writer.visitLdcInsn(((IntegerLiteral) node).value);
+        } else if (node instanceof FloatLiteral) {
+            this.focusedMethod.writer.visitLdcInsn(((FloatLiteral) node).value);
+        } else if (node instanceof BooleanLiteral) {
+            this.focusedMethod.writer.visitLdcInsn(((BooleanLiteral) node).value);
+        } else if (node instanceof StringLiteral) {
+            this.focusedMethod.writer.visitLdcInsn(((StringLiteral) node).value);
+        }
     }
 }

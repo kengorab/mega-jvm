@@ -69,9 +69,9 @@ class CompilerTestUtils {
         }
     }
 
-    static void cleanupClassFiles(TestCompilationResult result) {
+    static void cleanupClassFiles(List<Path> classFiles) {
         try {
-            for (Path path : result.classFiles) {
+            for (Path path : classFiles) {
                 Files.deleteIfExists(path);
             }
         } catch (IOException e) {
