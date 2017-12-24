@@ -3,86 +3,97 @@ package co.kenrg.mega.backend.compilation;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.cleanupClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
+import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.nio.file.Path;
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.apache.commons.lang3.tuple.Triple;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.TestFactory;
 
 class CompilerTest {
-    private List<Path> classFiles;
 
-    @BeforeEach
-    public void setup() {
-        classFiles = Lists.newArrayList();
-    }
+    @Nested
+    class TestStaticVariables {
 
-    @AfterEach
-    public void teardown() {
-        cleanupClassFiles(classFiles);
-    }
+        @TestFactory
+        List<DynamicTest> testLiteralDeclarations() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("val someInt = 123", "someInt", 123),
+                Triple.of("val someFloat = 12.345", "someFloat", 12.345F),
+                Triple.of("val someBool = true", "someBool", true),
+                Triple.of("val someBool = false", "someBool", false),
+                Triple.of("val someStr = 'string 1'", "someStr", "string 1"),
+                Triple.of("val someStr = \"string 2\"", "someStr", "string 2")
+            );
 
-    @Test
-    public void testStaticIntegerDeclarations() {
-        String input = "val someInt1 = 123";// val someInt2 = -123456"; // TODO: Uncomment these test pieces after prefix expressions work
-        TestCompilationResult result = parseTypecheckAndCompileInput(input);
-        classFiles = result.classFiles;
-        String className = result.className;
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String varName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+                    String name = "Compiling `" + input + "` should result in the static variable `" + varName + "` = " + val;
 
-        int someInt1 = (int) loadStaticValueFromClass(className, "someInt1");
-        assertEquals(123, someInt1, "The static value read off the generated class should be as expected");
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        List<Path> classFiles = result.classFiles;
+                        String className = result.className;
 
-//        int someInt2 = (int) loadStaticValueFromClass(className, "someInt2");
-//        assertEquals(-123456, someInt2, "The static value read off the generated class should be as expected");
-    }
+                        assertStaticBindingOnClassEquals(className, varName, val);
+                        cleanupClassFiles(classFiles);
+                    });
+                })
+                .collect(toList());
+        }
 
-    @Test
-    public void testStaticFloatDeclarations() {
-        String input = "val someFloat1 = 12.345";//; val someFloat2 = -12.345";
-        TestCompilationResult result = parseTypecheckAndCompileInput(input);
-        classFiles = result.classFiles;
-        String className = result.className;
+        @TestFactory
+        List<DynamicTest> testPrefixExpressions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("val someInt = -123", "someInt", -123),
+                Triple.of("val someFloat = -12.345", "someFloat", -12.345F),
+                Triple.of("val someBool = !true", "someBool", false),
+                Triple.of("val someBool = !false", "someBool", true)
+            );
 
-        float someFloat1 = (float) loadStaticValueFromClass(className, "someFloat1");
-        float diff1 = (float) (someFloat1 - 12.345);
-        assertTrue(diff1 < 0.0000005, "The static value read off the generated class should be as (close enough to) expected");
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String varName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+                    String name = "Compiling `" + input + "` should result in the static variable `" + varName + "` = " + val;
 
-//        float someFloat2 = (float) loadStaticValueFromClass(className, "someFloat2");
-//        float diff2 = (float) (someFloat2 - 12.345);
-//        assertTrue(diff2 < 0.0000005, "The static value read off the generated class should be as (close enough to) expected");
-    }
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        List<Path> classFiles = result.classFiles;
+                        String className = result.className;
 
-    @Test
-    public void testStaticBooleanDeclarations() {
-        String input = "val someBool1 = true; val someBool2 = false";
-        TestCompilationResult result = parseTypecheckAndCompileInput(input);
-        classFiles = result.classFiles;
-        String className = result.className;
+                        assertStaticBindingOnClassEquals(className, varName, val);
+                        cleanupClassFiles(classFiles);
+                    });
+                })
+                .collect(toList());
+        }
 
-        boolean someBool1 = (boolean) loadStaticValueFromClass(className, "someBool1");
-        assertEquals(true, someBool1, "The static value read off the generated class should be as expected");
-
-        boolean someBool2 = (boolean) loadStaticValueFromClass(className, "someBool2");
-        assertEquals(false, someBool2, "The static value read off the generated class should be as expected");
-    }
-
-    @Test
-    public void testStaticStringDeclarations() {
-        String input = "val someStr1 = 'string 1'; val someStr2 = \"string 2\"";
-        TestCompilationResult result = parseTypecheckAndCompileInput(input);
-        classFiles = result.classFiles;
-        String className = result.className;
-
-        String someStr1 = (String) loadStaticValueFromClass(className, "someStr1");
-        assertEquals("string 1", someStr1, "The static value read off the generated class should be as expected");
-
-        String someStr2 = (String) loadStaticValueFromClass(className, "someStr2");
-        assertEquals("string 2", someStr2, "The static value read off the generated class should be as expected");
+        private void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
+            if (value instanceof Integer) {
+                int variable = (int) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(value, variable, "The static value read off the generated class should be as expected");
+            } else if (value instanceof Float) {
+                float variable = (float) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(value, variable, "The static value read off the generated class should be as expected");
+            } else if (value instanceof Boolean) {
+                boolean variable = (boolean) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(value, variable, "The static value read off the generated class should be as expected");
+            } else if (value instanceof String) {
+                String variable = (String) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(value, variable, "The static value read off the generated class should be as expected");
+            }
+        }
     }
 }
