@@ -1,5 +1,11 @@
 package co.kenrg.mega.repl;
 
+import java.util.Optional;
+
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.evaluator.Evaluator;
+import co.kenrg.mega.backend.evaluation.object.NullObj;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
@@ -9,10 +15,6 @@ import co.kenrg.mega.frontend.typechecking.TypeChecker;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.repl.commands.Commands;
-import co.kenrg.mega.backend.evaluation.evaluator.Environment;
-import co.kenrg.mega.backend.evaluation.evaluator.Evaluator;
-import co.kenrg.mega.backend.evaluation.object.NullObj;
-import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReader.Option;
@@ -42,7 +44,7 @@ public class Repl {
         }
     }
 
-    public static void readEvalPrint(String code, Environment env, TypeEnvironment typeEnv) {
+    public static Optional<Module> readAndTypecheck(String code, TypeEnvironment typeEnv) {
         Lexer lexer = new Lexer(code);
         Parser parser = new Parser(lexer);
         Module module = parser.parseModule();
@@ -53,7 +55,7 @@ public class Repl {
                 System.out.println("  " + error.message);
             }
 
-            return;
+            return Optional.empty();
         }
 
         TypeChecker typeChecker = new TypeChecker();
@@ -65,10 +67,19 @@ public class Repl {
                 System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message()));
             }
 
+            return Optional.empty();
+        }
+        return Optional.of(module);
+    }
+
+    public static void readEvalPrint(String code, Environment env, TypeEnvironment typeEnv) {
+        Optional<Module> module = readAndTypecheck(code, typeEnv);
+        if (!module.isPresent()) {
+            System.out.println("Cannot proceed due to errors.");
             return;
         }
 
-        Obj evaluated = Evaluator.eval(module, env);
+        Obj evaluated = Evaluator.eval(module.get(), env);
         if (evaluated != null && !evaluated.equals(NullObj.NULL)) {
             System.out.println(evaluated.inspect(0));
         }
