@@ -547,7 +547,7 @@ public class Parser {
     }
 
     // [[<expr> [,<expr>]*]*]
-    public Expression parseArrayLiteral() {
+    private Expression parseArrayLiteral() {
         return new ArrayLiteral(this.curTok, this.parseExpressionList(TokenType.RBRACK));
     }
 
