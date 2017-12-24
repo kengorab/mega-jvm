@@ -4,4 +4,4 @@ out
 *.iml
 .gradle
 .DS_Store
-
+*.class
