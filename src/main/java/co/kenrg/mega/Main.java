@@ -27,7 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 public class Main {
     public static void main(String[] args) throws ParseException, IOException {
         if (args.length == 0) {
-//            startRepl();
+            printTopLevelUsage();
             return;
         }
 
@@ -46,53 +46,62 @@ public class Main {
                 handleCompileCommand(tailArgs);
                 return;
             }
-            default: {
-
+            case "help": {
+                handleHelpCommand(tailArgs);
             }
         }
     }
 
-//    private static void startRepl() {
-//        Environment env = new Environment();
-//        TypeEnvironment typeEnv = new TypeEnvironment();
-//        Repl.start(env, typeEnv);
-//    }
-
     private enum Subcommand {
-        RUN("run [filename]", "Evaluates the Mega file passed as an argument"),
-        REPL("repl", "Start up the Mega REPL (Read Eval Print Loop)"),
-        COMPILE("compile [filename]", "Compile the Mega file passed as an argument to JVM class files");
+        RUN(
+            "run [filename]",
+            "Evaluates the Mega file passed as an argument",
+            new Options()
+                .addOption("h", "help", false, "Displays this help information, for the run subcommand")
+        ),
+        REPL(
+            "repl",
+            "Start up the Mega REPL (Read Eval Print Loop)",
+            new Options()
+                .addOption("l", "load-file", true, "Loads a REPL, with the given file evaluated")
+                .addOption("h", "help", false, "Displays this help information, for the repl subcommand")
+        ),
+        COMPILE(
+            "compile [filename]",
+            "Compile the Mega file passed as an argument to JVM class files",
+            new Options()
+                .addOption("h", "help", false, "Displays this help information, for the compile subcommand")
+                .addOption("o", "out-dir", true, "Directory where compiled class files should be written (defaults to current directory)")
+        );
 
-        String name;
-        String desc;
+        final String name;
+        final String desc;
+        final Options options;
 
-        Subcommand(String subcommandName, String subcommandDesc) {
+        Subcommand(String subcommandName, String subcommandDesc, Options options) {
             this.name = subcommandName;
             this.desc = subcommandDesc;
+            this.options = options;
         }
     }
 
-    private static CommandLine parse(Subcommand subcommand, Options opts, String[] args) throws ParseException {
+    private static CommandLine parse(Subcommand subcommand, String[] args) throws ParseException {
         CommandLineParser parser = new DefaultParser();
         try {
-            return parser.parse(opts, args);
+            return parser.parse(subcommand.options, args);
         } catch (UnrecognizedOptionException e) {
-            printUsage(subcommand, opts);
+            printUsage(subcommand);
             System.exit(1);
             return null;
         }
     }
 
     private static void handleReplCommand(String[] args) throws ParseException {
-        Options opts = new Options();
-        opts.addOption("l", "load-file", true, "Loads a REPL, with the given file evaluated");
-        opts.addOption("h", "help", false, "Displays this help information, for the repl subcommand");
-
-        CommandLine command = parse(Subcommand.REPL, opts, args);
+        CommandLine command = parse(Subcommand.REPL, args);
         assert command != null;
 
         if (command.hasOption('h') || !command.getArgList().isEmpty()) {
-            printUsage(Subcommand.REPL, opts);
+            printUsage(Subcommand.REPL);
             return;
         }
 
@@ -123,14 +132,11 @@ public class Main {
     }
 
     private static void handleRunCommand(String[] args) throws ParseException {
-        Options opts = new Options();
-        opts.addOption("h", "help", false, "Displays this help information, for the run subcommand");
-
-        CommandLine command = parse(Subcommand.RUN, opts, args);
+        CommandLine command = parse(Subcommand.RUN, args);
         assert command != null;
 
         if (command.hasOption('h') || command.getArgList().size() != 1) {
-            printUsage(Subcommand.RUN, opts);
+            printUsage(Subcommand.RUN);
             return;
         }
 
@@ -139,15 +145,11 @@ public class Main {
     }
 
     private static void handleCompileCommand(String[] args) throws ParseException, IOException {
-        Options opts = new Options();
-        opts.addOption("h", "help", false, "Displays this help information, for the compile subcommand");
-        opts.addOption("o", "out-dir", true, "Directory where compiled class files should be written (defaults to current directory)");
-
-        CommandLine command = parse(Subcommand.COMPILE, opts, args);
+        CommandLine command = parse(Subcommand.COMPILE, args);
         assert command != null;
 
         if (command.hasOption('h') || command.getArgList().size() != 1) {
-            printUsage(Subcommand.COMPILE, opts);
+            printUsage(Subcommand.COMPILE);
             return;
         }
 
@@ -192,8 +194,36 @@ public class Main {
         }
     }
 
-    private static void printUsage(Subcommand subcommand, Options opts) {
+    private static void handleHelpCommand(String[] args) {
+        String topic = args[0];
+        Optional<Subcommand> helpTopic = Arrays.stream(Subcommand.values())
+            .filter(c -> c.name().toLowerCase().equals(topic))
+            .findFirst();
+        if (!helpTopic.isPresent()) {
+            printTopLevelUsage();
+            return;
+        }
+
+        printUsage(helpTopic.get());
+    }
+
+    private static void printUsage(Subcommand subcommand) {
         HelpFormatter usage = new HelpFormatter();
-        usage.printHelp("mega " + subcommand.name, subcommand.desc, opts, "");
+        usage.setLeftPadding(2);
+        usage.printHelp("mega " + subcommand.name, subcommand.desc, subcommand.options, "");
+    }
+
+    private static void printTopLevelUsage() {
+        String usage = "" +
+            "usage: mega\n" +
+            "Mega has a couple of subcommands\n" +
+            "  help              Displays this help information. You can also\n" +
+            "                    run help on a specific command.\n" +
+            "                      e.g. `mega help repl`\n" +
+            "                      Equivalent to `mega repl -h`\n" +
+            "  repl              Starts up the Mega REPL (Read Eval Print Loop)\n" +
+            "  run               Executes the Mega file passed as an argument\n" +
+            "  compile           Compiles the Mega file to JVM bytecode";
+        System.out.println(usage);
     }
 }
