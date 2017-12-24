@@ -80,6 +80,58 @@ class CompilerTest {
                 .collect(toList());
         }
 
+        @TestFactory
+        List<DynamicTest> testInfixExpressions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                // Addition
+                Triple.of("val someInt = 123 + 456", "someInt", 579),
+                Triple.of("val someInt = 123 + -456", "someInt", -333),
+                Triple.of("val someFloat = 2.5 + 1", "someFloat", 3.5F),
+                Triple.of("val someFloat = 1 + 2.5", "someFloat", 3.5F),
+                Triple.of("val someFloat = 1.5 + 2.5", "someFloat", 4.0F),
+
+                // Subtraction
+                Triple.of("val someInt = 123 - 456", "someInt", -333),
+                Triple.of("val someInt = 123 - -456", "someInt", 579),
+                Triple.of("val someFloat = 2.5 - 1", "someFloat", 1.5F),
+                Triple.of("val someFloat = 1 - 2.5", "someFloat", -1.5F),
+                Triple.of("val someFloat = 1.5 - 2.5", "someFloat", -1.0F),
+
+                // Multiplication
+                Triple.of("val someInt = 2 * 3", "someInt", 6),
+                Triple.of("val someInt = 2 * -3", "someInt", -6),
+                Triple.of("val someFloat = 2.5 * 1.5", "someFloat", 3.75F),
+                Triple.of("val someFloat = 1.5 * -2.5", "someFloat", -3.75F),
+                Triple.of("val someFloat = 4 * 2.5", "someFloat", 10.0F),
+
+                // Division
+                Triple.of("val someInt = 2 / 3", "someInt", 0.66667),
+                Triple.of("val someInt = 2 / -3", "someInt", -0.66667),
+                Triple.of("val someInt = 4 / 2", "someInt", 2),
+                Triple.of("val someFloat = 4 / 2.0", "someFloat", 2.0F),
+                Triple.of("val someFloat = 1.5 / -2", "someFloat", -0.75F),
+                Triple.of("val someFloat = 4 / 1.25", "someFloat", 3.2F)
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String varName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+                    String name = "Compiling `" + input + "` should result in the static variable `" + varName + "` = " + val;
+
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        List<Path> classFiles = result.classFiles;
+                        String className = result.className;
+
+                        assertStaticBindingOnClassEquals(className, varName, val);
+                        cleanupClassFiles(classFiles);
+                    });
+                })
+                .collect(toList());
+        }
+
         private void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
             if (value instanceof Integer) {
                 int variable = (int) loadStaticValueFromClass(className, staticFieldName);

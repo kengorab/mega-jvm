@@ -3,21 +3,32 @@ package co.kenrg.mega.backend.compilation;
 import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.jvmDescriptor;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.FADD;
+import static org.objectweb.asm.Opcodes.FDIV;
+import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
+import static org.objectweb.asm.Opcodes.FSUB;
 import static org.objectweb.asm.Opcodes.GOTO;
+import static org.objectweb.asm.Opcodes.I2F;
+import static org.objectweb.asm.Opcodes.IADD;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
+import static org.objectweb.asm.Opcodes.IDIV;
 import static org.objectweb.asm.Opcodes.IFNE;
+import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
+import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V1_6;
 
 import java.util.List;
+import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -27,6 +38,7 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.ClassWriter;
@@ -88,6 +100,8 @@ public class Compiler {
             this.compileLiteral(node);
         } else if (node instanceof PrefixExpression) {
             this.compilePrefixExpression((PrefixExpression) node);
+        } else if (node instanceof InfixExpression) {
+            this.compileInfixExpression((InfixExpression) node);
         }
     }
 
@@ -156,5 +170,54 @@ public class Compiler {
             default:
                 this.errors.add("Unrecognized unary operator: " + node.operator);
         }
+    }
+
+    private Map<String, Map<MegaType, Integer>> infixOperatorOpcodes = ImmutableMap.of(
+        "+", ImmutableMap.of(
+            PrimitiveTypes.INTEGER, IADD,
+            PrimitiveTypes.FLOAT, FADD
+        ),
+        "-", ImmutableMap.of(
+            PrimitiveTypes.INTEGER, ISUB,
+            PrimitiveTypes.FLOAT, FSUB
+        ),
+        "*", ImmutableMap.of(
+            PrimitiveTypes.INTEGER, IMUL,
+            PrimitiveTypes.FLOAT, FMUL
+        ),
+        "/", ImmutableMap.of(
+            PrimitiveTypes.INTEGER, IDIV,
+            PrimitiveTypes.FLOAT, FDIV
+        )
+    );
+
+    private void compileInfixExpression(InfixExpression node) {
+        MegaType type = node.getType();
+        assert type != null; // Should have been populated during typechecking pass
+
+        if (type.isEquivalentTo(PrimitiveTypes.STRING)) {
+            // Handle string operators
+            return;
+        }
+
+        if (type.isEquivalentTo(PrimitiveTypes.INTEGER)) {
+            compileNode(node.left);
+            compileNode(node.right);
+        } else if (type.isEquivalentTo(PrimitiveTypes.FLOAT)) {
+            assert node.left.getType() != null;
+            compileNode(node.left);
+            if (!node.left.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
+                this.focusedMethod.writer.visitInsn(I2F);
+            }
+
+            assert node.right.getType() != null;
+            compileNode(node.right);
+            if (!node.right.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
+                this.focusedMethod.writer.visitInsn(I2F);
+            }
+        }
+
+        Integer opcode = infixOperatorOpcodes.get(node.operator).get(type);
+        this.focusedMethod.writer.visitInsn(opcode);
     }
 }
