@@ -32,10 +32,12 @@ import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.ImmutableMap;
@@ -50,7 +52,7 @@ public class Compiler {
     private String className;
     private ClassWriter cw;
     private MethodVisitor clinitWriter;
-    private FocusedMethod focusedMethod;
+    private Scope scope;
 
     public Compiler(String className) {
         this.className = className;
@@ -59,7 +61,7 @@ public class Compiler {
         this.cw.visit(V1_6, ACC_PUBLIC, className, null, "java/lang/Object", null);
 
         this.clinitWriter = this.cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
-        this.focusedMethod = new FocusedMethod(this.clinitWriter, null, null);
+        this.scope = new Scope(new FocusedMethod(this.clinitWriter, null, null));
 
         // Initialize <clinit> method writer for class. This method writer will be used to initialize all the static
         // values for the class (namespace).
@@ -87,6 +89,8 @@ public class Compiler {
             this.compileNode(((ExpressionStatement) node).expression);
         } else if (node instanceof ValStatement) {
             this.compileValStatement((ValStatement) node);
+        } else if (node instanceof VarStatement) {
+            this.compileVarStatement((VarStatement) node);
         }
 
         // Expressions
@@ -112,30 +116,36 @@ public class Compiler {
     }
 
     private void compileValStatement(ValStatement stmt) {
-        String valName = stmt.name.value;
+        compileBinding(stmt.name.value, stmt.value, false);
+    }
 
-        MegaType type = stmt.value.getType();
+    private void compileVarStatement(VarStatement stmt) {
+        compileBinding(stmt.name.value, stmt.value, true);
+    }
+
+    private void compileBinding(String bindingName, Expression valExpr, boolean isMutable) {
+        MegaType type = valExpr.getType();
         assert type != null; // Should have been set during typechecking pass
         String jvmDescriptor = jvmDescriptor(type);
 
         // Since we're at the root scope, declare val as static val in the class
-        cw.visitField(ACC_PUBLIC | ACC_STATIC, valName, jvmDescriptor, null, null);
-        compileNode(stmt.value);
-        clinitWriter.visitFieldInsn(PUTSTATIC, className, valName, jvmDescriptor);
+        cw.visitField(ACC_PUBLIC | ACC_STATIC, bindingName, jvmDescriptor, null, null);
+        compileNode(valExpr);
+        clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-        // TODO: Register bindings
-//        data.vals.put(valName, ValBinding.Static(valName, valDeclExprType))
+        boolean isStatic = this.scope.isRoot();
+        this.scope.addBinding(bindingName, valExpr, isStatic, isMutable);
     }
 
     private void compileLiteral(Node node) {
         if (node instanceof IntegerLiteral) {
-            this.focusedMethod.writer.visitLdcInsn(((IntegerLiteral) node).value);
+            this.scope.focusedMethod.writer.visitLdcInsn(((IntegerLiteral) node).value);
         } else if (node instanceof FloatLiteral) {
-            this.focusedMethod.writer.visitLdcInsn(((FloatLiteral) node).value);
+            this.scope.focusedMethod.writer.visitLdcInsn(((FloatLiteral) node).value);
         } else if (node instanceof BooleanLiteral) {
-            this.focusedMethod.writer.visitLdcInsn(((BooleanLiteral) node).value);
+            this.scope.focusedMethod.writer.visitLdcInsn(((BooleanLiteral) node).value);
         } else if (node instanceof StringLiteral) {
-            this.focusedMethod.writer.visitLdcInsn(((StringLiteral) node).value);
+            this.scope.focusedMethod.writer.visitLdcInsn(((StringLiteral) node).value);
         }
     }
 
@@ -144,9 +154,9 @@ public class Compiler {
             case "-": {
                 compileNode(node.expression);
                 if (node.expression.getType() == PrimitiveTypes.INTEGER) {
-                    this.focusedMethod.writer.visitInsn(INEG);
+                    this.scope.focusedMethod.writer.visitInsn(INEG);
                 } else if (node.expression.getType() == PrimitiveTypes.FLOAT) {
-                    this.focusedMethod.writer.visitInsn(FNEG);
+                    this.scope.focusedMethod.writer.visitInsn(FNEG);
                 } else {
                     this.errors.add("Cannot apply numeric negation to type: " + node.expression.getType());
                 }
@@ -157,14 +167,14 @@ public class Compiler {
                 Label negationFalseLabel = new Label();
 
                 compileNode(node.expression);
-                this.focusedMethod.writer.visitJumpInsn(IFNE, negationFalseLabel);
-                this.focusedMethod.writer.visitInsn(ICONST_1);
-                this.focusedMethod.writer.visitJumpInsn(GOTO, negationEndLabel);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFNE, negationFalseLabel);
+                this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+                this.scope.focusedMethod.writer.visitJumpInsn(GOTO, negationEndLabel);
 
-                this.focusedMethod.writer.visitLabel(negationFalseLabel);
-                this.focusedMethod.writer.visitInsn(ICONST_0);
+                this.scope.focusedMethod.writer.visitLabel(negationFalseLabel);
+                this.scope.focusedMethod.writer.visitInsn(ICONST_0);
 
-                this.focusedMethod.writer.visitLabel(negationEndLabel);
+                this.scope.focusedMethod.writer.visitLabel(negationEndLabel);
                 return;
             }
             default:
@@ -207,17 +217,17 @@ public class Compiler {
             assert node.left.getType() != null;
             compileNode(node.left);
             if (!node.left.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
-                this.focusedMethod.writer.visitInsn(I2F);
+                this.scope.focusedMethod.writer.visitInsn(I2F);
             }
 
             assert node.right.getType() != null;
             compileNode(node.right);
             if (!node.right.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
-                this.focusedMethod.writer.visitInsn(I2F);
+                this.scope.focusedMethod.writer.visitInsn(I2F);
             }
         }
 
         Integer opcode = infixOperatorOpcodes.get(node.operator).get(type);
-        this.focusedMethod.writer.visitInsn(opcode);
+        this.scope.focusedMethod.writer.visitInsn(opcode);
     }
 }

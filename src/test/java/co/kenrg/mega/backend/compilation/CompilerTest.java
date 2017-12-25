@@ -30,7 +30,14 @@ class CompilerTest {
                 Triple.of("val someBool = true", "someBool", true),
                 Triple.of("val someBool = false", "someBool", false),
                 Triple.of("val someStr = 'string 1'", "someStr", "string 1"),
-                Triple.of("val someStr = \"string 2\"", "someStr", "string 2")
+                Triple.of("val someStr = \"string 2\"", "someStr", "string 2"),
+
+                Triple.of("var someInt = 123", "someInt", 123),
+                Triple.of("var someFloat = 12.345", "someFloat", 12.345F),
+                Triple.of("var someBool = true", "someBool", true),
+                Triple.of("var someBool = false", "someBool", false),
+                Triple.of("var someStr = 'string 1'", "someStr", "string 1"),
+                Triple.of("var someStr = \"string 2\"", "someStr", "string 2")
             );
 
             return testCases.stream()
@@ -58,7 +65,12 @@ class CompilerTest {
                 Triple.of("val someInt = -123", "someInt", -123),
                 Triple.of("val someFloat = -12.345", "someFloat", -12.345F),
                 Triple.of("val someBool = !true", "someBool", false),
-                Triple.of("val someBool = !false", "someBool", true)
+                Triple.of("val someBool = !false", "someBool", true),
+
+                Triple.of("var someInt = -123", "someInt", -123),
+                Triple.of("var someFloat = -12.345", "someFloat", -12.345F),
+                Triple.of("var someBool = !true", "someBool", false),
+                Triple.of("var someBool = !false", "someBool", true)
             );
 
             return testCases.stream()
@@ -90,12 +102,24 @@ class CompilerTest {
                 Triple.of("val someFloat = 1 + 2.5", "someFloat", 3.5F),
                 Triple.of("val someFloat = 1.5 + 2.5", "someFloat", 4.0F),
 
+                Triple.of("var someInt = 123 + 456", "someInt", 579),
+                Triple.of("var someInt = 123 + -456", "someInt", -333),
+                Triple.of("var someFloat = 2.5 + 1", "someFloat", 3.5F),
+                Triple.of("var someFloat = 1 + 2.5", "someFloat", 3.5F),
+                Triple.of("var someFloat = 1.5 + 2.5", "someFloat", 4.0F),
+
                 // Subtraction
                 Triple.of("val someInt = 123 - 456", "someInt", -333),
                 Triple.of("val someInt = 123 - -456", "someInt", 579),
                 Triple.of("val someFloat = 2.5 - 1", "someFloat", 1.5F),
                 Triple.of("val someFloat = 1 - 2.5", "someFloat", -1.5F),
                 Triple.of("val someFloat = 1.5 - 2.5", "someFloat", -1.0F),
+
+                Triple.of("var someInt = 123 - 456", "someInt", -333),
+                Triple.of("var someInt = 123 - -456", "someInt", 579),
+                Triple.of("var someFloat = 2.5 - 1", "someFloat", 1.5F),
+                Triple.of("var someFloat = 1 - 2.5", "someFloat", -1.5F),
+                Triple.of("var someFloat = 1.5 - 2.5", "someFloat", -1.0F),
 
                 // Multiplication
                 Triple.of("val someInt = 2 * 3", "someInt", 6),
@@ -104,13 +128,26 @@ class CompilerTest {
                 Triple.of("val someFloat = 1.5 * -2.5", "someFloat", -3.75F),
                 Triple.of("val someFloat = 4 * 2.5", "someFloat", 10.0F),
 
+                Triple.of("var someInt = 2 * 3", "someInt", 6),
+                Triple.of("var someInt = 2 * -3", "someInt", -6),
+                Triple.of("var someFloat = 2.5 * 1.5", "someFloat", 3.75F),
+                Triple.of("var someFloat = 1.5 * -2.5", "someFloat", -3.75F),
+                Triple.of("var someFloat = 4 * 2.5", "someFloat", 10.0F),
+
                 // Division
                 Triple.of("val someInt = 2 / 3", "someInt", 0.66667),
                 Triple.of("val someInt = 2 / -3", "someInt", -0.66667),
                 Triple.of("val someInt = 4 / 2", "someInt", 2),
                 Triple.of("val someFloat = 4 / 2.0", "someFloat", 2.0F),
                 Triple.of("val someFloat = 1.5 / -2", "someFloat", -0.75F),
-                Triple.of("val someFloat = 4 / 1.25", "someFloat", 3.2F)
+                Triple.of("val someFloat = 4 / 1.25", "someFloat", 3.2F),
+
+                Triple.of("var someInt = 2 / 3", "someInt", 0.66667),
+                Triple.of("var someInt = 2 / -3", "someInt", -0.66667),
+                Triple.of("var someInt = 4 / 2", "someInt", 2),
+                Triple.of("var someFloat = 4 / 2.0", "someFloat", 2.0F),
+                Triple.of("var someFloat = 1.5 / -2", "someFloat", -0.75F),
+                Triple.of("var someFloat = 4 / 1.25", "someFloat", 3.2F)
             );
 
             return testCases.stream()
