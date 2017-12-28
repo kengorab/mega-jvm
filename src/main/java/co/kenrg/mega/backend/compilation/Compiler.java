@@ -4,6 +4,8 @@ import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.jvmDescrip
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.FADD;
+import static org.objectweb.asm.Opcodes.FCMPG;
+import static org.objectweb.asm.Opcodes.FCMPL;
 import static org.objectweb.asm.Opcodes.FDIV;
 import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
@@ -14,9 +16,21 @@ import static org.objectweb.asm.Opcodes.IADD;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IDIV;
+import static org.objectweb.asm.Opcodes.IFEQ;
+import static org.objectweb.asm.Opcodes.IFGE;
+import static org.objectweb.asm.Opcodes.IFGT;
+import static org.objectweb.asm.Opcodes.IFLE;
+import static org.objectweb.asm.Opcodes.IFLT;
 import static org.objectweb.asm.Opcodes.IFNE;
+import static org.objectweb.asm.Opcodes.IF_ICMPEQ;
+import static org.objectweb.asm.Opcodes.IF_ICMPGE;
+import static org.objectweb.asm.Opcodes.IF_ICMPGT;
+import static org.objectweb.asm.Opcodes.IF_ICMPLE;
+import static org.objectweb.asm.Opcodes.IF_ICMPLT;
+import static org.objectweb.asm.Opcodes.IF_ICMPNE;
 import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
+import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
@@ -57,7 +71,7 @@ public class Compiler {
     public Compiler(String className) {
         this.className = className;
 
-        this.cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+        this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         this.cw.visit(V1_6, ACC_PUBLIC, className, null, "java/lang/Object", null);
 
         this.clinitWriter = this.cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
@@ -210,10 +224,13 @@ public class Compiler {
             return;
         }
 
-        if (type.isEquivalentTo(PrimitiveTypes.INTEGER)) {
+        if (type == PrimitiveTypes.INTEGER) {
             compileNode(node.left);
             compileNode(node.right);
-        } else if (type.isEquivalentTo(PrimitiveTypes.FLOAT)) {
+
+            Integer opcode = infixOperatorOpcodes.get(node.operator).get(type);
+            this.scope.focusedMethod.writer.visitInsn(opcode);
+        } else if (type == PrimitiveTypes.FLOAT) {
             assert node.left.getType() != null;
             compileNode(node.left);
             if (!node.left.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
@@ -225,9 +242,237 @@ public class Compiler {
             if (!node.right.getType().isEquivalentTo(PrimitiveTypes.FLOAT)) {
                 this.scope.focusedMethod.writer.visitInsn(I2F);
             }
+
+            Integer opcode = infixOperatorOpcodes.get(node.operator).get(type);
+            this.scope.focusedMethod.writer.visitInsn(opcode);
+        } else if (type == PrimitiveTypes.BOOLEAN) {
+            switch (node.operator) {
+                case "&&":
+                    pushCondAnd(node);
+                    break;
+                case "||":
+                    pushCondOr(node);
+                    break;
+                default:
+                    pushComparison(node);
+                    break;
+            }
+        }
+    }
+
+    private void pushCondAnd(InfixExpression node) {
+        Label condEndLabel = new Label();
+        Label condFalseLabel = new Label();
+
+        compileNode(node.left);
+        this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, condFalseLabel);
+
+        compileNode(node.right);
+        this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, condFalseLabel);
+
+        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, condEndLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(condFalseLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+
+        this.scope.focusedMethod.writer.visitLabel(condEndLabel);
+    }
+
+    private void pushCondOr(InfixExpression node) {
+        Label condEndLabel = new Label();
+        Label condTrueLabel = new Label();
+        Label condFalseLabel = new Label();
+
+        compileNode(node.left);
+        this.scope.focusedMethod.writer.visitJumpInsn(IFNE, condTrueLabel);
+
+        compileNode(node.right);
+        this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, condFalseLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(condTrueLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, condEndLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(condFalseLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+
+        this.scope.focusedMethod.writer.visitLabel(condEndLabel);
+    }
+
+    private void pushComparison(InfixExpression node) {
+        MegaType leftType = node.left.getType();
+        assert leftType != null;
+        MegaType rightType = node.right.getType();
+        assert rightType != null;
+
+        if (PrimitiveTypes.NUMBER.isEquivalentTo(leftType) && PrimitiveTypes.NUMBER.isEquivalentTo(rightType)) {
+            if (leftType == PrimitiveTypes.INTEGER && rightType == PrimitiveTypes.INTEGER) {
+                pushIntegerComparison(node);
+            } else if (leftType == PrimitiveTypes.FLOAT || rightType == PrimitiveTypes.FLOAT) {
+                pushFloatComparison(node);
+            }
+        } else if (leftType == PrimitiveTypes.BOOLEAN && rightType == PrimitiveTypes.BOOLEAN) {
+            pushIntegerComparison(node);
+        } else {
+            pushComparableComparison(node);
+        }
+    }
+
+    private void pushIntegerComparison(InfixExpression node) {
+        Label trueLabel = new Label();
+        Label endLabel = new Label();
+
+        compileNode(node.left);
+        compileNode(node.right);
+
+        switch (node.operator) {
+            case "<":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPLT, trueLabel);
+                break;
+            case "<=":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPLE, trueLabel);
+                break;
+            case ">":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPGT, trueLabel);
+                break;
+            case ">=":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPGE, trueLabel);
+                break;
+            case "==":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPEQ, trueLabel);
+                break;
+            case "!=":
+                this.scope.focusedMethod.writer.visitJumpInsn(IF_ICMPNE, trueLabel);
+                break;
         }
 
-        Integer opcode = infixOperatorOpcodes.get(node.operator).get(type);
-        this.scope.focusedMethod.writer.visitInsn(opcode);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, endLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(trueLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+
+        this.scope.focusedMethod.writer.visitLabel(endLabel);
     }
+
+    private void pushFloatComparison(InfixExpression node) {
+        MegaType leftType = node.left.getType();
+        assert leftType != null;
+        compileNode(node.left);
+        if (!leftType.isEquivalentTo(PrimitiveTypes.FLOAT)) {
+            this.scope.focusedMethod.writer.visitInsn(I2F);
+        }
+
+        MegaType rightType = node.right.getType();
+        assert rightType != null;
+        compileNode(node.right);
+        if (!rightType.isEquivalentTo(PrimitiveTypes.FLOAT)) {
+            this.scope.focusedMethod.writer.visitInsn(I2F);
+        }
+
+        Label trueLabel = new Label();
+        Label endLabel = new Label();
+
+        switch (node.operator) {
+            case "<":
+                this.scope.focusedMethod.writer.visitInsn(FCMPL);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFLT, trueLabel);
+                break;
+            case "<=":
+                this.scope.focusedMethod.writer.visitInsn(FCMPL);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFLE, trueLabel);
+                break;
+            case ">":
+                this.scope.focusedMethod.writer.visitInsn(FCMPG);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFGT, trueLabel);
+                break;
+            case ">=":
+                this.scope.focusedMethod.writer.visitInsn(FCMPG);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFGE, trueLabel);
+                break;
+            case "==":
+                this.scope.focusedMethod.writer.visitInsn(FCMPL);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, trueLabel);
+                break;
+            case "!=":
+                this.scope.focusedMethod.writer.visitInsn(FCMPL);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFNE, trueLabel);
+                break;
+        }
+
+        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, endLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(trueLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+
+        this.scope.focusedMethod.writer.visitLabel(endLabel);
+    }
+
+    private void pushComparableComparison(InfixExpression node) {
+        compileNode(node.left);
+        compileNode(node.right);
+
+        MegaType leftType = node.left.getType(); // Left type chosen arbitrarily
+        assert leftType != null;
+
+        String jvmDescriptor = jvmDescriptor(leftType);
+        String signature = String.format("(%s)I", jvmDescriptor);
+        String className = leftType.className();
+        if (className == null) {
+            this.errors.add("Expected type " + leftType + " to have a class name");
+            className = PrimitiveTypes.ANY.className();
+        }
+
+        Label trueLabel = new Label();
+        Label endLabel = new Label();
+
+        switch (node.operator) {
+            case "<":
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "compareTo", signature, false);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFLT, trueLabel);
+                break;
+            case "<=":
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "compareTo", signature, false);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFLE, trueLabel);
+                break;
+            case ">":
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "compareTo", signature, false);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFGT, trueLabel);
+                break;
+            case ">=":
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "compareTo", signature, false);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFGE, trueLabel);
+                break;
+            case "==":
+                // The `equals` method places a boolean on the top of the stack; call the method and return early
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "equals", "(Ljava/lang/Object;)Z", false);
+                return;
+            case "!=":
+                // If the comparison is (!=), call the `equals` method. If `equals` returns 0 (false), negate
+                // by jumping to the true label.
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, className, "equals", "(Ljava/lang/Object;)Z", false);
+                this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, trueLabel);
+                break;
+        }
+
+        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, endLabel);
+
+        this.scope.focusedMethod.writer.visitLabel(trueLabel);
+        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+
+        this.scope.focusedMethod.writer.visitLabel(endLabel);
+    }
+
+//    private void pushBooleanComparison(InfixExpression node) {
+//        this.scope.focusedMethod.writer.visitInsn(ICONST_0);
+//        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, endLabel);
+//
+//        this.scope.focusedMethod.writer.visitLabel(trueLabel);
+//        this.scope.focusedMethod.writer.visitInsn(ICONST_1);
+//
+//        this.scope.focusedMethod.writer.visitLabel(endLabel);
+//    }
 }

@@ -19,6 +19,11 @@ public class PrimitiveTypes {
         public boolean isEquivalentTo(MegaType other) {
             return other.equals(INTEGER);
         }
+
+        @Override
+        public String className() {
+            return "java/lang/Integer";
+        }
     };
 
     public static final MegaType FLOAT = new MegaType() {
@@ -30,6 +35,11 @@ public class PrimitiveTypes {
         @Override
         public boolean isEquivalentTo(MegaType other) {
             return other.equals(FLOAT);
+        }
+
+        @Override
+        public String className() {
+            return "java/lang/Float";
         }
     };
 
@@ -43,6 +53,11 @@ public class PrimitiveTypes {
         public boolean isEquivalentTo(MegaType other) {
             return other.equals(BOOLEAN);
         }
+
+        @Override
+        public String className() {
+            return "java/lang/Boolean";
+        }
     };
 
     public static final MegaType STRING = new MegaType() {
@@ -54,6 +69,11 @@ public class PrimitiveTypes {
         @Override
         public boolean isEquivalentTo(MegaType other) {
             return other.equals(STRING);
+        }
+
+        @Override
+        public String className() {
+            return "java/lang/String";
         }
     };
 
@@ -90,6 +110,11 @@ public class PrimitiveTypes {
         @Override
         public boolean isEquivalentTo(MegaType other) {
             return true;
+        }
+
+        @Override
+        public String className() {
+            return "java/lang/Object";
         }
     };
 
