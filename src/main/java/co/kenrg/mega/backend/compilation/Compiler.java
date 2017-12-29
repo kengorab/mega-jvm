@@ -271,9 +271,9 @@ public class Compiler {
         if (hasElse) {
             this.scope.focusedMethod.writer.visitLabel(elseBlockLabel);
 
+            compileBlockExpression(node.elseExpr);
             // TODO - Pass count (and types) of local variables here, instead of 0 and null
             this.scope.focusedMethod.writer.visitFrame(F_SAME, 0, null, 0, null);
-            compileBlockExpression(node.elseExpr);
         }
 
         this.scope.focusedMethod.writer.visitLabel(endLabel);
