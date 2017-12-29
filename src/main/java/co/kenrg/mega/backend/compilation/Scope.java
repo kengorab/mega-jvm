@@ -43,6 +43,10 @@ public class Scope {
         return new Scope(this, focusedMethod);
     }
 
+    public Scope createChild() {
+        return new Scope(this, this.focusedMethod);
+    }
+
     public void addBinding(String name, Expression expr, boolean isStatic, boolean isMutable) {
         this.bindings.put(name, new Binding(isStatic, name, isMutable));
     }

@@ -6,10 +6,10 @@ import co.kenrg.mega.frontend.token.Token;
 public class IfExpression extends Expression {
     public final Token token;
     public final Expression condition;
-    public final Expression thenExpr;
-    public final Expression elseExpr;
+    public final BlockExpression thenExpr;
+    public final BlockExpression elseExpr;
 
-    public IfExpression(Token token, Expression condition, Expression thenExpr, Expression elseExpr) {
+    public IfExpression(Token token, Expression condition, BlockExpression thenExpr, BlockExpression elseExpr) {
         this.token = token;
         this.condition = condition;
         this.thenExpr = thenExpr;

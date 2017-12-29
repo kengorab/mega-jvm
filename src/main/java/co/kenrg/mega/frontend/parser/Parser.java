@@ -660,9 +660,9 @@ public class Parser {
             return null;
         }
 
-        Expression thenBlock = this.parseBlockExpression();
+        BlockExpression thenBlock = (BlockExpression) this.parseBlockExpression();
 
-        Expression elseBlock = null;
+        BlockExpression elseBlock = null;
         if (this.peekTokenIs(TokenType.ELSE)) {
             this.nextToken();   // Skip 'else'
 
@@ -670,7 +670,7 @@ public class Parser {
                 return null;
             }
 
-            elseBlock = this.parseBlockExpression();
+            elseBlock = (BlockExpression) this.parseBlockExpression();
         }
 
         return new IfExpression(t, condition, thenBlock, elseBlock);

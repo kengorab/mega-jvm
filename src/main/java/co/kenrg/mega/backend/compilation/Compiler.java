@@ -11,12 +11,14 @@ import static org.objectweb.asm.Opcodes.FDIV;
 import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
 import static org.objectweb.asm.Opcodes.FSUB;
+import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.I2F;
 import static org.objectweb.asm.Opcodes.IADD;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IDIV;
+import static org.objectweb.asm.Opcodes.IFEQ;
 import static org.objectweb.asm.Opcodes.IFNE;
 import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
@@ -29,8 +31,10 @@ import java.util.List;
 import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -109,6 +113,8 @@ public class Compiler {
             this.compilePrefixExpression((PrefixExpression) node);
         } else if (node instanceof InfixExpression) {
             this.compileInfixExpression((InfixExpression) node);
+        } else if (node instanceof IfExpression) {
+            this.compileIfExpression((IfExpression) node);
         }
     }
 
@@ -247,5 +253,40 @@ public class Compiler {
                     break;
             }
         }
+    }
+
+    private void compileIfExpression(IfExpression node) {
+        Label elseBlockLabel = new Label();
+        Label endLabel = new Label();
+
+        compileNode(node.condition);
+
+        boolean hasElse = node.elseExpr != null;
+        Label condFalseLabel = hasElse ? elseBlockLabel : endLabel;
+        this.scope.focusedMethod.writer.visitJumpInsn(IFEQ, condFalseLabel);
+
+        compileBlockExpression(node.thenExpr);
+        this.scope.focusedMethod.writer.visitJumpInsn(GOTO, endLabel);
+
+        if (hasElse) {
+            this.scope.focusedMethod.writer.visitLabel(elseBlockLabel);
+
+            // TODO - Pass count (and types) of local variables here, instead of 0 and null
+            this.scope.focusedMethod.writer.visitFrame(F_SAME, 0, null, 0, null);
+            compileBlockExpression(node.elseExpr);
+        }
+
+        this.scope.focusedMethod.writer.visitLabel(endLabel);
+
+        // Visit frame after the if expression has ended
+        this.scope.focusedMethod.writer.visitFrame(F_SAME, 0, null, 0, null);
+    }
+
+    private void compileBlockExpression(BlockExpression node) {
+        Scope origScope = this.scope;
+        this.scope = this.scope.createChild();
+
+        compileStatements(node.statements);
+        this.scope = origScope;
     }
 }

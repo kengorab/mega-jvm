@@ -231,6 +231,48 @@ class CompilerTest {
                 .collect(toList());
         }
 
+        @TestFactory
+        List<DynamicTest> testIfExpressions() { // TODO: Testing if's without else's
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+//                Triple.of("val someInt = if 1 < 2 { 123 }", "someInt", 123) // TODO: This should probably be an optional type (someInt: Int?)
+                Triple.of("val someInt = if 1 < 2 { 123 } else { -123 }", "someInt", 123),
+                Triple.of("val someInt = if 1 < 2 { if 1 < 2 { 123 } else { 456 } } else { -123 }", "someInt", 123),
+                Triple.of("val someInt = if 1 < 2 { val x = if 1 < 2 { 123 } else { 456 }; 123 } else { -123 }", "someInt", 123),
+                Triple.of("val someInt = if 2 < 1 { 123 } else { -123 }", "someInt", -123)
+            );
+
+            return testCases.stream()
+                .flatMap(testCase -> {
+                    String valInput = testCase.getLeft();
+                    String varInput = valInput.replace("val", "var");
+
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return Stream.of(
+                        dynamicTest(valName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
+                            List<Path> classFiles = result.classFiles;
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                            cleanupClassFiles(classFiles);
+                        }),
+                        dynamicTest(varName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
+                            List<Path> classFiles = result.classFiles;
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                            cleanupClassFiles(classFiles);
+                        })
+                    );
+                })
+                .collect(toList());
+        }
+
         private void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
             if (value instanceof Integer) {
                 int variable = (int) loadStaticValueFromClass(className, staticFieldName);
