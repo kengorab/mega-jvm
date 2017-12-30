@@ -7,21 +7,32 @@ import co.kenrg.mega.frontend.ast.iface.Expression;
 import com.google.common.collect.Maps;
 
 public class Scope {
+    public enum BindingTypes {
+        STATIC,
+        LOCAL
+    }
+
     public class Binding {
-        public final boolean isStatic;
+        public final BindingTypes bindingType;
         public final String name;
         public final boolean isMutable;
+        public final Expression expr;
+        public final int index;
 
-        public Binding(boolean isStatic, String name, boolean isMutable) {
-            this.isStatic = isStatic;
+        private Binding(BindingTypes bindingType, String name, boolean isMutable, Expression expr, int index) {
+            this.bindingType = bindingType;
             this.name = name;
             this.isMutable = isMutable;
+            this.expr = expr;
+            this.index = index;
         }
     }
 
     public final Scope parent;
     public final FocusedMethod focusedMethod;
     public final Map<String, Binding> bindings;
+
+    private int nextLocalVarIndex = 0;
 
     public Scope(FocusedMethod focusedMethod) {
         this.parent = null;
@@ -47,8 +58,15 @@ public class Scope {
         return new Scope(this, this.focusedMethod);
     }
 
-    public void addBinding(String name, Expression expr, boolean isStatic, boolean isMutable) {
-        this.bindings.put(name, new Binding(isStatic, name, isMutable));
+    public void addBinding(String name, Expression expr, BindingTypes bindingType, boolean isMutable) {
+        this.bindings.put(name, new Binding(bindingType, name, isMutable, expr, this.nextLocalVarIndex));
+        if (bindingType == BindingTypes.LOCAL) {
+            this.nextLocalVarIndex++;
+        }
+    }
+
+    public int nextLocalVariableIndex() {
+        return this.nextLocalVarIndex;
     }
 
     @Nullable

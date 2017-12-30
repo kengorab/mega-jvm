@@ -3,6 +3,7 @@ package co.kenrg.mega.backend.compilation;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,11 +70,17 @@ class CompilerTestUtils {
         }
     }
 
-    static void cleanupClassFiles(List<Path> classFiles) {
+    static void deleteGeneratedClassFiles() {
         try {
-            for (Path path : classFiles) {
-                Files.deleteIfExists(path);
-            }
+            Files.list(Paths.get(outputDir))
+                .filter(path -> !Files.isDirectory(path))
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new TestFailureException(e);
+                    }
+                });
         } catch (IOException e) {
             throw new TestFailureException(e);
         }
@@ -87,10 +94,18 @@ class CompilerTestUtils {
         }
     }
 
+    static Field loadStaticVariableFromClass(String className, String fieldName) {
+        try {
+            return loadClass(className).getField(fieldName);
+        } catch (NoSuchFieldException e) {
+            throw new TestFailureException(e);
+        }
+    }
+
     static Object loadStaticValueFromClass(String className, String fieldName) {
         try {
-            return loadClass(className).getField(fieldName).get(null);
-        } catch (IllegalAccessException | NoSuchFieldException e) {
+            return loadStaticVariableFromClass(className, fieldName).get(null);
+        } catch (IllegalAccessException e) {
             throw new TestFailureException(e);
         }
     }

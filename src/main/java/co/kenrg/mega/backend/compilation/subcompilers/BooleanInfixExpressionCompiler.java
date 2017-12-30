@@ -193,7 +193,7 @@ public class BooleanInfixExpressionCompiler {
         MegaType leftType = node.left.getType(); // Left type chosen arbitrarily
         assert leftType != null;
 
-        String jvmDescriptor = jvmDescriptor(leftType);
+        String jvmDescriptor = jvmDescriptor(leftType, false);
         String signature = String.format("(%s)I", jvmDescriptor);
         String className = leftType.className();
         if (className == null) {

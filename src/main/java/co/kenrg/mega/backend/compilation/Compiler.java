@@ -1,15 +1,24 @@
 package co.kenrg.mega.backend.compilation;
 
+import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.jvmDescriptor;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
+import static org.objectweb.asm.Opcodes.AASTORE;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ALOAD;
+import static org.objectweb.asm.Opcodes.ANEWARRAY;
+import static org.objectweb.asm.Opcodes.ASTORE;
+import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.FADD;
 import static org.objectweb.asm.Opcodes.FDIV;
+import static org.objectweb.asm.Opcodes.FLOAD;
 import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
+import static org.objectweb.asm.Opcodes.FSTORE;
 import static org.objectweb.asm.Opcodes.FSUB;
 import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.GOTO;
@@ -20,8 +29,11 @@ import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IDIV;
 import static org.objectweb.asm.Opcodes.IFEQ;
 import static org.objectweb.asm.Opcodes.IFNE;
+import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
+import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
@@ -30,10 +42,14 @@ import static org.objectweb.asm.Opcodes.V1_6;
 import java.util.List;
 import java.util.Map;
 
+import co.kenrg.mega.backend.compilation.Scope.Binding;
+import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
+import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
@@ -45,6 +61,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.ImmutableMap;
@@ -98,6 +115,8 @@ public class Compiler {
             this.compileValStatement((ValStatement) node);
         } else if (node instanceof VarStatement) {
             this.compileVarStatement((VarStatement) node);
+//        } else if (node instanceof ForLoopStatement) {
+//            this.compileForLoopStatement((ForLoopStatement) node);
         }
 
         // Expressions
@@ -109,12 +128,16 @@ public class Compiler {
             this.compileLiteral(node);
         } else if (node instanceof StringLiteral) {
             this.compileLiteral(node);
+        } else if (node instanceof ArrayLiteral) {
+            this.compileArrayLiteral((ArrayLiteral) node);
         } else if (node instanceof PrefixExpression) {
             this.compilePrefixExpression((PrefixExpression) node);
         } else if (node instanceof InfixExpression) {
             this.compileInfixExpression((InfixExpression) node);
         } else if (node instanceof IfExpression) {
             this.compileIfExpression((IfExpression) node);
+        } else if (node instanceof Identifier) {
+            this.compileIdentifier((Identifier) node);
         }
     }
 
@@ -124,6 +147,10 @@ public class Compiler {
         }
     }
 
+    //***************************************************************
+    //************              Statements               ************
+    //***************************************************************
+
     private void compileValStatement(ValStatement stmt) {
         compileBinding(stmt.name.value, stmt.value, false);
     }
@@ -132,29 +159,84 @@ public class Compiler {
         compileBinding(stmt.name.value, stmt.value, true);
     }
 
-    private void compileBinding(String bindingName, Expression valExpr, boolean isMutable) {
-        MegaType type = valExpr.getType();
+    private void compileBinding(String bindingName, Expression bindingExpr, boolean isMutable) {
+        MegaType type = bindingExpr.getType();
         assert type != null; // Should have been set during typechecking pass
-        String jvmDescriptor = jvmDescriptor(type);
+        String jvmDescriptor = jvmDescriptor(type, false);
 
-        // Since we're at the root scope, declare val as static val in the class
-        cw.visitField(ACC_PUBLIC | ACC_STATIC, bindingName, jvmDescriptor, null, null);
-        compileNode(valExpr);
-        clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
+        if (this.scope.isRoot()) {
+            int access = ACC_PUBLIC | ACC_STATIC; // At root scope, declare binding as static in the class
+            if (!isMutable) {
+                access = access | ACC_FINAL;
+            }
+            cw.visitField(access, bindingName, jvmDescriptor, null, null);
+            compileNode(bindingExpr);
+            clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-        boolean isStatic = this.scope.isRoot();
-        this.scope.addBinding(bindingName, valExpr, isStatic, isMutable);
+            this.scope.addBinding(bindingName, bindingExpr, BindingTypes.STATIC, isMutable);
+            return;
+        }
+
+        int index = this.scope.nextLocalVariableIndex();
+        compileNode(bindingExpr);
+        if (type == PrimitiveTypes.INTEGER) {
+            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
+        } else if (type == PrimitiveTypes.BOOLEAN) {
+            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
+        } else if (type == PrimitiveTypes.FLOAT) {
+            this.scope.focusedMethod.writer.visitVarInsn(FSTORE, index);
+        } else {
+            this.scope.focusedMethod.writer.visitVarInsn(ASTORE, index);
+        }
+        this.scope.addBinding(bindingName, bindingExpr, BindingTypes.LOCAL, isMutable);
     }
+
+//    private void compileForLoopStatement(ForLoopStatement node) {
+//        String iteratorName = node.iterator.value;
+//    }
+
+    //***************************************************************
+    //************              Expressions              ************
+    //***************************************************************
 
     private void compileLiteral(Node node) {
         if (node instanceof IntegerLiteral) {
-            this.scope.focusedMethod.writer.visitLdcInsn(((IntegerLiteral) node).value);
+            int value = ((IntegerLiteral) node).value;
+            if (0 <= value && value <= 5) {
+                this.scope.focusedMethod.writer.visitInsn(value + ICONST_0);
+            } else {
+                this.scope.focusedMethod.writer.visitLdcInsn(value);
+            }
         } else if (node instanceof FloatLiteral) {
             this.scope.focusedMethod.writer.visitLdcInsn(((FloatLiteral) node).value);
         } else if (node instanceof BooleanLiteral) {
-            this.scope.focusedMethod.writer.visitLdcInsn(((BooleanLiteral) node).value);
+            int value = ((BooleanLiteral) node).value ? ICONST_1 : ICONST_0;
+            this.scope.focusedMethod.writer.visitInsn(value);
         } else if (node instanceof StringLiteral) {
             this.scope.focusedMethod.writer.visitLdcInsn(((StringLiteral) node).value);
+        }
+    }
+
+    private void compileArrayLiteral(ArrayLiteral node) {
+        ArrayType type = (ArrayType) node.getType();
+        assert type != null; // Should have been populated in typechecking pass
+        MegaType elType = type.typeArg;
+        String elTypeDescriptor = jvmDescriptor(elType, true);
+
+        this.scope.focusedMethod.writer.visitLdcInsn(node.elements.size());
+        this.scope.focusedMethod.writer.visitTypeInsn(ANEWARRAY, elTypeDescriptor);
+        for (int i = 0; i < node.elements.size(); i++) {
+            this.scope.focusedMethod.writer.visitInsn(DUP);
+            this.scope.focusedMethod.writer.visitLdcInsn(i);
+            Expression element = node.elements.get(i);
+            compileNode(element);
+
+            if (isPrimitive(elType)) {
+                String elTypeClass = elType.className();
+                String signature = String.format("(%s)L%s;", jvmDescriptor(elType, false), elTypeClass);
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, elTypeClass, "valueOf", signature, false);
+            }
+            this.scope.focusedMethod.writer.visitInsn(AASTORE);
         }
     }
 
@@ -288,5 +370,24 @@ public class Compiler {
 
         compileStatements(node.statements);
         this.scope = origScope;
+    }
+
+    private void compileIdentifier(Identifier node) {
+        String identName = node.value;
+        Binding binding = this.scope.getBinding(identName);
+        if (binding == null) {
+            System.out.printf("Expected identifier %s to be present, but it wasn't", identName);
+            return;
+        }
+        MegaType type = binding.expr.getType();
+        if (type == PrimitiveTypes.INTEGER) {
+            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
+        } else if (type == PrimitiveTypes.BOOLEAN) {
+            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
+        } else if (type == PrimitiveTypes.FLOAT) {
+            this.scope.focusedMethod.writer.visitVarInsn(FLOAD, binding.index);
+        } else {
+            this.scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
+        }
     }
 }
