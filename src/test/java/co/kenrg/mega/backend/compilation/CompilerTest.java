@@ -225,6 +225,23 @@ class CompilerTest {
                 Triple.of("val someBool = false || false", "someBool", false)
             );
 
+            List<Triple<String, String, Object>> stringTestCases = Lists.newArrayList(
+                // String concatenation
+                Triple.of("val someStr = 'abc' + 'def'", "someStr", "abcdef"),
+                Triple.of("val someStr = 'abc' + 'def' + 'ghi'", "someStr", "abcdefghi"),
+                Triple.of("val someStr = 'abc' + 123", "someStr", "abc123"),
+                Triple.of("val someStr = 12.3 + 'abc' + 123", "someStr", "12.3abc123"),
+                Triple.of("val someStr = [1, 2, 3] + 'abc'", "someStr", "[1, 2, 3]abc"),
+                Triple.of("val someStr = if true { val x = [1, 2, 3]; x + 'abc' } else { '' }", "someStr", "[1, 2, 3]abc"),
+                Triple.of("val someStr = if true { val x = [[1, 2], [3, 4]]; x + 'abc' } else { '' }", "someStr", "[[1, 2], [3, 4]]abc"),
+
+                // String repetition
+                Triple.of("val someStr = 'asdf' * 4", "someStr", "asdfasdfasdfasdf"),
+                Triple.of("val someStr = 2 * 'qwer'", "someStr", "qwerqwer"),
+                Triple.of("val someStr = 'qwer' * 2 * 2", "someStr", "qwerqwerqwerqwer"),
+                Triple.of("val someStr = 2 * 'qwer' * 2", "someStr", "qwerqwerqwerqwer")
+            );
+
             List<Triple<String, String, Object>> comparisonTestCases = Lists.newArrayList(
                 // Integer comparison (<, <=, >, >=, ==, !=)
                 Triple.of("val someBool = 123 < 456", "someBool", true),
@@ -277,6 +294,7 @@ class CompilerTest {
             List<Triple<String, String, Object>> testCases = Lists.newArrayList();
             testCases.addAll(numericalTestCases);
             testCases.addAll(booleanTestCases);
+            testCases.addAll(stringTestCases);
             testCases.addAll(comparisonTestCases);
 
             return testCases.stream()

@@ -574,7 +574,7 @@ public class Parser {
         return expressions;
     }
 
-    // { [<ident>: <expr>] [,<ident>: <expr>]* }
+    // { [<ident>: <expr> [,<ident>: <expr>]*] }
     private Expression parseObjectLiteral() {
         Token t = this.curTok;
         Map<Identifier, Expression> pairs = Maps.newHashMap();

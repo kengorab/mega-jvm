@@ -5,6 +5,8 @@ import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.jvmDescrip
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
+import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
+import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
@@ -297,8 +299,16 @@ public class Compiler {
         assert type != null; // Should have been populated during typechecking pass
 
         if (type.isEquivalentTo(PrimitiveTypes.STRING)) {
-            // Handle string operators
-            return;
+            switch (node.operator) {
+                case "+": {
+                    compileStringConcatenation(node, this.scope, this::compileNode);
+                    return;
+                }
+                case "*": {
+                    compileStringRepetition(node, this.scope, this::compileNode);
+                    return;
+                }
+            }
         }
 
         if (type == PrimitiveTypes.INTEGER) {
