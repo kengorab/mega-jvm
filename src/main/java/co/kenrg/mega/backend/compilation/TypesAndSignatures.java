@@ -4,7 +4,7 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 
-public class JvmTypesAndSignatures {
+public class TypesAndSignatures {
     private static String descriptorForClass(String className) {
         return String.format("L%s;", className);
     }

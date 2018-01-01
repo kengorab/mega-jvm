@@ -1,6 +1,6 @@
 package co.kenrg.mega.backend.compilation.subcompilers;
 
-import static co.kenrg.mega.backend.compilation.JvmTypesAndSignatures.jvmDescriptor;
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static org.objectweb.asm.Opcodes.FCMPG;
 import static org.objectweb.asm.Opcodes.FCMPL;
 import static org.objectweb.asm.Opcodes.GOTO;

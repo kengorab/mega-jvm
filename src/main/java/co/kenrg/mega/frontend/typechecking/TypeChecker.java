@@ -316,7 +316,9 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType, statement.iteratee.getToken().position));
             childEnv.addBindingWithType(iterator, unknownType, true);
         } else {
-            childEnv.addBindingWithType(iterator, ((ArrayType) iterateeType).typeArg, true);
+            MegaType iteratorType = ((ArrayType) iterateeType).typeArg;
+            childEnv.addBindingWithType(iterator, iteratorType, true);
+            statement.iterator.setType(iteratorType);
         }
 
         typecheckNode(statement.block, childEnv);
