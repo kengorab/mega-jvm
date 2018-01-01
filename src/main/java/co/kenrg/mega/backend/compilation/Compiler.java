@@ -428,7 +428,7 @@ public class Compiler {
         if (hasElse) {
             this.scope.focusedMethod.writer.visitLabel(elseBlockLabel);
             Object[] localsSignatures = this.scope.getLocalsSignatures();
-            this.scope.focusedMethod.writer.visitFrame(F_SAME, localsSignatures.length, localsSignatures, 0, null);
+            this.scope.focusedMethod.writer.visitFrame(F_FULL, localsSignatures.length, localsSignatures, 0, null);
 
             compileBlockExpression(node.elseExpr);
         }
