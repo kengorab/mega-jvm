@@ -54,6 +54,7 @@ import co.kenrg.mega.backend.compilation.Scope.Binding;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
@@ -152,6 +153,8 @@ public class Compiler {
             this.compileIfExpression((IfExpression) node);
         } else if (node instanceof Identifier) {
             this.compileIdentifier((Identifier) node);
+        } else if (node instanceof AssignmentExpression) {
+            this.compileAssignmentExpression((AssignmentExpression) node);
         }
     }
 
@@ -461,6 +464,33 @@ public class Compiler {
             this.scope.focusedMethod.writer.visitVarInsn(FLOAD, binding.index);
         } else {
             this.scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
+        }
+    }
+
+    private void compileAssignmentExpression(AssignmentExpression node) {
+        String identName = node.name.value;
+        Binding binding = this.scope.getBinding(identName);
+        if (binding == null) {
+            System.out.printf("Expected identifier %s to be present, but it wasn't", identName);
+            return;
+        }
+        if (!binding.isMutable) {
+            System.out.printf("Expected identifier %s to be mutable, but it wasn't", identName);
+            return;
+        }
+
+        compileNode(node.right);
+
+        MegaType type = binding.type;
+        assert type != null; // Should be filled in by the typechecking pass
+        if (type == PrimitiveTypes.INTEGER) {
+            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, binding.index);
+        } else if (type == PrimitiveTypes.BOOLEAN) {
+            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, binding.index);
+        } else if (type == PrimitiveTypes.FLOAT) {
+            this.scope.focusedMethod.writer.visitVarInsn(FSTORE, binding.index);
+        } else {
+            this.scope.focusedMethod.writer.visitVarInsn(ASTORE, binding.index);
         }
     }
 }

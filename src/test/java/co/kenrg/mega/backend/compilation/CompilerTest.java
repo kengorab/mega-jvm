@@ -336,7 +336,8 @@ class CompilerTest {
 
                 // TODO: Clean this up when function compilation exists. Right now there's no way to compile multiple statements in a single scope aside from an if-expr.
                 Triple.of("val someInt = if 1 < 2 { for x in [1, 2, 3] { val a = x + 1 }; 123 } else { -123 }", "someInt", 123),
-                Triple.of("val someInt = if 1 < 2 { val e = 3; for x in [1, 2, 3] { val a = x + 1 }; val f = 123; f } else { -123 }", "someInt", 123)
+                Triple.of("val someInt = if 1 < 2 { val e = 3; for x in [1, 2, 3] { val a = x + 1 }; val f = 123; f } else { -123 }", "someInt", 123),
+                Triple.of("val someInt = if 1 < 2 { var e = 3; e = 123; e } else { -123 }", "someInt", 123)
             );
 
             return testCases.stream()
