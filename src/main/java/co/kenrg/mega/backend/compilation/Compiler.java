@@ -61,6 +61,7 @@ import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
@@ -159,6 +160,8 @@ public class Compiler {
             this.compileAssignmentExpression((AssignmentExpression) node);
         } else if (node instanceof RangeExpression) {
             this.compileRangeExpression((RangeExpression) node);
+        } else if (node instanceof IndexExpression) {
+            this.compileIndexExpression((IndexExpression) node);
         }
     }
 
@@ -311,6 +314,26 @@ public class Compiler {
                 this.scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, elTypeClass, "valueOf", signature, false);
             }
             this.scope.focusedMethod.writer.visitInsn(AASTORE);
+        }
+    }
+
+    private void compileIndexExpression(IndexExpression node) {
+        compileNode(node.target);
+        compileNode(node.index);
+
+        ArrayType arrayType = (ArrayType) node.target.getType();
+        assert arrayType != null; // Should have been populated in typechecking pass
+        MegaType arrayElType = arrayType.typeArg;
+        assert arrayElType != null; // Should have been populated in typechecking pass
+
+        this.scope.focusedMethod.writer.visitInsn(AALOAD);
+
+        if (arrayElType == PrimitiveTypes.INTEGER) {
+            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.INTEGER.className(), "intValue", "()I", false);
+        } else if (arrayElType == PrimitiveTypes.BOOLEAN) {
+            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.BOOLEAN.className(), "booleanValue", "()Z", false);
+        } else if (arrayElType == PrimitiveTypes.FLOAT) {
+            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.FLOAT.className(), "floatValue", "()F", false);
         }
     }
 

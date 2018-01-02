@@ -142,6 +142,47 @@ class CompilerTest {
         }
 
         @TestFactory
+        List<DynamicTest> testArrayIndexExpressions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("val someInt = [1, 2, 3][0]", "someInt", 1),
+                Triple.of("val someBool = [true, false, true][1]", "someBool", false),
+                Triple.of("val someFloat = [1.23, 4.56, 7.89][2]", "someFloat", 7.89F),
+                Triple.of("val someString = ['abc', 'def', 'ghi'][1]", "someString", "def"),
+
+                Triple.of("val idx = 0; val someString = ['abc', 'def', 'ghi'][idx]", "someString", "abc"),
+                Triple.of("val idx = 0; val strings = ['a', 'b', 'c']; val someString = strings[idx]", "someString", "a")
+//                Triple.of("val idx = 6; val strings = ['a', 'b', 'c']; val someOptString = strings[idx]", "someString", Optional.none()) // TODO: Make this work
+            );
+
+            return testCases.stream()
+                .flatMap(testCase -> {
+                    String valInput = testCase.getLeft();
+                    String varInput = valInput.replace("val", "var");
+
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return Stream.of(
+                        dynamicTest(valName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                        }),
+                        dynamicTest(varName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                        })
+                    );
+                })
+                .collect(toList());
+        }
+
+        @TestFactory
         List<DynamicTest> testPrefixExpressions() {
             List<Triple<String, String, Object>> testCases = Lists.newArrayList(
                 Triple.of("val someInt = -123", "someInt", -123),
