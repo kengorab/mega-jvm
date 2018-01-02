@@ -368,6 +368,41 @@ class CompilerTest {
                 .collect(toList());
         }
 
+        @TestFactory
+        List<DynamicTest> testRangeExpressions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("val someRange = 1..4", "someRange", new Integer[]{1, 2, 3}),
+                Triple.of("val lBound = 3; val rBound = 7; val someRange = lBound..rBound", "someRange", new Integer[]{3, 4, 5, 6})
+            );
+
+            return testCases.stream()
+                .flatMap(testCase -> {
+                    String valInput = testCase.getLeft();
+                    String varInput = valInput.replace("val", "var");
+
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return Stream.of(
+                        dynamicTest(valName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                        }),
+                        dynamicTest(varName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassEquals(className, bindingName, val);
+                        })
+                    );
+                })
+                .collect(toList());
+        }
+
         private void assertFinalityOnStaticBinding(String className, String fieldName, boolean expectedFinal) {
             Field field = loadStaticVariableFromClass(className, fieldName);
             if (expectedFinal) {
@@ -381,27 +416,15 @@ class CompilerTest {
             if (value instanceof Integer) {
                 int variable = (int) loadStaticValueFromClass(className, staticFieldName);
                 assertEquals(value, variable, "The static value read off the generated class should be as expected");
-//            } else if (value instanceof Integer[]) {
-//                Integer[] variable = (Integer[]) loadStaticValueFromClass(className, staticFieldName);
-//                assertArrayEquals((Integer[]) value, variable, "The static value read off the generated class should be as expected");
             } else if (value instanceof Float) {
                 float variable = (float) loadStaticValueFromClass(className, staticFieldName);
                 assertEquals(value, variable, "The static value read off the generated class should be as expected");
-//            } else if (value instanceof Float[]) {
-//                Float[] variable = (Float[]) loadStaticValueFromClass(className, staticFieldName);
-//                assertArrayEquals((Float[]) value, variable, "The static value read off the generated class should be as expected");
             } else if (value instanceof Boolean) {
                 boolean variable = (boolean) loadStaticValueFromClass(className, staticFieldName);
                 assertEquals(value, variable, "The static value read off the generated class should be as expected");
-//            } else if (value instanceof Boolean[]) {
-//                Boolean[] variable = (Boolean[]) loadStaticValueFromClass(className, staticFieldName);
-//                assertArrayEquals((Boolean[]) value, variable, "The static value read off the generated class should be as expected");
             } else if (value instanceof String) {
                 String variable = (String) loadStaticValueFromClass(className, staticFieldName);
                 assertEquals(value, variable, "The static value read off the generated class should be as expected");
-//            } else if (value instanceof String[]) {
-//                String[] variable = (String[]) loadStaticValueFromClass(className, staticFieldName);
-//                assertArrayEquals((String[]) value, variable, "The static value read off the generated class should be as expected");
             } else if (value instanceof Object[]) {
                 Object[] variable = (Object[]) loadStaticValueFromClass(className, staticFieldName);
                 assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");

@@ -27,6 +27,7 @@ import static org.objectweb.asm.Opcodes.FSUB;
 import static org.objectweb.asm.Opcodes.F_CHOP;
 import static org.objectweb.asm.Opcodes.F_FULL;
 import static org.objectweb.asm.Opcodes.F_SAME;
+import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.I2F;
 import static org.objectweb.asm.Opcodes.IADD;
@@ -63,6 +64,7 @@ import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
+import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
@@ -155,6 +157,8 @@ public class Compiler {
             this.compileIdentifier((Identifier) node);
         } else if (node instanceof AssignmentExpression) {
             this.compileAssignmentExpression((AssignmentExpression) node);
+        } else if (node instanceof RangeExpression) {
+            this.compileRangeExpression((RangeExpression) node);
         }
     }
 
@@ -455,7 +459,15 @@ public class Compiler {
             System.out.printf("Expected identifier %s to be present, but it wasn't", identName);
             return;
         }
+
         MegaType type = binding.type;
+        assert type != null; // Should be filled in by the typechecking pass
+
+        if (binding.bindingType == BindingTypes.STATIC) {
+            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, this.className, identName, jvmDescriptor(type, false));
+            return;
+        }
+
         if (type == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
         } else if (type == PrimitiveTypes.BOOLEAN) {
@@ -492,5 +504,11 @@ public class Compiler {
         } else {
             this.scope.focusedMethod.writer.visitVarInsn(ASTORE, binding.index);
         }
+    }
+
+    private void compileRangeExpression(RangeExpression node) {
+        compileNode(node.leftBound);
+        compileNode(node.rightBound);
+        this.scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, StdLib.Ranges, "of", "(II)[Ljava/lang/Integer;", false);
     }
 }
