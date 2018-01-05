@@ -24,6 +24,11 @@ public class PrimitiveTypes {
         public String className() {
             return "java/lang/Integer";
         }
+
+        @Override
+        public Class typeClass() {
+            return Integer.class;
+        }
     };
 
     public static final MegaType FLOAT = new MegaType() {
@@ -40,6 +45,11 @@ public class PrimitiveTypes {
         @Override
         public String className() {
             return "java/lang/Float";
+        }
+
+        @Override
+        public Class typeClass() {
+            return Float.class;
         }
     };
 
@@ -58,6 +68,11 @@ public class PrimitiveTypes {
         public String className() {
             return "java/lang/Boolean";
         }
+
+        @Override
+        public Class typeClass() {
+            return Boolean.class;
+        }
     };
 
     public static final MegaType STRING = new MegaType() {
@@ -74,6 +89,11 @@ public class PrimitiveTypes {
         @Override
         public String className() {
             return "java/lang/String";
+        }
+
+        @Override
+        public Class typeClass() {
+            return String.class;
         }
     };
 
@@ -115,6 +135,11 @@ public class PrimitiveTypes {
         @Override
         public String className() {
             return "java/lang/Object";
+        }
+
+        @Override
+        public Class typeClass() {
+            return Object.class;
         }
     };
 

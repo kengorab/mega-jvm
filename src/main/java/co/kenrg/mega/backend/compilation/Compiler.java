@@ -2,11 +2,15 @@ package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.compileArrowFunction;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
+import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
+import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
+import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
@@ -40,8 +44,8 @@ import static org.objectweb.asm.Opcodes.IF_ICMPGE;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
+import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
@@ -50,11 +54,13 @@ import static org.objectweb.asm.Opcodes.V1_6;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.Scope.Binding;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
@@ -88,26 +94,41 @@ import org.objectweb.asm.MethodVisitor;
 public class Compiler {
     private List<String> errors = Lists.newArrayList();
     private String className;
-    private ClassWriter cw;
-    private MethodVisitor clinitWriter;
-    private Scope scope;
+    public ClassWriter cw;
+    public MethodVisitor clinitWriter;
+    public Scope scope;
+
+    private List<Pair<String, byte[]>> innerClasses = Lists.newArrayList();
 
     public Compiler(String className) {
+        this(className, null, "java/lang/Object", null);
+
+        // TODO: Flesh out the <init> method writer a bit, as needed
+        MethodVisitor initWriter = this.cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
+        initWriter.visitCode();
+        initWriter.visitVarInsn(ALOAD, 0);
+        initWriter.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        initWriter.visitInsn(RETURN);
+        initWriter.visitMaxs(1, 1);
+        initWriter.visitEnd();
+    }
+
+    public Compiler(String className, String signature, String superName, String[] interfaces) {
         this.className = className;
 
         this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        this.cw.visit(V1_6, ACC_PUBLIC, className, null, "java/lang/Object", null);
+        this.cw.visit(V1_6, ACC_PUBLIC, className, signature, superName, interfaces);
 
-        Label clinitStart = new Label();
-        Label clinitEnd = new Label();
+        // Note: When creating a Compiler specifically for compiling a class w/ a designated superclass, the assumption
+        // is that the consumer will handle writing the <init> method visitor.
+
         this.clinitWriter = this.cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
-        this.scope = new Scope(new FocusedMethod(this.clinitWriter, clinitStart, clinitEnd));
+        this.scope = new Scope(new FocusedMethod(this.clinitWriter, null, null));
+        this.scope.context.pushContext(this.className);
 
         // Initialize <clinit> method writer for class. This method writer will be used to initialize all the static
         // values for the class (namespace).
-        clinitWriter.visitLabel(clinitStart);
         clinitWriter.visitCode();
-        clinitWriter.visitLabel(clinitEnd);
     }
 
     public <T extends Node> List<Pair<String, byte[]>> compile(T node) {
@@ -116,13 +137,16 @@ public class Compiler {
         this.clinitWriter.visitMaxs(-1, -1);
         this.clinitWriter.visitEnd();
 
-        this.cw.visitEnd();
-        return Lists.newArrayList(
-            Pair.of(this.className, this.cw.toByteArray())
-        );
+        return results();
     }
 
-    private <T extends Node> void compileNode(T node) {
+    private List<Pair<String, byte[]>> results() {
+        this.cw.visitEnd();
+        innerClasses.add(Pair.of(this.className, this.cw.toByteArray()));
+        return innerClasses;
+    }
+
+    public <T extends Node> void compileNode(T node) {
 
         // Statements
         if (node instanceof Module) {
@@ -162,6 +186,8 @@ public class Compiler {
             this.compileRangeExpression((RangeExpression) node);
         } else if (node instanceof IndexExpression) {
             this.compileIndexExpression((IndexExpression) node);
+        } else if (node instanceof ArrowFunctionExpression) {
+            this.compileArrowFunctionExpression((ArrowFunctionExpression) node);
         }
     }
 
@@ -194,7 +220,9 @@ public class Compiler {
                 access = access | ACC_FINAL;
             }
             cw.visitField(access, bindingName, jvmDescriptor, null, null);
+            this.scope.context.pushContext(bindingName);
             compileNode(bindingExpr);
+            this.scope.context.popContext();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
             this.scope.addBinding(bindingName, bindingExpr.getType(), BindingTypes.STATIC, isMutable);
@@ -202,7 +230,9 @@ public class Compiler {
         }
 
         int index = this.scope.nextLocalVariableIndex();
+        this.scope.context.pushContext(bindingName);
         compileNode(bindingExpr);
+        this.scope.context.popContext();
         if (type == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
         } else if (type == PrimitiveTypes.BOOLEAN) {
@@ -221,20 +251,17 @@ public class Compiler {
         compileNode(node.iteratee);
         int iterateeIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitVarInsn(ASTORE, iterateeIndex);
-        this.scope.focusedMethod.writer.visitLocalVariable("for_loop_iteratee_" + tag, jvmDescriptor(node.iteratee.getType(), true), null, this.scope.focusedMethod.start, this.scope.focusedMethod.end, iterateeIndex);
         this.scope.addBinding("$$for_loop_iteratee_" + tag, node.iteratee.getType(), BindingTypes.LOCAL, false);
 
         int iterateeLengthIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitVarInsn(ALOAD, iterateeIndex);
         this.scope.focusedMethod.writer.visitInsn(ARRAYLENGTH);
         this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iterateeLengthIndex);
-        this.scope.focusedMethod.writer.visitLocalVariable("for_loop_iteratee_length_" + tag, "I", null, this.scope.focusedMethod.start, this.scope.focusedMethod.end, iterateeLengthIndex);
         this.scope.addBinding("$$for_loop_iteratee_length_" + tag, PrimitiveTypes.INTEGER, BindingTypes.LOCAL, false);
 
         int iteratorIndexIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitInsn(ICONST_0);
         this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iteratorIndexIndex);
-        this.scope.focusedMethod.writer.visitLocalVariable("for_loop_iterator_idx" + tag, "I", null, this.scope.focusedMethod.start, this.scope.focusedMethod.end, iteratorIndexIndex);
         this.scope.addBinding("$$for_loop_iterator_idx_" + tag, PrimitiveTypes.INTEGER, BindingTypes.LOCAL, false);
 
         Label loopStart = new Label();
@@ -255,11 +282,10 @@ public class Compiler {
         assert iterateeType != null; // Should be populated by typechecking pass
         if (iterateeType.typeArg == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitInsn(AALOAD);
-            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.INTEGER.className(), "intValue", "()I", false);
+            compileBoxPrimitiveType(PrimitiveTypes.INTEGER, this.scope.focusedMethod.writer);
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iteratorIndex);
         }
 
-        this.scope.focusedMethod.writer.visitLocalVariable(iteratorName, jvmDescriptor(iterateeType.typeArg, true), null, this.scope.focusedMethod.start, this.scope.focusedMethod.end, iteratorIndex);
         this.scope.addBinding(iteratorName, node.iterator.getType(), BindingTypes.LOCAL, false);
 
         compileBlockExpression(node.block);
@@ -309,9 +335,7 @@ public class Compiler {
             compileNode(element);
 
             if (isPrimitive(elType)) {
-                String elTypeClass = elType.className();
-                String signature = String.format("(%s)L%s;", jvmDescriptor(elType, false), elTypeClass);
-                this.scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, elTypeClass, "valueOf", signature, false);
+                compileUnboxPrimitiveType(elType, this.scope.focusedMethod.writer);
             }
             this.scope.focusedMethod.writer.visitInsn(AASTORE);
         }
@@ -327,13 +351,8 @@ public class Compiler {
         assert arrayElType != null; // Should have been populated in typechecking pass
 
         this.scope.focusedMethod.writer.visitInsn(AALOAD);
-
-        if (arrayElType == PrimitiveTypes.INTEGER) {
-            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.INTEGER.className(), "intValue", "()I", false);
-        } else if (arrayElType == PrimitiveTypes.BOOLEAN) {
-            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.BOOLEAN.className(), "booleanValue", "()Z", false);
-        } else if (arrayElType == PrimitiveTypes.FLOAT) {
-            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, PrimitiveTypes.FLOAT.className(), "floatValue", "()F", false);
+        if (isPrimitive(arrayElType)) {
+            compileBoxPrimitiveType(arrayElType, this.scope.focusedMethod.writer);
         }
     }
 
@@ -533,5 +552,21 @@ public class Compiler {
         compileNode(node.leftBound);
         compileNode(node.rightBound);
         this.scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, StdLib.Ranges, "of", "(II)[Ljava/lang/Integer;", false);
+    }
+
+    private void compileArrowFunctionExpression(ArrowFunctionExpression node) {
+        String lambdaName = this.scope.context.subcontexts.subList(1, this.scope.context.subcontexts.size()).stream()
+            .flatMap(s -> Stream.of(s.getLeft(), s.getRight().toString()))
+            .collect(joining("$"));
+
+        String innerClassName = this.className + "$" + lambdaName;
+        this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
+
+        Compiler arrowFnCompiler = compileArrowFunction(this.className, lambdaName, innerClassName, node);
+        byte[] bytes = arrowFnCompiler.cw.toByteArray();
+        innerClasses.add(Pair.of(innerClassName, bytes));
+
+        this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+        this.scope.context.incLambdaCount();
     }
 }

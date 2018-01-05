@@ -9,15 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
+import mega.lang.functions.Function0;
+import mega.lang.functions.Function1;
+import mega.lang.functions.Function2;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
@@ -444,6 +449,64 @@ class CompilerTest {
                 .collect(toList());
         }
 
+        @TestFactory
+        List<DynamicTest> testArrowFunctionExpressions() {
+            class TestCase {
+                public final String input;
+                public final String bindingName;
+                public final Object[] args;
+                public final Object result;
+
+                public TestCase(String input, String bindingName, Object result) {
+                    this(input, bindingName, new Object[]{}, result);
+                }
+
+                public TestCase(String input, String bindingName, Object[] args, Object result) {
+                    this.input = input;
+                    this.bindingName = bindingName;
+                    this.args = args;
+                    this.result = result;
+                }
+            }
+
+            List<TestCase> testCases = Lists.newArrayList(
+//                new TestCase("val a = true; val someFn = () => a", "someFn", true), // TODO: Make closures work
+                new TestCase("val someFn = () => true", "someFn", true),
+                new TestCase("val someFn = (i: Int) => i == 1", "someFn", new Object[]{1}, true),
+                new TestCase("val someFn = (i: Int) => if i > 3 { true } else { false }", "someFn", new Object[]{1}, false),
+                new TestCase("val someFn = (a: Int, b: Int) => a + b", "someFn", new Object[]{1, 2}, 3),
+                new TestCase("val someFn = (a: Int, b: Bool) => if a > 3 { b } else { !b }", "someFn", new Object[]{2, true}, false)
+            );
+
+            return testCases.stream()
+                .flatMap(testCase -> {
+                    String valInput = testCase.input;
+                    String varInput = valInput.replace("val", "var");
+
+                    String bindingName = testCase.bindingName;
+                    Object[] args = testCase.args;
+                    Object res = testCase.result;
+
+                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + " which evaluates to " + res + " when passed " + Arrays.toString(args);
+                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + " which evaluates to " + res + " when passed " + Arrays.toString(args);
+                    return Stream.of(
+                        dynamicTest(valName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
+                        }),
+                        dynamicTest(varName, () -> {
+                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
+                            String className = result.className;
+
+                            assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
+                        })
+                    );
+                })
+                .collect(toList());
+        }
+
         private void assertFinalityOnStaticBinding(String className, String fieldName, boolean expectedFinal) {
             Field field = loadStaticVariableFromClass(className, fieldName);
             if (expectedFinal) {
@@ -470,6 +533,28 @@ class CompilerTest {
                 Object[] variable = (Object[]) loadStaticValueFromClass(className, staticFieldName);
                 assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");
             }
+        }
+    }
+
+    private void assertStaticBindingOnClassIsLambdaAndEvaluatesTo(String className, String staticFieldName, Object[] args, Object res) {
+        switch (args.length) {
+            case 0: {
+                Function0 variable = (Function0) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(res, variable.invoke(), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
+                break;
+            }
+            case 1: {
+                Function1 variable = (Function1) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(res, variable.invoke(args[0]), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
+                break;
+            }
+            case 2: {
+                Function2 variable = (Function2) loadStaticValueFromClass(className, staticFieldName);
+                assertEquals(res, variable.invoke(args[0], args[1]), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
+                break;
+            }
+            default:
+                fail("Functions with arity " + args.length + " have not been handled yet");
         }
     }
 }

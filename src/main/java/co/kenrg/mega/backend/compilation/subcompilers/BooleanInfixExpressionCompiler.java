@@ -1,5 +1,6 @@
 package co.kenrg.mega.backend.compilation.subcompilers;
 
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static org.objectweb.asm.Opcodes.FCMPG;
 import static org.objectweb.asm.Opcodes.FCMPL;
@@ -195,10 +196,10 @@ public class BooleanInfixExpressionCompiler {
 
         String jvmDescriptor = jvmDescriptor(leftType, false);
         String signature = String.format("(%s)I", jvmDescriptor);
-        String className = leftType.className();
+        String className = getInternalName(leftType.typeClass());
         if (className == null) {
             System.out.printf("Expected type %s to have a class name\n", leftType);
-            className = PrimitiveTypes.ANY.className();
+            className = getInternalName(PrimitiveTypes.ANY.typeClass());
         }
 
         Label trueLabel = new Label();

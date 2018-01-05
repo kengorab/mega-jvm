@@ -11,6 +11,7 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.Opcodes;
 
 public class Scope {
@@ -35,9 +36,28 @@ public class Scope {
         }
     }
 
+    public static class Context {
+        public List<Pair<String, Integer>> subcontexts = Lists.newArrayList();
+
+        public void pushContext(String name) {
+            this.subcontexts.add(Pair.of(name, 0));
+        }
+
+        public void incLambdaCount() {
+            int index = this.subcontexts.size() - 1;
+            Pair<String, Integer> topOfStack = this.subcontexts.get(index);
+            this.subcontexts.add(index, Pair.of(topOfStack.getLeft(), topOfStack.getRight() + 1));
+        }
+
+        public void popContext() {
+            this.subcontexts.remove(this.subcontexts.size() - 1);
+        }
+    }
+
     public final Scope parent;
     public final FocusedMethod focusedMethod;
     public final Map<String, Binding> bindings;
+    public final Context context;
 
     private int nextLocalVarIndex = 0;
 
@@ -45,6 +65,7 @@ public class Scope {
         this.parent = null;
         this.focusedMethod = focusedMethod;
         this.bindings = Maps.newHashMap();
+        this.context = new Context();
     }
 
     private Scope(Scope parent, FocusedMethod focusedMethod) {
@@ -52,6 +73,7 @@ public class Scope {
         this.nextLocalVarIndex = this.parent.nextLocalVarIndex;
         this.focusedMethod = focusedMethod;
         this.bindings = Maps.newHashMap();
+        this.context = new Context();
     }
 
     public boolean isRoot() {
@@ -60,6 +82,10 @@ public class Scope {
 
     public Scope createChild() {
         return new Scope(this, this.focusedMethod);
+    }
+
+    public Scope createChild(FocusedMethod focusedMethod) {
+        return new Scope(this, focusedMethod);
     }
 
     public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {

@@ -460,6 +460,7 @@ public class TypeChecker {
         }
 
         // If no assumptions can be made about the operand types, bail early
+        // TODO: Be smarter about this, e.g. if lType is <NotInferred> but the operator is < and rType is Int, then we should be able to infer that lType is also Int
         if (leftType.equals(unknownType) || rightType.equals(unknownType) ||
             leftType.equals(notInferredType) || rightType.equals(notInferredType)) {
             expr.setType(unknownType);
@@ -599,6 +600,7 @@ public class TypeChecker {
             }
             paramTypes.add(paramType);
             childEnv.addBindingWithType(parameter.value, paramType, true);
+            parameter.setType(paramType);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);

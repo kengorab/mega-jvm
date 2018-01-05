@@ -23,6 +23,11 @@ public abstract class MegaType {
         return null;
     }
 
+    @Nullable
+    public Class typeClass() {
+        return null;
+    }
+
     @Override
     public String toString() {
         return signature();

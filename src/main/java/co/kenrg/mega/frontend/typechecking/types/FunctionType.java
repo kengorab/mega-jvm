@@ -7,6 +7,9 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
+import mega.lang.functions.Function0;
+import mega.lang.functions.Function1;
+import mega.lang.functions.Function2;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
@@ -22,6 +25,25 @@ public class FunctionType extends MegaType {
         List<MegaType> _typeArgs = Arrays.asList(typeArgs);
         this.paramTypes = _typeArgs.subList(0, _typeArgs.size() - 1);
         this.returnType = _typeArgs.get(_typeArgs.size() - 1);
+    }
+
+    public int arity() {
+        return this.paramTypes.size();
+    }
+
+    @Override
+    public Class typeClass() {
+        int arity = this.arity();
+        switch (arity) {
+            case 0:
+                return Function0.class;
+            case 1:
+                return Function1.class;
+            case 2:
+                return Function2.class;
+            default:
+                throw new IllegalStateException("No class for function of arity: " + arity);
+        }
     }
 
     @Override
