@@ -472,8 +472,8 @@ class CompilerTest {
             List<TestCase> testCases = Lists.newArrayList(
 //                new TestCase("val a = true; val someFn = () => a", "someFn", true), // TODO: Make closures work
                 new TestCase("val someFn = () => true", "someFn", true),
-                new TestCase("val someFn = (i: Int) => i == 1", "someFn", new Object[]{1}, true),
-                new TestCase("val someFn = (i: Int) => if i > 3 { true } else { false }", "someFn", new Object[]{1}, false),
+                new TestCase("val someFn = (i: Int) => i + '!'", "someFn", new Object[]{1}, "1!"),
+                new TestCase("val someFn = (i: Int) => if i > 3 { i + 0.14 } else { i - 0.14 }", "someFn", new Object[]{1}, 0.86F),
                 new TestCase("val someFn = (a: Int, b: Int) => a + b", "someFn", new Object[]{1, 2}, 3),
                 new TestCase("val someFn = (a: Int, b: Bool) => if a > 3 { b } else { !b }", "someFn", new Object[]{2, true}, false)
             );

@@ -2,6 +2,7 @@ package co.kenrg.mega.backend.compilation.subcompilers;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getDescriptor;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
@@ -15,6 +16,7 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
+import static org.objectweb.asm.Opcodes.FRETURN;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
@@ -113,17 +115,19 @@ public class ArrowFunctionExpressionCompiler {
                 ifaceInvokeWriter.visitVarInsn(ALOAD, i + 1);
             }
         }
-        ifaceInvokeWriter.visitMethodInsn(INVOKEVIRTUAL, innerClassName, "invoke", invokeMethodDesc(arrowFnType), false);
+        ifaceInvokeWriter.visitMethodInsn(INVOKEVIRTUAL, innerClassName, "invoke", getInvokeMethodDesc(arrowFnType), false);
 
         assert arrowFnType.returnType != null; // Should have been populated during typechecking pass
-        compileUnboxPrimitiveType(arrowFnType.returnType, ifaceInvokeWriter);
+        if (isPrimitive(arrowFnType.returnType)) {
+            compileUnboxPrimitiveType(arrowFnType.returnType, ifaceInvokeWriter);
+        }
 
         ifaceInvokeWriter.visitInsn(ARETURN);
         ifaceInvokeWriter.visitMaxs(-1, -1);
         ifaceInvokeWriter.visitEnd();
     }
 
-    private static String invokeMethodDesc(FunctionType arrowFnType) {
+    private static String getInvokeMethodDesc(FunctionType arrowFnType) {
         String paramTypeDescs = arrowFnType.paramTypes.stream()
             .map(type -> jvmDescriptor(type, false))
             .collect(joining(""));
@@ -132,7 +136,7 @@ public class ArrowFunctionExpressionCompiler {
     }
 
     private static void writeActualInvokeMethod(Compiler compiler, ArrowFunctionExpression node, FunctionType arrowFnType) {
-        MethodVisitor invokeMethodWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_FINAL, "invoke", invokeMethodDesc(arrowFnType), null, null);
+        MethodVisitor invokeMethodWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_FINAL, "invoke", getInvokeMethodDesc(arrowFnType), null, null);
         invokeMethodWriter.visitCode();
 
         compiler.scope = compiler.scope.createChild(new FocusedMethod(invokeMethodWriter, null, null)); // TODO: Fix this, it's a little awkward...
@@ -142,7 +146,15 @@ public class ArrowFunctionExpressionCompiler {
             compiler.scope.addBinding(parameter.value, parameter.getType(), BindingTypes.LOCAL, false);
         }
         compiler.compileNode(node.body);
-        invokeMethodWriter.visitInsn(IRETURN);
+        if (arrowFnType.returnType == PrimitiveTypes.INTEGER) {
+            invokeMethodWriter.visitInsn(IRETURN);
+        } else if (arrowFnType.returnType == PrimitiveTypes.BOOLEAN) {
+            invokeMethodWriter.visitInsn(IRETURN);
+        } else if (arrowFnType.returnType == PrimitiveTypes.FLOAT) {
+            invokeMethodWriter.visitInsn(FRETURN);
+        } else {
+            invokeMethodWriter.visitInsn(ARETURN);
+        }
 
         invokeMethodWriter.visitMaxs(2, 2);
         invokeMethodWriter.visitEnd();
