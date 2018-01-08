@@ -67,6 +67,7 @@ import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeChecker {
@@ -576,7 +577,10 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        Map<String, Binding> capturedBindings = Maps.newHashMap();
         TypeEnvironment childEnv = env.createChildEnvironment();
+        childEnv.setOnAccessBindingFromOuterScope(capturedBindings::put);
+
         int numParams = expr.parameters.size();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(numParams);
 
@@ -604,7 +608,7 @@ public class TypeChecker {
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(paramTypes, returnType);
+        FunctionType functionType = new FunctionType(paramTypes, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }

@@ -911,7 +911,11 @@ class TypeCheckerTest {
             Pair.of("((s: String, a: Int) => a + s)(\"asdf\", 1)", PrimitiveTypes.STRING),
             Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(\"asdf\", 1, \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")(\"qwer\")", PrimitiveTypes.STRING),
-            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")", new FunctionType(Lists.newArrayList(PrimitiveTypes.STRING), PrimitiveTypes.STRING))
+            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")", new FunctionType(
+                Lists.newArrayList(PrimitiveTypes.STRING),
+                PrimitiveTypes.STRING,
+                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null))
+            ))
         );
 
         return testCases.stream()
