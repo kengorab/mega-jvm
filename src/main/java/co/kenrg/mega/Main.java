@@ -181,7 +181,7 @@ public class Main {
             return;
         }
 
-        Compiler compiler = new Compiler("MyClass");
+        Compiler compiler = new Compiler("MyClass", typeEnv);
         List<Pair<String, byte[]>> classes = compiler.compile(module.get());
         for (Pair<String, byte[]> output : classes) {
             String name = output.getLeft();

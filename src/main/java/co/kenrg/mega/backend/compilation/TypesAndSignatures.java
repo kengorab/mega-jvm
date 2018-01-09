@@ -1,5 +1,7 @@
 package co.kenrg.mega.backend.compilation;
 
+import static java.util.stream.Collectors.joining;
+
 import java.util.Map;
 
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
@@ -49,7 +51,19 @@ public class TypesAndSignatures {
             String elemDescriptor = jvmDescriptor(((ArrayType) type).typeArg, true);
             return "[" + elemDescriptor;
         } else if (type instanceof FunctionType) {
-            return getDescriptor(type.typeClass());
+            // Should not be null on FunctionTypes attached to nodes which live longer than the typechecking pass
+
+            FunctionType fnType = (FunctionType) type;
+            assert fnType.isLambda != null;
+            if (fnType.isLambda) {
+                return getDescriptor(type.typeClass());
+            } else {
+                String paramTypeDescs = fnType.paramTypes.stream()
+                    .map(paramType -> jvmDescriptor(paramType, false))
+                    .collect(joining(""));
+                String returnTypeDesc = jvmDescriptor(fnType.returnType, false);
+                return String.format("(%s)%s", paramTypeDescs, returnTypeDesc);
+            }
         }
 
         return descriptorForClass(type.className());

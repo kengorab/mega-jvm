@@ -168,7 +168,7 @@ public class TypeChecker {
         return PrimitiveTypes.UNIT;
     }
 
-    private MegaType resolveType(TypeExpression typeExpr, TypeEnvironment typeEnvironment) {
+    private MegaType resolveType(Node typeTarget, TypeExpression typeExpr, TypeEnvironment typeEnvironment) {
         if (typeExpr instanceof BasicTypeExpression) {
             MegaType type = typeEnvironment.getTypeByName(((BasicTypeExpression) typeExpr).type);
             if (type == null) {
@@ -192,7 +192,7 @@ public class TypeChecker {
 
             List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
             List<MegaType> argTypes = typeArgs.stream()
-                .map(typeArg -> resolveType(typeArg, typeEnvironment))
+                .map(typeArg -> resolveType(typeTarget, typeArg, typeEnvironment))
                 .collect(toList());
 
             int expectedNumTypeArgs = baseType.numTypeArgs();
@@ -214,17 +214,27 @@ public class TypeChecker {
         if (typeExpr instanceof FunctionTypeExpression) {
             FunctionTypeExpression funcTypeExpr = (FunctionTypeExpression) typeExpr;
             List<MegaType> paramTypes = funcTypeExpr.paramTypes.stream()
-                .map(paramType -> resolveType(paramType, typeEnvironment))
+                .map(paramType -> resolveType(typeTarget, paramType, typeEnvironment))
                 .collect(toList());
-            MegaType returnType = resolveType(funcTypeExpr.returnType, typeEnvironment);
-            return new FunctionType(paramTypes, returnType);
+            MegaType returnType = resolveType(typeTarget, funcTypeExpr.returnType, typeEnvironment);
+
+            // TODO: Ensure that function declarations w/ same signature as arrow fns can typecheck to be equivalent
+            Boolean isLambda; // Can be true, false, or null (in cases where it's N/A)
+            if (typeTarget instanceof ArrowFunctionExpression) {
+                isLambda = true;
+            } else if (typeTarget instanceof FunctionDeclarationStatement) {
+                isLambda = false;
+            } else {
+                isLambda = null;
+            }
+            return new FunctionType(paramTypes, returnType, isLambda);
         }
 
         if (typeExpr instanceof StructTypeExpression) {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
             Map<String, MegaType> propTypes = structTypeExpr.propTypes.entrySet().stream().collect(toMap(
                 Entry::getKey,
-                entry -> resolveType(entry.getValue(), typeEnvironment)
+                entry -> resolveType(typeTarget, entry.getValue(), typeEnvironment)
             ));
             return new ObjectType(propTypes);
         }
@@ -259,7 +269,7 @@ public class TypeChecker {
     private void typecheckBindingStatement(Identifier name, Expression value, boolean isImmutable, TypeEnvironment env) {
         MegaType expectedType = null;
         if (name.typeAnnotation != null) {
-            expectedType = this.resolveType(name.typeAnnotation, env);
+            expectedType = this.resolveType(name, name.typeAnnotation, env);
         }
 
         MegaType type = this.typecheckNode(value, env, expectedType);
@@ -271,6 +281,7 @@ public class TypeChecker {
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
+        // TODO: Only allow function declarations at top-level; typechecking should fail if env.parent != null
         TypeEnvironment childEnv = env.createChildEnvironment();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(statement.parameters.size());
 
@@ -283,9 +294,10 @@ public class TypeChecker {
                     }
                 });
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation, env);
+                MegaType type = this.resolveType(statement, parameter.typeAnnotation, env);
                 paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
+                parameter.setType(type);
             }
         }
 
@@ -300,11 +312,11 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType, false), true);
             }
         }
 
-        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType), true);
+        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType, false), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -327,7 +339,7 @@ public class TypeChecker {
 
     private void typecheckTypeDeclarationStatement(TypeDeclarationStatement statement, TypeEnvironment env) {
         String typeName = statement.typeName.value;
-        MegaType type = resolveType(statement.typeExpr, env);
+        MegaType type = resolveType(statement, statement.typeExpr, env);
         if (type instanceof ObjectType) {
             type = new StructType(typeName, ((ObjectType) type).properties);
         }
@@ -600,7 +612,7 @@ public class TypeChecker {
                     paramType = notInferredType;
                 }
             } else {
-                paramType = this.resolveType(parameter.typeAnnotation, env);
+                paramType = this.resolveType(parameter, parameter.typeAnnotation, env);
             }
             paramTypes.add(paramType);
             childEnv.addBindingWithType(parameter.value, paramType, true);
@@ -608,7 +620,7 @@ public class TypeChecker {
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(paramTypes, returnType, capturedBindings);
+        FunctionType functionType = new FunctionType(true, paramTypes, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
@@ -636,7 +648,7 @@ public class TypeChecker {
             List<MegaType> paramTypes = expr.arguments.stream()
                 .map(arg -> typecheckNode(arg, env))
                 .collect(toList());
-            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType);
+            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType, funcType.isLambda);
             funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
         } else {
             // Otherwise, typecheck the passed params with expected param types from non-inferred function type

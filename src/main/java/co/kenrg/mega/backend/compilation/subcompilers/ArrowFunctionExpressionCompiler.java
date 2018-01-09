@@ -30,6 +30,7 @@ import co.kenrg.mega.backend.compilation.FocusedMethod;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -39,11 +40,11 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 public class ArrowFunctionExpressionCompiler {
-    public static Compiler compileArrowFunction(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node) {
+    public static Compiler compileArrowFunction(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node, TypeEnvironment typeEnv) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
 
-        Compiler compiler = getCompiler(innerClassName, arrowFnType);
+        Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv);
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
         writeClinitMethod(compiler, innerClassName);
@@ -56,7 +57,7 @@ public class ArrowFunctionExpressionCompiler {
         return compiler;
     }
 
-    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType) {
+    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv) {
         String paramTypeDescs = arrowFnType.paramTypes.stream()
             .map(type -> jvmDescriptor(type, true))
             .collect(joining(""));
@@ -67,7 +68,7 @@ public class ArrowFunctionExpressionCompiler {
         String functionDesc = String.format("%s%s", getDescriptor(fnClass), functionDescTypeArgs);
         String functionIfaceName = getInternalName(fnClass);
         String arrowFnSignature = String.format("%s;%s;", getDescriptor(Invokeable.class), functionDesc);
-        return new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName});
+        return new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
     }
 
     private static void writeClinitMethod(Compiler compiler, String innerClassName) {

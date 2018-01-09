@@ -19,22 +19,25 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
+    @Nullable public final Boolean isLambda;
     public final List<MegaType> paramTypes;
     @Nullable public final MegaType returnType;
     public Map<String, Binding> capturedBindings;
 
-    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+    public FunctionType(@Nullable Boolean isLambda, List<MegaType> paramTypes, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+        this.isLambda = isLambda;
         this.paramTypes = paramTypes;
         this.returnType = returnType;
         this.capturedBindings = capturedBindings;
     }
 
-    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType) {
-        this(paramTypes, returnType, Maps.newHashMap());
+    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType, @Nullable Boolean isLambda) {
+        this(isLambda, paramTypes, returnType, Maps.newHashMap());
     }
 
     @VisibleForTesting
-    public FunctionType(MegaType... typeArgs) {
+    public FunctionType(@Nullable Boolean isLambda, MegaType... typeArgs) {
+        this.isLambda = isLambda;
         List<MegaType> typeArgsList = Arrays.asList(typeArgs);
         this.paramTypes = typeArgsList.subList(0, typeArgsList.size() - 1);
         this.returnType = typeArgsList.get(typeArgsList.size() - 1);
@@ -90,6 +93,7 @@ public class FunctionType extends MegaType {
             .reduce(true, Boolean::logicalAnd);
         boolean returnTypesEq = (this.returnType == null) || this.returnType.isEquivalentTo(otherType.returnType);
 
+        // Do NOT check isLambda; there should be no difference in equivalence in type if one is a lambda and one isn't
         return paramTypesEq && returnTypesEq;
     }
 

@@ -18,6 +18,7 @@ import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
+import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ARRAYLENGTH;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.DUP;
@@ -26,6 +27,7 @@ import static org.objectweb.asm.Opcodes.FDIV;
 import static org.objectweb.asm.Opcodes.FLOAD;
 import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
+import static org.objectweb.asm.Opcodes.FRETURN;
 import static org.objectweb.asm.Opcodes.FSTORE;
 import static org.objectweb.asm.Opcodes.FSUB;
 import static org.objectweb.asm.Opcodes.F_CHOP;
@@ -46,6 +48,7 @@ import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
@@ -78,9 +81,12 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.ImmutableMap;
@@ -92,16 +98,17 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class Compiler {
-    private List<String> errors = Lists.newArrayList();
-    private String className;
-    public ClassWriter cw;
-    public MethodVisitor clinitWriter;
+    private final TypeEnvironment typeEnv;
+    private final List<String> errors = Lists.newArrayList();
+    private final String className;
+    public final ClassWriter cw;
+    public final MethodVisitor clinitWriter;
     public Scope scope;
 
     private List<Pair<String, byte[]>> innerClasses = Lists.newArrayList();
 
-    public Compiler(String className) {
-        this(className, null, "java/lang/Object", null);
+    public Compiler(String className, TypeEnvironment typeEnv) {
+        this(className, null, "java/lang/Object", null, typeEnv);
 
         // TODO: Flesh out the <init> method writer a bit, as needed
         MethodVisitor initWriter = this.cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
@@ -113,8 +120,9 @@ public class Compiler {
         initWriter.visitEnd();
     }
 
-    public Compiler(String className, String signature, String superName, String[] interfaces) {
+    public Compiler(String className, String signature, String superName, String[] interfaces, TypeEnvironment typeEnv) {
         this.className = className;
+        this.typeEnv = typeEnv;
 
         this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         this.cw.visit(V1_6, ACC_PUBLIC, className, signature, superName, interfaces);
@@ -159,6 +167,8 @@ public class Compiler {
             this.compileVarStatement((VarStatement) node);
         } else if (node instanceof ForLoopStatement) {
             this.compileForLoopStatement((ForLoopStatement) node);
+        } else if (node instanceof FunctionDeclarationStatement) {
+            this.compileFunctionDeclarationStatement((FunctionDeclarationStatement) node);
         }
 
         // Expressions
@@ -296,6 +306,38 @@ public class Compiler {
 
         this.scope.focusedMethod.writer.visitLabel(loopEnd);
         this.scope.focusedMethod.writer.visitFrame(F_CHOP, 3, null, 0, null);
+    }
+
+    private void compileFunctionDeclarationStatement(FunctionDeclarationStatement node) {
+        String methodName = node.name.value;
+        TypeEnvironment.Binding methodBinding = this.typeEnv.getBinding(methodName);
+        assert methodBinding != null; // If it's null, then it was never properly defined
+        FunctionType fnType = (FunctionType) methodBinding.type;
+        String funcDesc = jvmDescriptor(fnType, false);
+
+        MethodVisitor methodWriter = this.cw.visitMethod(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, methodName, funcDesc, null, null);
+
+        Scope origScope = this.scope;
+        this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
+        for (Identifier param : node.parameters) {
+            this.scope.addBinding(param.value, param.getType(), BindingTypes.LOCAL, false);
+        }
+        methodWriter.visitCode();
+
+        compileBlockExpression(node.body);
+        if (fnType.returnType == PrimitiveTypes.INTEGER) {
+            methodWriter.visitInsn(IRETURN);
+        } else if (fnType.returnType == PrimitiveTypes.BOOLEAN) {
+            methodWriter.visitInsn(IRETURN);
+        } else if (fnType.returnType == PrimitiveTypes.FLOAT) {
+            methodWriter.visitInsn(FRETURN);
+        } else {
+            methodWriter.visitInsn(ARETURN);
+        }
+
+        methodWriter.visitMaxs(-1, -1);
+        methodWriter.visitEnd();
+        this.scope = origScope;
     }
 
     //***************************************************************
@@ -562,7 +604,7 @@ public class Compiler {
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
 
-        Compiler arrowFnCompiler = compileArrowFunction(this.className, lambdaName, innerClassName, node);
+        Compiler arrowFnCompiler = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv);
         byte[] bytes = arrowFnCompiler.cw.toByteArray();
         innerClasses.add(Pair.of(innerClassName, bytes));
 

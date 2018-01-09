@@ -1,12 +1,16 @@
 package co.kenrg.mega.backend.compilation;
 
+import static java.util.stream.Collectors.toList;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -43,10 +47,11 @@ class CompilerTestUtils {
         Module module = p.parseModule();
 
         TypeChecker typeChecker = new TypeChecker();
-        typeChecker.typecheck(module, new TypeEnvironment());
+        TypeEnvironment typeEnv = new TypeEnvironment();
+        typeChecker.typecheck(module, typeEnv);
 
         String className = RandomStringUtils.randomAlphabetic(16);
-        Compiler compiler = new Compiler(className);
+        Compiler compiler = new Compiler(className, typeEnv);
         List<Pair<String, byte[]>> generatedClasses = compiler.compile(module);
 
         try {
@@ -100,6 +105,12 @@ class CompilerTestUtils {
         } catch (NoSuchFieldException e) {
             throw new TestFailureException(e);
         }
+    }
+
+    static List<Method> loadStaticMethodsFromClass(String className, String methodName) {
+        return Arrays.stream(loadClass(className).getMethods())
+            .filter(method -> method.getName().equals(methodName))
+            .collect(toList());
     }
 
     static Object loadStaticValueFromClass(String className, String fieldName) {
