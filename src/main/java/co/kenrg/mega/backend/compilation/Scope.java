@@ -17,7 +17,8 @@ import org.objectweb.asm.Opcodes;
 public class Scope {
     public enum BindingTypes {
         STATIC,
-        LOCAL
+        LOCAL,
+        METHOD
     }
 
     public class Binding {
@@ -36,8 +37,25 @@ public class Scope {
         }
     }
 
-    public static class Context {
+    public static class Context implements Cloneable {
         public List<Pair<String, Integer>> subcontexts = Lists.newArrayList();
+
+        public Context() {
+        }
+
+        // TODO: Remove this and have child scopes append/pop to/from their parent context (it's not like concurrency matters)
+        @Override
+        public Context clone() {
+            try {
+                super.clone();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+
+            Context c = new Context();
+            c.subcontexts = Lists.newArrayList(this.subcontexts);
+            return c;
+        }
 
         public void pushContext(String name) {
             this.subcontexts.add(Pair.of(name, 0));
@@ -47,6 +65,7 @@ public class Scope {
             int index = this.subcontexts.size() - 1;
             Pair<String, Integer> topOfStack = this.subcontexts.get(index);
             this.subcontexts.add(index, Pair.of(topOfStack.getLeft(), topOfStack.getRight() + 1));
+            this.subcontexts.remove(index + 1);
         }
 
         public void popContext() {
@@ -57,7 +76,7 @@ public class Scope {
     public final Scope parent;
     public final FocusedMethod focusedMethod;
     public final Map<String, Binding> bindings;
-    public final Context context;
+    public Context context; // Not final; can be set on a compiler's scope from a sub-compiler
 
     private int nextLocalVarIndex = 0;
 
@@ -68,12 +87,12 @@ public class Scope {
         this.context = new Context();
     }
 
-    private Scope(Scope parent, FocusedMethod focusedMethod) {
+    private Scope(Scope parent, FocusedMethod focusedMethod, Context context) {
         this.parent = parent;
         this.nextLocalVarIndex = this.parent.nextLocalVarIndex;
         this.focusedMethod = focusedMethod;
         this.bindings = Maps.newHashMap();
-        this.context = new Context();
+        this.context = context;
     }
 
     public boolean isRoot() {
@@ -81,11 +100,11 @@ public class Scope {
     }
 
     public Scope createChild() {
-        return new Scope(this, this.focusedMethod);
+        return new Scope(this, this.focusedMethod, this.context);
     }
 
     public Scope createChild(FocusedMethod focusedMethod) {
-        return new Scope(this, focusedMethod);
+        return new Scope(this, focusedMethod, this.context.clone());
     }
 
     public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {

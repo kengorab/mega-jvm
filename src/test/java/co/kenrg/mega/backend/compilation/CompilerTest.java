@@ -23,9 +23,7 @@ import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
-import mega.lang.functions.Function0;
 import mega.lang.functions.Function1;
-import mega.lang.functions.Function2;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
@@ -34,6 +32,7 @@ import org.junit.jupiter.api.TestFactory;
 
 class CompilerTest {
 
+//    @BeforeAll
     @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
@@ -163,29 +162,18 @@ class CompilerTest {
             );
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.getLeft();
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.getLeft();
                     String bindingName = testCase.getMiddle();
                     Object val = testCase.getRight();
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        })
-                    );
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
                 })
                 .collect(toList());
         }
@@ -200,29 +188,18 @@ class CompilerTest {
             );
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.getLeft();
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.getLeft();
                     String bindingName = testCase.getMiddle();
                     Object val = testCase.getRight();
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        })
-                    );
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
                 })
                 .collect(toList());
         }
@@ -347,29 +324,18 @@ class CompilerTest {
             testCases.addAll(comparisonTestCases);
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.getLeft();
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.getLeft();
                     String bindingName = testCase.getMiddle();
                     Object val = testCase.getRight();
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        })
-                    );
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
                 })
                 .collect(toList());
         }
@@ -390,29 +356,18 @@ class CompilerTest {
             );
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.getLeft();
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.getLeft();
                     String bindingName = testCase.getMiddle();
                     Object val = testCase.getRight();
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        })
-                    );
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
                 })
                 .collect(toList());
         }
@@ -425,29 +380,18 @@ class CompilerTest {
             );
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.getLeft();
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.getLeft();
                     String bindingName = testCase.getMiddle();
                     Object val = testCase.getRight();
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + "` = " + val;
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassEquals(className, bindingName, val);
-                        })
-                    );
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
                 })
                 .collect(toList());
         }
@@ -460,10 +404,6 @@ class CompilerTest {
                 public final Object[] args;
                 public final Object result;
 
-                public TestCase(String input, String bindingName, Object result) {
-                    this(input, bindingName, new Object[]{}, result);
-                }
-
                 public TestCase(String input, String bindingName, Object[] args, Object result) {
                     this.input = input;
                     this.bindingName = bindingName;
@@ -474,7 +414,7 @@ class CompilerTest {
 
             List<TestCase> testCases = Lists.newArrayList(
 //                new TestCase("val a = true; val someFn = () => a", "someFn", true), // TODO: Make closures work
-                new TestCase("val someFn = () => true", "someFn", true),
+                new TestCase("val someFn = () => true", "someFn", new Object[]{}, true),
                 new TestCase("val someFn = (i: Int) => i + '!'", "someFn", new Object[]{1}, "1!"),
                 new TestCase("val someFn = (i: Int) => if i > 3 { i + 0.14 } else { i - 0.14 }", "someFn", new Object[]{1}, 0.86F),
                 new TestCase("val someFn = (a: Int, b: Int) => a + b", "someFn", new Object[]{1, 2}, 3),
@@ -482,30 +422,19 @@ class CompilerTest {
             );
 
             return testCases.stream()
-                .flatMap(testCase -> {
-                    String valInput = testCase.input;
-                    String varInput = valInput.replace("val", "var");
-
+                .map(testCase -> {
+                    String input = testCase.input;
                     String bindingName = testCase.bindingName;
                     Object[] args = testCase.args;
                     Object res = testCase.result;
 
-                    String valName = "Compiling `" + valInput + "` should result in the static variable `" + bindingName + " which evaluates to " + res + " when passed " + Arrays.toString(args);
-                    String varName = "Compiling `" + varInput + "` should result in the static variable `" + bindingName + " which evaluates to " + res + " when passed " + Arrays.toString(args);
-                    return Stream.of(
-                        dynamicTest(valName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
-                            String className = result.className;
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + " which evaluates to " + res + " when passed " + Arrays.toString(args);
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
 
-                            assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
-                        }),
-                        dynamicTest(varName, () -> {
-                            TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
-                            String className = result.className;
-
-                            assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
-                        })
-                    );
+                        assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
+                    });
                 })
                 .collect(toList());
         }
@@ -517,16 +446,12 @@ class CompilerTest {
         @TestFactory
         List<DynamicTest> testFunctionDeclarationExpressions() {
             class TestCase {
-                public final String input;
-                public final String bindingName;
-                public final Object[] args;
-                public final Object result;
+                private final String input;
+                private final String bindingName;
+                private final Object[] args;
+                private final Object result;
 
-                public TestCase(String input, String bindingName, Object result) {
-                    this(input, bindingName, new Object[]{}, result);
-                }
-
-                public TestCase(String input, String bindingName, Object[] args, Object result) {
+                private TestCase(String input, String bindingName, Object[] args, Object result) {
                     this.input = input;
                     this.bindingName = bindingName;
                     this.args = args;
@@ -535,14 +460,14 @@ class CompilerTest {
             }
 
             List<TestCase> testCases = Lists.newArrayList(
-                new TestCase("func returnsOne(): Int { 1 }", "returnsOne", 1),
+                new TestCase("func returnsOne(): Int { 1 }", "returnsOne", new Object[]{}, 1),
                 new TestCase("func addsOne(a: Int): Int { a + 1 }", "addsOne", new Object[]{2}, 3),
                 new TestCase("func strConcatShout(a: String, b: String): String { a + b + '!' }", "strConcatShout", new Object[]{"Hello ", "world"}, "Hello world!"),
-                new TestCase("func addAll(a: Int, b: Int, c: Int) { a + b + c }", "addAll", new Object[]{1, 2, 3}, 6)
-//                new TestCase("func applyToInt(fn: Int => String, a: Int): String { fn(a) }", "applyToInt",
-//                    new Object[]{(Function1<Integer, String>) input -> input + "!", 24},
-//                    "24!"
-//                ) // TODO: Uncomment when call expressions are done
+                new TestCase("func addAll(a: Int, b: Int, c: Int) { a + b + c }", "addAll", new Object[]{1, 2, 3}, 6),
+                new TestCase("func applyToInt(fn: Int => String, a: Int): String { fn(a) }", "applyToInt",
+                    new Object[]{(Function1<Integer, String>) input -> input + "!", 24},
+                    "24!"
+                )
             );
 
             return testCases.stream()
@@ -558,6 +483,129 @@ class CompilerTest {
                         String className = result.className;
 
                         assertInvokingStaticMethodOnClassEvaluatesTo(className, bindingName, args, expectedResult);
+                    });
+                })
+                .collect(toList());
+        }
+    }
+
+    @Nested
+    class TestFunctionInvocation {
+
+        @TestFactory
+        List<DynamicTest> testInvocationOfStaticArrowFunctions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("val returnsOne = () => 1; val one = returnsOne()", "one", 1),
+                Triple.of("val shout = (str: String) => str + '!'; val loudNoises = shout('shouting')", "loudNoises", "shouting!"),
+                Triple.of("" +
+                        "val addSpace = (str: String) => str + ' ';" +
+                        "val shout = (str: String) => str + '!'; " +
+                        "val helloWorld = shout(shout(addSpace('Hello') + 'world'))",
+                    "helloWorld",
+                    "Hello world!!"
+                )
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
+
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
+                })
+                .collect(toList());
+        }
+
+        @TestFactory
+        List<DynamicTest> testInvocationOfNestedArrowFunctions() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("" +
+                        "val a = if 4 > 3 {" +
+                        "  val fn = (i: Int) => i + 1;" +
+                        "  fn(1)" +
+                        "} else { 4 }",
+                    "a",
+                    2
+                ),
+                Triple.of("" +
+                        "val apply = (fn: Int => Int, a: Int) => fn(a);" +
+                        "val inc = (i: Int) => i + 1;" +
+                        "val a = apply(inc, 3)",
+                    "a",
+                    4
+                ),
+                Triple.of("" +
+                        "val apply = (fn: Int => Int, a: Int) => fn(a);" +
+                        "val a = apply(i => i + 1, 3)",
+                    "a",
+                    4
+                ),
+                Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
+//                Triple.of("val a = (i: Int) => (s: String) => s * i; val b = a(3)('abc')", "b", "abcabcabc"),// TODO: Uncomment when closures work
+                Triple.of("val a = (i: Int) => (s: String) => s ; val b = a(3)('abc')", "b", "abc")
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
+
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
+                })
+                .collect(toList());
+        }
+
+        @TestFactory
+        List<DynamicTest> testInvocationOfStaticMethods() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("" +
+                        "func returnOne() { 1 };" +
+                        "val one = returnOne();",
+                    "one",
+                    1
+                ),
+                Triple.of("" +
+                        "func returnOne() { 1 };" +
+                        "func addOne(a: Int) { a + returnOne() };" +
+                        "val two = addOne(1);",
+                    "two",
+                    2
+                )
+//                Triple.of("" +
+//                        "func apply(fn: Int => Int, a: Int) { fn(a) };" +
+//                        "func addOne(a: Int) { a + 1 };" +
+//                        "val two = apply(addOne, 1);",
+//                    "two",
+//                    2
+//                ) // TODO: Uncomment when method referencing is done
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
+
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
                     });
                 })
                 .collect(toList());
@@ -593,24 +641,16 @@ class CompilerTest {
     }
 
     private void assertStaticBindingOnClassIsLambdaAndEvaluatesTo(String className, String staticFieldName, Object[] args, Object res) {
-        switch (args.length) {
-            case 0: {
-                Function0 variable = (Function0) loadStaticValueFromClass(className, staticFieldName);
-                assertEquals(res, variable.invoke(), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
-                break;
-            }
-            case 1: {
-                Function1 variable = (Function1) loadStaticValueFromClass(className, staticFieldName);
-                assertEquals(res, variable.invoke(args[0]), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
-                break;
-            }
-            case 2: {
-                Function2 variable = (Function2) loadStaticValueFromClass(className, staticFieldName);
-                assertEquals(res, variable.invoke(args[0], args[1]), "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res);
-                break;
-            }
-            default:
-                fail("Functions with arity " + args.length + " have not been handled yet");
+        try {
+            Object variable = loadStaticValueFromClass(className, staticFieldName);
+            Method invokeMethod = Arrays.stream(variable.getClass().getMethods())
+                .filter(method -> method.getName().equals("invoke"))
+                .collect(toList())
+                .get(0);
+            String message = "The result of invoking the lambda with " + Arrays.toString(args) + " should be " + res;
+            assertEquals(res, invokeMethod.invoke(variable, args), message);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            fail("Functions with arity " + args.length + " have not been handled yet", e);
         }
     }
 

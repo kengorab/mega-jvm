@@ -2,10 +2,12 @@ package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.compileArrowFunction;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
+import static co.kenrg.mega.backend.compilation.subcompilers.CallExpressionCompiler.compileInvocation;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
@@ -67,12 +69,15 @@ import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.BooleanLiteral;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.FloatLiteral;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.IfExpression;
 import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -132,7 +137,6 @@ public class Compiler {
 
         this.clinitWriter = this.cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
         this.scope = new Scope(new FocusedMethod(this.clinitWriter, null, null));
-        this.scope.context.pushContext(this.className);
 
         // Initialize <clinit> method writer for class. This method writer will be used to initialize all the static
         // values for the class (namespace).
@@ -148,7 +152,7 @@ public class Compiler {
         return results();
     }
 
-    private List<Pair<String, byte[]>> results() {
+    public List<Pair<String, byte[]>> results() { // Used publicly by sub-compilers
         this.cw.visitEnd();
         innerClasses.add(Pair.of(this.className, this.cw.toByteArray()));
         return innerClasses;
@@ -158,6 +162,7 @@ public class Compiler {
 
         // Statements
         if (node instanceof Module) {
+            this.scope.context.pushContext(this.className);
             this.compileStatements(((Module) node).statements);
         } else if (node instanceof ExpressionStatement) {
             this.compileNode(((ExpressionStatement) node).expression);
@@ -182,6 +187,10 @@ public class Compiler {
             this.compileLiteral(node);
         } else if (node instanceof ArrayLiteral) {
             this.compileArrayLiteral((ArrayLiteral) node);
+        } else if (node instanceof ObjectLiteral) {
+            this.compileObjectLiteral((ObjectLiteral) node);
+        } else if (node instanceof ParenthesizedExpression) {
+            this.compileNode(((ParenthesizedExpression) node).expr);
         } else if (node instanceof PrefixExpression) {
             this.compilePrefixExpression((PrefixExpression) node);
         } else if (node instanceof InfixExpression) {
@@ -198,6 +207,8 @@ public class Compiler {
             this.compileIndexExpression((IndexExpression) node);
         } else if (node instanceof ArrowFunctionExpression) {
             this.compileArrowFunctionExpression((ArrowFunctionExpression) node);
+        } else if (node instanceof CallExpression) {
+            this.compileCallExpression((CallExpression) node);
         }
     }
 
@@ -292,7 +303,7 @@ public class Compiler {
         assert iterateeType != null; // Should be populated by typechecking pass
         if (iterateeType.typeArg == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitInsn(AALOAD);
-            compileBoxPrimitiveType(PrimitiveTypes.INTEGER, this.scope.focusedMethod.writer);
+            compileUnboxPrimitiveType(PrimitiveTypes.INTEGER, this.scope.focusedMethod.writer);
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iteratorIndex);
         }
 
@@ -313,7 +324,7 @@ public class Compiler {
         TypeEnvironment.Binding methodBinding = this.typeEnv.getBinding(methodName);
         assert methodBinding != null; // If it's null, then it was never properly defined
         FunctionType fnType = (FunctionType) methodBinding.type;
-        String funcDesc = jvmDescriptor(fnType, false);
+        String funcDesc = jvmMethodDescriptor(fnType, false);
 
         MethodVisitor methodWriter = this.cw.visitMethod(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, methodName, funcDesc, null, null);
 
@@ -338,6 +349,8 @@ public class Compiler {
         methodWriter.visitMaxs(-1, -1);
         methodWriter.visitEnd();
         this.scope = origScope;
+
+        this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false);
     }
 
     //***************************************************************
@@ -377,10 +390,14 @@ public class Compiler {
             compileNode(element);
 
             if (isPrimitive(elType)) {
-                compileUnboxPrimitiveType(elType, this.scope.focusedMethod.writer);
+                compileBoxPrimitiveType(elType, this.scope.focusedMethod.writer);
             }
             this.scope.focusedMethod.writer.visitInsn(AASTORE);
         }
+    }
+
+    private void compileObjectLiteral(ObjectLiteral node) {
+        // TODO: compile object literals
     }
 
     private void compileIndexExpression(IndexExpression node) {
@@ -394,7 +411,7 @@ public class Compiler {
 
         this.scope.focusedMethod.writer.visitInsn(AALOAD);
         if (isPrimitive(arrayElType)) {
-            compileBoxPrimitiveType(arrayElType, this.scope.focusedMethod.writer);
+            compileUnboxPrimitiveType(arrayElType, this.scope.focusedMethod.writer);
         }
     }
 
@@ -547,6 +564,8 @@ public class Compiler {
         MegaType type = binding.type;
         assert type != null; // Should be filled in by the typechecking pass
 
+        // TODO: Check for method reference (BindingTypes.METHOD)
+
         if (binding.bindingType == BindingTypes.STATIC) {
             this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, this.className, identName, jvmDescriptor(type, false));
             return;
@@ -600,15 +619,18 @@ public class Compiler {
         String lambdaName = this.scope.context.subcontexts.subList(1, this.scope.context.subcontexts.size()).stream()
             .flatMap(s -> Stream.of(s.getLeft(), s.getRight().toString()))
             .collect(joining("$"));
+        this.scope.context.incLambdaCount();
 
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
 
-        Compiler arrowFnCompiler = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv);
-        byte[] bytes = arrowFnCompiler.cw.toByteArray();
-        innerClasses.add(Pair.of(innerClassName, bytes));
+        List<Pair<String, byte[]>> generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+        innerClasses.addAll(generatedClasses);
 
         this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
-        this.scope.context.incLambdaCount();
+    }
+
+    private void compileCallExpression(CallExpression node) {
+        compileInvocation(node, this.scope, this.className, this::compileNode);
     }
 }

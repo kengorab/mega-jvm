@@ -38,6 +38,14 @@ public class TypesAndSignatures {
         return String.format("L%s;", className);
     }
 
+    public static String jvmMethodDescriptor(FunctionType methodType, boolean boxPrimitives) {
+        String paramTypeDescs = methodType.paramTypes.stream()
+            .map(paramType -> jvmDescriptor(paramType, boxPrimitives))
+            .collect(joining(""));
+        String returnTypeDesc = jvmDescriptor(methodType.returnType, boxPrimitives);
+        return String.format("(%s)%s", paramTypeDescs, returnTypeDesc);
+    }
+
     public static String jvmDescriptor(MegaType type, boolean boxPrimitives) {
         if (type == PrimitiveTypes.INTEGER) {
             return boxPrimitives ? getDescriptor(PrimitiveTypes.INTEGER.typeClass()) : "I";
@@ -51,19 +59,7 @@ public class TypesAndSignatures {
             String elemDescriptor = jvmDescriptor(((ArrayType) type).typeArg, true);
             return "[" + elemDescriptor;
         } else if (type instanceof FunctionType) {
-            // Should not be null on FunctionTypes attached to nodes which live longer than the typechecking pass
-
-            FunctionType fnType = (FunctionType) type;
-            assert fnType.isLambda != null;
-            if (fnType.isLambda) {
-                return getDescriptor(type.typeClass());
-            } else {
-                String paramTypeDescs = fnType.paramTypes.stream()
-                    .map(paramType -> jvmDescriptor(paramType, false))
-                    .collect(joining(""));
-                String returnTypeDesc = jvmDescriptor(fnType.returnType, false);
-                return String.format("(%s)%s", paramTypeDescs, returnTypeDesc);
-            }
+            return getDescriptor(type.typeClass());
         }
 
         return descriptorForClass(type.className());

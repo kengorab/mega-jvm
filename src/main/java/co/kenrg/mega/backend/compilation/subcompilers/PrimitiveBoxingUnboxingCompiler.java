@@ -10,7 +10,7 @@ import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import org.objectweb.asm.MethodVisitor;
 
 public class PrimitiveBoxingUnboxingCompiler {
-    public static void compileBoxPrimitiveType(MegaType type, MethodVisitor methodWriter) {
+    public static void compileUnboxPrimitiveType(MegaType type, MethodVisitor methodWriter) {
         if (type == PrimitiveTypes.INTEGER) {
             methodWriter.visitMethodInsn(INVOKEVIRTUAL, getInternalName(PrimitiveTypes.INTEGER.typeClass()), "intValue", "()I", false);
         } else if (type == PrimitiveTypes.BOOLEAN) {
@@ -22,7 +22,7 @@ public class PrimitiveBoxingUnboxingCompiler {
         }
     }
 
-    public static void compileUnboxPrimitiveType(MegaType type, MethodVisitor methodWriter) {
+    public static void compileBoxPrimitiveType(MegaType type, MethodVisitor methodWriter) {
         String elTypeClass = getInternalName(type.typeClass());
         String signature = String.format("(%s)L%s;", jvmDescriptor(type, false), elTypeClass);
         methodWriter.visitMethodInsn(INVOKESTATIC, elTypeClass, "valueOf", signature, false);

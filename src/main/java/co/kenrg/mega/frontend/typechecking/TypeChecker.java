@@ -142,7 +142,8 @@ public class TypeChecker {
         } else if (node instanceof ObjectLiteral) {
             return this.typecheckObjectLiteral((ObjectLiteral) node, env, expectedType);
         } else if (node instanceof ParenthesizedExpression) {
-            return this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType);
+            return this.typecheckParenthesizedExpression((ParenthesizedExpression) node, env, expectedType);
+//            return this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType);
         } else if (node instanceof PrefixExpression) {
             return this.typecheckPrefixExpression((PrefixExpression) node, env, expectedType);
         } else if (node instanceof InfixExpression) {
@@ -217,17 +218,7 @@ public class TypeChecker {
                 .map(paramType -> resolveType(typeTarget, paramType, typeEnvironment))
                 .collect(toList());
             MegaType returnType = resolveType(typeTarget, funcTypeExpr.returnType, typeEnvironment);
-
-            // TODO: Ensure that function declarations w/ same signature as arrow fns can typecheck to be equivalent
-            Boolean isLambda; // Can be true, false, or null (in cases where it's N/A)
-            if (typeTarget instanceof ArrowFunctionExpression) {
-                isLambda = true;
-            } else if (typeTarget instanceof FunctionDeclarationStatement) {
-                isLambda = false;
-            } else {
-                isLambda = null;
-            }
-            return new FunctionType(paramTypes, returnType, isLambda);
+            return new FunctionType(paramTypes, returnType);
         }
 
         if (typeExpr instanceof StructTypeExpression) {
@@ -312,11 +303,11 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType, false), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
             }
         }
 
-        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType, false), true);
+        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -410,6 +401,14 @@ public class TypeChecker {
 
         array.setType(arrayType);
         return arrayType;
+    }
+
+    // TODO: Add tests for this
+    @VisibleForTesting
+    MegaType typecheckParenthesizedExpression(ParenthesizedExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        MegaType type = this.typecheckNode(expr.expr, env, expectedType);
+        expr.setType(type);
+        return type;
     }
 
     @VisibleForTesting
@@ -620,7 +619,7 @@ public class TypeChecker {
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(true, paramTypes, returnType, capturedBindings);
+        FunctionType functionType = new FunctionType(paramTypes, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
@@ -648,7 +647,7 @@ public class TypeChecker {
             List<MegaType> paramTypes = expr.arguments.stream()
                 .map(arg -> typecheckNode(arg, env))
                 .collect(toList());
-            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType, funcType.isLambda);
+            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType);
             funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
         } else {
             // Otherwise, typecheck the passed params with expected param types from non-inferred function type

@@ -250,7 +250,7 @@ class TypeCheckerExpectedTypeTest {
             typeChecker.typecheckValStatement(parseStatement("val identity = a => a", ValStatement.class), env);
 
             Identifier identifier = parseExpression("identity", Identifier.class);
-            FunctionType expectedType = new FunctionType(true, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER);
+            FunctionType expectedType = new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER);
             MegaType identType = typeChecker.typecheckIdentifier(identifier, env, expectedType);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -267,7 +267,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
-            assertEquals(new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), arrowFuncType);
+            assertEquals(new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), arrowFuncType);
         }
 
         @Test
@@ -276,7 +276,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
-            assertEquals(new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), arrowFuncType);
+            assertEquals(new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), arrowFuncType);
         }
 
         @Test
@@ -285,7 +285,7 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
-            assertEquals(new FunctionType(true, PrimitiveTypes.INTEGER, TypeChecker.notInferredType, TypeChecker.unknownType), arrowFuncType);
+            assertEquals(new FunctionType(PrimitiveTypes.INTEGER, TypeChecker.notInferredType, TypeChecker.unknownType), arrowFuncType);
         }
 
         @Test
@@ -294,13 +294,13 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
-            assertEquals(new FunctionType(true, TypeChecker.notInferredType, TypeChecker.notInferredType, TypeChecker.unknownType), arrowFuncType);
+            assertEquals(new FunctionType(TypeChecker.notInferredType, TypeChecker.notInferredType, TypeChecker.unknownType), arrowFuncType);
         }
 
         @Test
         public void expectedTypePassed_paramsHaveTypeAnnotations_typeMatchesExpected_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
-            FunctionType funcType = new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
+            FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -310,7 +310,7 @@ class TypeCheckerExpectedTypeTest {
         @Test
         public void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeMatchesExpected_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
-            FunctionType funcType = new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
+            FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -320,10 +320,10 @@ class TypeCheckerExpectedTypeTest {
         @Test
         public void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeDoesntMatchExpected_returnsResolvedType_hasMismatchError() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
-            FunctionType expectedFuncType = new FunctionType(true, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
+            FunctionType expectedFuncType = new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, expectedFuncType);
 
-            FunctionType actualFuncType = new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
+            FunctionType actualFuncType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(expectedFuncType, actualFuncType, Position.at(1, 1))),
                 typeChecker.errors
@@ -334,7 +334,7 @@ class TypeCheckerExpectedTypeTest {
         @Test
         public void expectedTypePassed_paramsHaveNoTypeAnnotations_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a + b", ArrowFunctionExpression.class);
-            FunctionType funcType = new FunctionType(true, PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
+            FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -344,22 +344,22 @@ class TypeCheckerExpectedTypeTest {
         @Test
         public void expectedTypePassed_paramsHaveNoTypeAnnotations_errorTypecheckingBodyWithExpectedParamTypes_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a * b", ArrowFunctionExpression.class);
-            FunctionType funcType = new FunctionType(true, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING);
+            FunctionType funcType = new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             assertEquals(
                 Lists.newArrayList(
                     new IllegalOperatorError("*", PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, Position.at(1, 13)),
                     new TypeMismatchError(
-                        new FunctionType(true, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING),
-                        new FunctionType(true, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
+                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING),
+                        new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
                         Position.at(1, 1)
                     )
                 ),
                 typeChecker.errors
             );
             assertEquals(
-                new FunctionType(true, PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
+                new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, TypeChecker.unknownType),
                 arrowFuncType
             );
         }
@@ -680,8 +680,8 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(
-                    new FunctionType(null, PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
-                    new FunctionType(true, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
+                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER),
+                    new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING),
                     Position.at(1, 6)
                 )),
                 typeChecker.errors

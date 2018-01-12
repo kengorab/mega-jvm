@@ -19,25 +19,22 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
-    @Nullable public final Boolean isLambda;
     public final List<MegaType> paramTypes;
     @Nullable public final MegaType returnType;
     public Map<String, Binding> capturedBindings;
 
-    public FunctionType(@Nullable Boolean isLambda, List<MegaType> paramTypes, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
-        this.isLambda = isLambda;
+    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
         this.paramTypes = paramTypes;
         this.returnType = returnType;
         this.capturedBindings = capturedBindings;
     }
 
-    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType, @Nullable Boolean isLambda) {
-        this(isLambda, paramTypes, returnType, Maps.newHashMap());
+    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType) {
+        this(paramTypes, returnType, Maps.newHashMap());
     }
 
     @VisibleForTesting
-    public FunctionType(@Nullable Boolean isLambda, MegaType... typeArgs) {
-        this.isLambda = isLambda;
+    public FunctionType(MegaType... typeArgs) {
         List<MegaType> typeArgsList = Arrays.asList(typeArgs);
         this.paramTypes = typeArgsList.subList(0, typeArgsList.size() - 1);
         this.returnType = typeArgsList.get(typeArgsList.size() - 1);

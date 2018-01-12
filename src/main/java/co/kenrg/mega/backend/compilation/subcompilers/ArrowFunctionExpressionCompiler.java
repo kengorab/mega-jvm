@@ -25,9 +25,12 @@ import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
+import java.util.List;
+
 import co.kenrg.mega.backend.compilation.Compiler;
 import co.kenrg.mega.backend.compilation.FocusedMethod;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.Scope.Context;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
@@ -36,15 +39,15 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.base.Strings;
 import mega.lang.functions.Invokeable;
+import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 public class ArrowFunctionExpressionCompiler {
-    public static Compiler compileArrowFunction(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node, TypeEnvironment typeEnv) {
+    public static List<Pair<String, byte[]>> compileArrowFunction(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node, TypeEnvironment typeEnv, Context context) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
 
-        Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv);
+        Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv, context);
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
         writeClinitMethod(compiler, innerClassName);
@@ -53,11 +56,14 @@ public class ArrowFunctionExpressionCompiler {
         writeActualInvokeMethod(compiler, node, arrowFnType);
 
         compiler.cw.visitEnd();
+        return compiler.results();
+//        byte[] bytes = compiler.cw.toByteArray();
+//        return Pair.of(innerClassName, bytes);
 
-        return compiler;
+//        return compiler;
     }
 
-    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv) {
+    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
         String paramTypeDescs = arrowFnType.paramTypes.stream()
             .map(type -> jvmDescriptor(type, true))
             .collect(joining(""));
@@ -65,10 +71,13 @@ public class ArrowFunctionExpressionCompiler {
         String functionDescTypeArgs = String.format("<%s%s>", paramTypeDescs, returnTypeDesc);
 
         Class fnClass = arrowFnType.typeClass();
-        String functionDesc = String.format("%s%s", getDescriptor(fnClass), functionDescTypeArgs);
+        String desc = getDescriptor(fnClass);
+        String functionDesc = String.format("%s%s;", desc.substring(0, desc.length() - 1), functionDescTypeArgs);
         String functionIfaceName = getInternalName(fnClass);
-        String arrowFnSignature = String.format("%s;%s;", getDescriptor(Invokeable.class), functionDesc);
-        return new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
+        String arrowFnSignature = String.format("%s%s", getDescriptor(Invokeable.class), functionDesc);
+        Compiler compiler = new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
+        compiler.scope.context = context;
+        return compiler;
     }
 
     private static void writeClinitMethod(Compiler compiler, String innerClassName) {
@@ -103,24 +112,16 @@ public class ArrowFunctionExpressionCompiler {
             ifaceInvokeWriter.visitVarInsn(ALOAD, i + 1); // Load subsequent parameters
 
             MegaType paramType = arrowFnType.paramTypes.get(i);
-            if (paramType == PrimitiveTypes.INTEGER) {
-                ifaceInvokeWriter.visitTypeInsn(CHECKCAST, Type.getInternalName(Integer.class));
-                compileBoxPrimitiveType(paramType, ifaceInvokeWriter);
-            } else if (paramType == PrimitiveTypes.BOOLEAN) {
-                ifaceInvokeWriter.visitTypeInsn(CHECKCAST, Type.getInternalName(Boolean.class));
-                compileBoxPrimitiveType(paramType, ifaceInvokeWriter);
-            } else if (paramType == PrimitiveTypes.FLOAT) {
-                ifaceInvokeWriter.visitTypeInsn(CHECKCAST, Type.getInternalName(Float.class));
-                compileBoxPrimitiveType(paramType, ifaceInvokeWriter);
-            } else {
-                ifaceInvokeWriter.visitVarInsn(ALOAD, i + 1);
+            ifaceInvokeWriter.visitTypeInsn(CHECKCAST, getInternalName(paramType.typeClass()));
+            if (isPrimitive(paramType)) {
+                compileUnboxPrimitiveType(paramType, ifaceInvokeWriter);
             }
         }
         ifaceInvokeWriter.visitMethodInsn(INVOKEVIRTUAL, innerClassName, "invoke", getInvokeMethodDesc(arrowFnType), false);
 
         assert arrowFnType.returnType != null; // Should have been populated during typechecking pass
         if (isPrimitive(arrowFnType.returnType)) {
-            compileUnboxPrimitiveType(arrowFnType.returnType, ifaceInvokeWriter);
+            compileBoxPrimitiveType(arrowFnType.returnType, ifaceInvokeWriter);
         }
 
         ifaceInvokeWriter.visitInsn(ARETURN);
