@@ -335,7 +335,9 @@ public class Compiler {
         }
         methodWriter.visitCode();
 
+        this.scope.context.pushContext(methodName);
         compileBlockExpression(node.body);
+        this.scope.context.popContext();
         if (fnType.returnType == PrimitiveTypes.INTEGER) {
             methodWriter.visitInsn(IRETURN);
         } else if (fnType.returnType == PrimitiveTypes.BOOLEAN) {

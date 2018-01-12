@@ -549,7 +549,8 @@ class CompilerTest {
                 ),
                 Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
 //                Triple.of("val a = (i: Int) => (s: String) => s * i; val b = a(3)('abc')", "b", "abcabcabc"),// TODO: Uncomment when closures work
-                Triple.of("val a = (i: Int) => (s: String) => s ; val b = a(3)('abc')", "b", "abc")
+                Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
+                Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true)
             );
 
             return testCases.stream()
@@ -582,6 +583,12 @@ class CompilerTest {
                         "func returnOne() { 1 };" +
                         "func addOne(a: Int) { a + returnOne() };" +
                         "val two = addOne(1);",
+                    "two",
+                    2
+                ),
+                Triple.of("" +
+                        "func returnFn() { (a: Int) => a + 1 };" +
+                        "val two = returnFn()(1);",
                     "two",
                     2
                 )
