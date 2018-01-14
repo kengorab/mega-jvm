@@ -8,6 +8,7 @@ import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpress
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.CallExpressionCompiler.compileInvocation;
+import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
@@ -566,7 +567,16 @@ public class Compiler {
         MegaType type = binding.type;
         assert type != null; // Should be filled in by the typechecking pass
 
-        // TODO: Check for method reference (BindingTypes.METHOD)
+        if (binding.bindingType == BindingTypes.METHOD) {
+            String lambdaName = "$ref_" + identName;
+            String innerClassName = this.className + "$" + lambdaName;
+            this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
+            // TODO: This will only work for static method references at the moment; make this work for non-static method references
+            List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context);
+            this.innerClasses.addAll(generatedClasses);
+            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+            return;
+        }
 
         if (binding.bindingType == BindingTypes.STATIC) {
             this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, this.className, identName, jvmDescriptor(type, false));
@@ -625,7 +635,6 @@ public class Compiler {
 
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
-
         List<Pair<String, byte[]>> generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
         innerClasses.addAll(generatedClasses);
 

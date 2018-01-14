@@ -303,22 +303,27 @@ public class Parser {
             this.nextToken();
 
             List<TypeExpression> typeArgs = Lists.newArrayList();
-            typeArgs.add(this.parseTypeExpression(allowInlineStruct));
-
-            while (this.peekTokenIs(TokenType.COMMA)) {
-                this.nextToken();   // Consume ','
+            if (this.curTokenIs(TokenType.RPAREN)) {
                 this.nextToken();
-
+                this.nextToken();
+            } else {
                 typeArgs.add(this.parseTypeExpression(allowInlineStruct));
-            }
 
-            if (!expectPeek(TokenType.RPAREN)) {
-                return null;
+                while (this.peekTokenIs(TokenType.COMMA)) {
+                    this.nextToken();   // Consume ','
+                    this.nextToken();
+
+                    typeArgs.add(this.parseTypeExpression(allowInlineStruct));
+                }
+
+                if (!expectPeek(TokenType.RPAREN)) {
+                    return null;
+                }
+                if (!expectPeek(TokenType.ARROW)) {
+                    return null;
+                }
+                this.nextToken();
             }
-            if (!expectPeek(TokenType.ARROW)) {
-                return null;
-            }
-            this.nextToken();
 
             TypeExpression returnType = this.parseTypeExpression(allowInlineStruct);
             return new FunctionTypeExpression(typeArgs, returnType, startToken.position);

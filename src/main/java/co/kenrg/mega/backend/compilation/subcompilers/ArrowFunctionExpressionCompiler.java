@@ -51,19 +51,15 @@ public class ArrowFunctionExpressionCompiler {
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
         writeClinitMethod(compiler, innerClassName);
-        writeInitMethod(compiler);
+        writeInitMethod(compiler, arrowFnType);
         writeIfaceInvokeMethod(compiler, innerClassName, arrowFnType);
         writeActualInvokeMethod(compiler, node, arrowFnType);
 
         compiler.cw.visitEnd();
         return compiler.results();
-//        byte[] bytes = compiler.cw.toByteArray();
-//        return Pair.of(innerClassName, bytes);
-
-//        return compiler;
     }
 
-    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
+    static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
         String paramTypeDescs = arrowFnType.paramTypes.stream()
             .map(type -> jvmDescriptor(type, true))
             .collect(joining(""));
@@ -80,7 +76,7 @@ public class ArrowFunctionExpressionCompiler {
         return compiler;
     }
 
-    private static void writeClinitMethod(Compiler compiler, String innerClassName) {
+    static void writeClinitMethod(Compiler compiler, String innerClassName) {
         compiler.clinitWriter.visitTypeInsn(NEW, innerClassName);
         compiler.clinitWriter.visitInsn(DUP);
         compiler.clinitWriter.visitMethodInsn(INVOKESPECIAL, innerClassName, "<init>", "()V", false);
@@ -91,18 +87,24 @@ public class ArrowFunctionExpressionCompiler {
         compiler.clinitWriter.visitEnd();
     }
 
-    private static void writeInitMethod(Compiler compiler) {
+    static void writeInitMethod(Compiler compiler, FunctionType arrowFnType) {
         MethodVisitor initWriter = compiler.cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
         initWriter.visitCode();
         initWriter.visitVarInsn(ALOAD, 0);
-        initWriter.visitInsn(ICONST_0);
+
+        int arity = arrowFnType.arity();
+        if (0 <= arity && arity <= 5) {
+            initWriter.visitInsn(arity + ICONST_0);
+        } else {
+            initWriter.visitLdcInsn(arity);
+        }
         initWriter.visitMethodInsn(INVOKESPECIAL, "mega/lang/functions/Invokeable", "<init>", "(I)V", false);
         initWriter.visitInsn(RETURN);
         initWriter.visitMaxs(2, 1);
         initWriter.visitEnd();
     }
 
-    private static void writeIfaceInvokeMethod(Compiler compiler, String innerClassName, FunctionType arrowFnType) {
+    static void writeIfaceInvokeMethod(Compiler compiler, String innerClassName, FunctionType arrowFnType) {
         String ifaceInvokeDesc = String.format("(%s)Ljava/lang/Object;", Strings.repeat("Ljava/lang/Object;", arrowFnType.arity()));
         MethodVisitor ifaceInvokeWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_BRIDGE | ACC_SYNTHETIC, "invoke", ifaceInvokeDesc, null, null);
         ifaceInvokeWriter.visitCode();
@@ -129,7 +131,7 @@ public class ArrowFunctionExpressionCompiler {
         ifaceInvokeWriter.visitEnd();
     }
 
-    private static String getInvokeMethodDesc(FunctionType arrowFnType) {
+    static String getInvokeMethodDesc(FunctionType arrowFnType) {
         String paramTypeDescs = arrowFnType.paramTypes.stream()
             .map(type -> jvmDescriptor(type, false))
             .collect(joining(""));

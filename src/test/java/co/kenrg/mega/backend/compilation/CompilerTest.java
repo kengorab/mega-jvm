@@ -592,13 +592,49 @@ class CompilerTest {
                     "two",
                     2
                 )
-//                Triple.of("" +
-//                        "func apply(fn: Int => Int, a: Int) { fn(a) };" +
-//                        "func addOne(a: Int) { a + 1 };" +
-//                        "val two = apply(addOne, 1);",
-//                    "two",
-//                    2
-//                ) // TODO: Uncomment when method referencing is done
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String input = testCase.getLeft();
+                    String bindingName = testCase.getMiddle();
+                    Object val = testCase.getRight();
+
+                    String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                        String className = result.className;
+
+                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                    });
+                })
+                .collect(toList());
+        }
+
+        @TestFactory
+        List<DynamicTest> testInvocationOfStaticMethodReferences() {
+            List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+                Triple.of("" +
+                        "func invoke(fn: () => Int) { fn() };" +
+                        "func returnTwentyFour() { 24 };" +
+                        "val twentyFour = invoke(returnTwentyFour);",
+                    "twentyFour",
+                    24
+                ),
+                Triple.of("" +
+                        "func apply(fn: Int => Int, a: Int) { fn(a) };" +
+                        "func addOne(a: Int) { a + 1 };" +
+                        "val two = apply(addOne, 1);",
+                    "two",
+                    2
+                ),
+                Triple.of("" +
+                        "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
+                        "func repeat(num: Int, str: String) { num * str };" +
+                        "val str = apply(repeat, 5, 'abc');",
+                    "str",
+                    "abcabcabcabcabc"
+                )
             );
 
             return testCases.stream()

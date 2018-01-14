@@ -188,6 +188,16 @@ class ParserTest {
                     Position.at(1, 5)
                 ),
                 getArrowFuncExprParamIdent.apply(0)
+            ),
+            new TestCase(
+                "(a: () => String) => a()",
+                "a",
+                new FunctionTypeExpression(
+                    Lists.newArrayList( ),
+                    new BasicTypeExpression("String", Position.at(1, 11)),
+                    Position.at(1, 5)
+                ),
+                getArrowFuncExprParamIdent.apply(0)
             )
         );
 
