@@ -1,11 +1,9 @@
 package co.kenrg.mega.backend.compilation.subcompilers;
 
-import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getDescriptor;
-import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.getCompiler;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.getInvokeMethodDesc;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.writeIfaceInvokeMethod;
-import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
@@ -38,12 +36,18 @@ import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
-import mega.lang.functions.Invokeable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.MethodVisitor;
 
 public class ArrowFunctionExpressionWithClosureCompiler {
-    public static List<Pair<String, byte[]>> compileArrowFunctionWithClosure(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node, TypeEnvironment typeEnv, Context context) {
+    public static List<Pair<String, byte[]>> compileArrowFunctionWithClosure(
+        String outerClassName,
+        String lambdaName,
+        String innerClassName,
+        ArrowFunctionExpression node,
+        TypeEnvironment typeEnv,
+        Context context
+    ) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
         List<Entry<String, Binding>> capturedBindings = arrowFnType.getCapturedBindings();
@@ -51,7 +55,7 @@ public class ArrowFunctionExpressionWithClosureCompiler {
         Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv, context);
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
-        writeClinitMethod(compiler, innerClassName, capturedBindings);
+        writeClinitMethod(compiler, capturedBindings);
         writeInitMethod(compiler, arrowFnType, innerClassName, capturedBindings);
         writeIfaceInvokeMethod(compiler, innerClassName, arrowFnType);
         writeActualInvokeMethod(compiler, node, arrowFnType, innerClassName, capturedBindings);
@@ -60,29 +64,7 @@ public class ArrowFunctionExpressionWithClosureCompiler {
         return compiler.results();
     }
 
-    private static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
-        String paramTypeDescs = arrowFnType.paramTypes.stream()
-            .map(type -> jvmDescriptor(type, true))
-            .collect(joining(""));
-        String returnTypeDesc = jvmDescriptor(arrowFnType.returnType, true);
-        String functionDescTypeArgs = String.format("<%s%s>", paramTypeDescs, returnTypeDesc);
-
-        Class fnClass = arrowFnType.typeClass();
-        String desc = getDescriptor(fnClass);
-        String functionDesc = String.format("%s%s;", desc.substring(0, desc.length() - 1), functionDescTypeArgs);
-        String functionIfaceName = getInternalName(fnClass);
-        String arrowFnSignature = String.format("%s%s", getDescriptor(Invokeable.class), functionDesc);
-        Compiler compiler = new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
-        compiler.scope.context = context;
-        return compiler;
-    }
-
-    private static void writeClinitMethod(Compiler compiler, String innerClassName, List<Entry<String, Binding>> capturedBindings) {
-//        compiler.clinitWriter.visitTypeInsn(NEW, innerClassName);
-//        compiler.clinitWriter.visitInsn(DUP);
-//        compiler.clinitWriter.visitMethodInsn(INVOKESPECIAL, innerClassName, "<init>", "()V", false);
-//        compiler.cw.visitField(ACC_PUBLIC | ACC_STATIC, "INSTANCE", "L" + innerClassName + ";", null, null);
-//        compiler.clinitWriter.visitFieldInsn(PUTSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+    private static void writeClinitMethod(Compiler compiler, List<Entry<String, Binding>> capturedBindings) {
         for (Entry<String, Binding> capturedBinding : capturedBindings) {
             Binding binding = capturedBinding.getValue();
             String fieldName = "$" + capturedBinding.getKey();
