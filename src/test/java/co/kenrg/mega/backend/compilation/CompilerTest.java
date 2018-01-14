@@ -25,15 +25,15 @@ import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult
 import com.google.common.collect.Lists;
 import mega.lang.functions.Function1;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.TestFactory;
 
 class CompilerTest {
 
-//    @BeforeAll
-    @AfterAll
+    @BeforeAll
+//    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -614,25 +614,33 @@ class CompilerTest {
         @TestFactory
         List<DynamicTest> testInvocationOfStaticMethodReferences() {
             List<Triple<String, String, Object>> testCases = Lists.newArrayList(
-                Triple.of("" +
-                        "func invoke(fn: () => Int) { fn() };" +
-                        "func returnTwentyFour() { 24 };" +
-                        "val twentyFour = invoke(returnTwentyFour);",
-                    "twentyFour",
-                    24
-                ),
-                Triple.of("" +
-                        "func apply(fn: Int => Int, a: Int) { fn(a) };" +
-                        "func addOne(a: Int) { a + 1 };" +
-                        "val two = apply(addOne, 1);",
-                    "two",
-                    2
-                ),
+//                Triple.of("" +
+//                        "func invoke(fn: () => Int) { fn() };" +
+//                        "func returnTwentyFour() { 24 };" +
+//                        "val twentyFour = invoke(returnTwentyFour);",
+//                    "twentyFour",
+//                    24
+//                ),
+//                Triple.of("" +
+//                        "func apply(fn: Int => Int, a: Int) { fn(a) };" +
+//                        "func addOne(a: Int) { a + 1 };" +
+//                        "val two = apply(addOne, 1);",
+//                    "two",
+//                    2
+//                ),
+//                Triple.of("" +
+//                        "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
+//                        "func repeat(num: Int, str: String) { num * str };" +
+//                        "val str = apply(repeat, 5, 'abc');",
+//                    "str",
+//                    "abcabcabcabcabc"
+//                ),
                 Triple.of("" +
                         "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
                         "func repeat(num: Int, str: String) { num * str };" +
-                        "val str = apply(repeat, 5, 'abc');",
-                    "str",
+                        "val str1 = apply(repeat, 5, 'abc');" +
+                        "val str2 = apply(repeat, 4, 'aaa');",
+                    "str1",
                     "abcabcabcabcabc"
                 )
             );

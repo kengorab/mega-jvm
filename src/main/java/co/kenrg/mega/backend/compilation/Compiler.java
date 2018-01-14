@@ -8,9 +8,9 @@ import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpress
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.CallExpressionCompiler.compileInvocation;
-import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
+import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static java.util.stream.Collectors.joining;
@@ -570,10 +570,14 @@ public class Compiler {
         if (binding.bindingType == BindingTypes.METHOD) {
             String lambdaName = "$ref_" + identName;
             String innerClassName = this.className + "$" + lambdaName;
-            this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
-            // TODO: This will only work for static method references at the moment; make this work for non-static method references
-            List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context);
-            this.innerClasses.addAll(generatedClasses);
+            // Don't recreate the inner class twice
+            if (this.innerClasses.stream().noneMatch(innerClass -> innerClass.getLeft().equals(innerClassName))) {
+                this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
+                // TODO: This will only work for static method references at the moment; make this work for non-static method references
+                List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context);
+                this.innerClasses.addAll(generatedClasses);
+            }
+
             this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
             return;
         }
