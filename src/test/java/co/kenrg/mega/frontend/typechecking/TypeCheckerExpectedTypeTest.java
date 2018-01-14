@@ -16,6 +16,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
@@ -82,7 +83,7 @@ class TypeCheckerExpectedTypeTest {
     class LiteralExpressionTests {
 
         @Test
-        public void noExpectedTypePassed_returnsLiteralTypePassed() {
+        void noExpectedTypePassed_returnsLiteralTypePassed() {
             IntegerLiteral intLiteral = new IntegerLiteral(new Token(TokenType.INT, "4"), 4);
             MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, null, intLiteral);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -90,7 +91,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_literalTypeAssignableToExpected_returnsExpected() {
+        void expectedTypePassed_literalTypeAssignableToExpected_returnsExpected() {
             StringLiteral stringLiteral = new StringLiteral(new Token(TokenType.STRING, "abcd"), "abcd");
             MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.STRING, stringLiteral);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -98,7 +99,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_literalTypeNotAssignableToExpected_returnsExpected_hasMismatchError() {
+        void expectedTypePassed_literalTypeNotAssignableToExpected_returnsExpected_hasMismatchError() {
             StringLiteral stringLiteral = new StringLiteral(new Token(TokenType.STRING, "abcd"), "abcd");
             MegaType type = typeChecker.typecheckLiteralExpression(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, stringLiteral);
             assertEquals(
@@ -113,7 +114,7 @@ class TypeCheckerExpectedTypeTest {
     class ArrayLiteralExpressionTests {
 
         @Test
-        public void noExpectedTypePassed_returnsInferredType() {
+        void noExpectedTypePassed_returnsInferredType() {
             ArrayLiteral array = parseExpression("[1, 2, 3]", ArrayLiteral.class);
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, null);
 
@@ -122,7 +123,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_infersTypeByFirstElement_hasMismatchError() {
+        void noExpectedTypePassed_infersTypeByFirstElement_hasMismatchError() {
             ArrayLiteral array = parseExpression("[1, 'str', 3]", ArrayLiteral.class);
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, null);
 
@@ -134,7 +135,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_elementsMatchTypeArg_returnsExpectedType() {
+        void expectedTypePassed_elementsMatchTypeArg_returnsExpectedType() {
             ArrayLiteral array = parseExpression("[1, 2, 3]", ArrayLiteral.class);
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, arrayOf.apply(PrimitiveTypes.INTEGER));
 
@@ -143,7 +144,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_elementsDontMatchTypeArg_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_elementsDontMatchTypeArg_returnsExpectedType_hasMismatchError() {
             ArrayLiteral array = parseExpression("['abc', 2, 3]", ArrayLiteral.class);
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, arrayOf.apply(PrimitiveTypes.INTEGER));
 
@@ -156,10 +157,24 @@ class TypeCheckerExpectedTypeTest {
     }
 
     @Nested
+    class ParenthesizedExpressionTests {
+        // Tests don't need to be exhaustive; typechecking of parenthesized exprs defers to typechecking the inner expr
+        @Test
+        void noExpectedTypePassed_returnsInferredType() {
+            ParenthesizedExpression expr = parseExpression("('abc' * 4)", ParenthesizedExpression.class);
+            MegaType exprType = typeChecker.typecheckParenthesizedExpression(expr, env, null);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(PrimitiveTypes.STRING, exprType);
+            assertEquals(PrimitiveTypes.STRING, expr.expr.getType());
+        }
+    }
+
+    @Nested
     class ObjectLiteralTests {
 
         @Test
-        public void noExpectedTypePassed_returnsInferredType() {
+        void noExpectedTypePassed_returnsInferredType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
             MegaType objectType = typeChecker.typecheckObjectLiteral(object, env, null);
 
@@ -174,7 +189,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_expectedTypeIsStruct_matchesStructOfExpectedType_returnsExpectedType() {
+        void expectedTypePassed_expectedTypeIsStruct_matchesStructOfExpectedType_returnsExpectedType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
             StructType personType = new StructType("Person", ImmutableMap.of(
@@ -189,7 +204,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_expectedTypeIsNotStruct_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_expectedTypeIsNotStruct_returnsExpectedType_hasMismatchError() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
             ArrayType arrayType = arrayOf.apply(PrimitiveTypes.INTEGER);
@@ -214,7 +229,7 @@ class TypeCheckerExpectedTypeTest {
     class IdentifierTests {
 
         @Test
-        public void noExpectedTypePassed_returnsSavedBindingType() {
+        void noExpectedTypePassed_returnsSavedBindingType() {
             Identifier identifier = parseExpression("a", Identifier.class);
             env.addBindingWithType("a", PrimitiveTypes.STRING, true);
             MegaType identType = typeChecker.typecheckIdentifier(identifier, env, null);
@@ -224,7 +239,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_noSavedBindingType_returnsUnknownType() {
+        void noExpectedTypePassed_noSavedBindingType_returnsUnknownType() {
             Identifier identifier = parseExpression("a", Identifier.class);
             MegaType identType = typeChecker.typecheckIdentifier(identifier, env, null);
 
@@ -233,7 +248,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_expectedTypeDoesntMatch_returnsActualType_hasMismatchError() {
+        void expectedTypePassed_expectedTypeDoesntMatch_returnsActualType_hasMismatchError() {
             Identifier identifier = parseExpression("a", Identifier.class);
             env.addBindingWithType("a", PrimitiveTypes.STRING, true);
             MegaType identType = typeChecker.typecheckIdentifier(identifier, env, PrimitiveTypes.INTEGER);
@@ -246,7 +261,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_actualTypeHasInferences_inferredTypeMatchesExpected_returnsExpected() {
+        void expectedTypePassed_actualTypeHasInferences_inferredTypeMatchesExpected_returnsExpected() {
             typeChecker.typecheckValStatement(parseStatement("val identity = a => a", ValStatement.class), env);
 
             Identifier identifier = parseExpression("identity", Identifier.class);
@@ -262,7 +277,7 @@ class TypeCheckerExpectedTypeTest {
     class ArrowFunctionExpressionTests {
 
         @Test
-        public void noExpectedTypePassed_paramsHaveTypeAnnotations_returnsType() {
+        void noExpectedTypePassed_paramsHaveTypeAnnotations_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
@@ -271,7 +286,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_paramsHaveTypeAnnotations_bodyIsBlockExpression_returnsType() {
+        void noExpectedTypePassed_paramsHaveTypeAnnotations_bodyIsBlockExpression_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => { a + b }", ArrowFunctionExpression.class);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
@@ -280,7 +295,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_paramsHaveMissingTypeAnnotations_returnsTypeWithInferences() {
+        void noExpectedTypePassed_paramsHaveMissingTypeAnnotations_returnsTypeWithInferences() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: Int, b) => a + b", ArrowFunctionExpression.class);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
@@ -289,7 +304,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_paramsHaveNoTypeAnnotations_returnsTypeWithInferences() {
+        void noExpectedTypePassed_paramsHaveNoTypeAnnotations_returnsTypeWithInferences() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a + b", ArrowFunctionExpression.class);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
 
@@ -298,7 +313,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_paramsHaveTypeAnnotations_typeMatchesExpected_returnsType() {
+        void expectedTypePassed_paramsHaveTypeAnnotations_typeMatchesExpected_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
@@ -308,7 +323,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeMatchesExpected_returnsResolvedType() {
+        void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeMatchesExpected_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
@@ -318,7 +333,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeDoesntMatchExpected_returnsResolvedType_hasMismatchError() {
+        void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeDoesntMatchExpected_returnsResolvedType_hasMismatchError() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
             FunctionType expectedFuncType = new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, expectedFuncType);
@@ -332,7 +347,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_paramsHaveNoTypeAnnotations_returnsResolvedType() {
+        void expectedTypePassed_paramsHaveNoTypeAnnotations_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
@@ -342,7 +357,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_paramsHaveNoTypeAnnotations_errorTypecheckingBodyWithExpectedParamTypes_returnsResolvedType() {
+        void expectedTypePassed_paramsHaveNoTypeAnnotations_errorTypecheckingBodyWithExpectedParamTypes_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a * b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(PrimitiveTypes.FLOAT, PrimitiveTypes.STRING, PrimitiveTypes.STRING);
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
@@ -369,7 +384,7 @@ class TypeCheckerExpectedTypeTest {
     class PrefixExpressionTests {
 
         @Test
-        public void bangOperator_noExpectedTypePassed_returnsBoolean() {
+        void bangOperator_noExpectedTypePassed_returnsBoolean() {
             PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, null);
 
@@ -378,7 +393,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void bangOperator_expectedTypePassed_expectBoolean_returnsBoolean() {
+        void bangOperator_expectedTypePassed_expectBoolean_returnsBoolean() {
             PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.BOOLEAN);
 
@@ -387,7 +402,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void bangOperator_expectedTypePassed_expectNonBoolean_returnsBoolean_hasMismatchError() {
+        void bangOperator_expectedTypePassed_expectNonBoolean_returnsBoolean_hasMismatchError() {
             PrefixExpression prefixExpr = parseExpression("!true", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, arrayOf.apply(PrimitiveTypes.STRING));
 
@@ -399,7 +414,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void minusOperator_noExpectedTypePassed_returnsInferredType() {
+        void minusOperator_noExpectedTypePassed_returnsInferredType() {
             PrefixExpression prefixExpr = parseExpression("-1.5", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, null);
 
@@ -408,7 +423,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void minusOperator_expectedTypePassed_expectInteger_returnsExpectedType() {
+        void minusOperator_expectedTypePassed_expectInteger_returnsExpectedType() {
             PrefixExpression prefixExpr = parseExpression("-4", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.INTEGER);
 
@@ -417,7 +432,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void minusOperator_expectedTypePassed_expectWrongType_returnsExpectedType_hasMismatchError() {
+        void minusOperator_expectedTypePassed_expectWrongType_returnsExpectedType_hasMismatchError() {
             PrefixExpression prefixExpr = parseExpression("-1.4", PrefixExpression.class);
             MegaType type = typeChecker.typecheckPrefixExpression(prefixExpr, env, PrimitiveTypes.INTEGER);
 
@@ -433,7 +448,7 @@ class TypeCheckerExpectedTypeTest {
     class InfixExpressionTests {
 
         @Test
-        public void noExpectedTypePassed_leftTypeIsUnknown_returnsUnknown() {
+        void noExpectedTypePassed_leftTypeIsUnknown_returnsUnknown() {
             InfixExpression infixExpr = parseExpression("a + 1", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -441,7 +456,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_rightTypeIsUnknown_returnsUnknown() {
+        void noExpectedTypePassed_rightTypeIsUnknown_returnsUnknown() {
             InfixExpression infixExpr = parseExpression("1 + a", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -449,7 +464,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_leftTypeIsNotInferred_returnsUnknown() {
+        void noExpectedTypePassed_leftTypeIsNotInferred_returnsUnknown() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("a => a + 1", ArrowFunctionExpression.class);
             MegaType type = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -458,7 +473,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_rightTypeIsNotInferred_returnsUnknown() {
+        void noExpectedTypePassed_rightTypeIsNotInferred_returnsUnknown() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("a => 1 + a", ArrowFunctionExpression.class);
             MegaType type = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -468,7 +483,7 @@ class TypeCheckerExpectedTypeTest {
 
         @Test
         @Disabled("Having unknown operators is currently unsupported at the parser level")
-        public void noExpectedTypePassed_unknownOperator_returnsUnknown_hasUnknownOperatorError() {
+        void noExpectedTypePassed_unknownOperator_returnsUnknown_hasUnknownOperatorError() {
             InfixExpression infixExpr = parseExpression("1 & 4", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
@@ -479,7 +494,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_incorrectTypesForOperator_operatorIsNonBoolean_returnsUnknown_hasIllegalOperatorError() {
+        void noExpectedTypePassed_incorrectTypesForOperator_operatorIsNonBoolean_returnsUnknown_hasIllegalOperatorError() {
             InfixExpression infixExpr = parseExpression("3.4 * 'abc'", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
@@ -490,7 +505,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_incorrectTypesForOperator_operatorNonBoolean_returnsBoolean_hasIllegalOperatorError() {
+        void noExpectedTypePassed_incorrectTypesForOperator_operatorNonBoolean_returnsBoolean_hasIllegalOperatorError() {
             InfixExpression infixExpr = parseExpression("'abc' <= 'def'", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(
@@ -501,7 +516,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_returnsOperatorResultType() {
+        void noExpectedTypePassed_returnsOperatorResultType() {
             InfixExpression infixExpr = parseExpression("1 + 5.2", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -509,7 +524,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_resultTypeDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_resultTypeDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
             InfixExpression infixExpr = parseExpression("1 + 5.2", InfixExpression.class);
             MegaType type = typeChecker.typecheckInfixExpression(infixExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
@@ -524,7 +539,7 @@ class TypeCheckerExpectedTypeTest {
     class IfExpressionTests {
 
         @Test
-        public void noExpectedTypePassed_conditionIsNotBoolean_returnsInferredType_hasMismatchError() {
+        void noExpectedTypePassed_conditionIsNotBoolean_returnsInferredType_hasMismatchError() {
             IfExpression ifExpr = parseExpression("if 123 { 'abc' } else { 'def' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(
@@ -535,7 +550,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_noElse_returnsUnitType() {
+        void noExpectedTypePassed_noElse_returnsUnitType() {
             IfExpression ifExpr = parseExpression("if true { 'abc' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -543,7 +558,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_elseTypeMatchesThen_returnsInferredType() {
+        void noExpectedTypePassed_elseTypeMatchesThen_returnsInferredType() {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 'def' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -551,7 +566,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedTypePassed_elseTypeDoesntMatchThen_returnsThenType_hasMismatchError() {
+        void noExpectedTypePassed_elseTypeDoesntMatchThen_returnsThenType_hasMismatchError() {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, null);
             assertEquals(
@@ -562,7 +577,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_noElse_expectedIsNotUnit_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_noElse_expectedIsNotUnit_returnsExpectedType_hasMismatchError() {
             IfExpression ifExpr = parseExpression("if true { 'abc' }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
             assertEquals(
@@ -573,7 +588,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_elseDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_elseDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.STRING);
             assertEquals(
@@ -586,7 +601,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_thenDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
+        void expectedTypePassed_thenDoesntMatchExpected_returnsExpectedType_hasMismatchError() {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
@@ -599,7 +614,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedTypePassed_neitherThenNorElseMatchExpected_returnsExpectedType_has2MismatchErrors() {
+        void expectedTypePassed_neitherThenNorElseMatchExpected_returnsExpectedType_has2MismatchErrors() {
             IfExpression ifExpr = parseExpression("if true { 'abc' } else { 123 }", IfExpression.class);
             MegaType type = typeChecker.typecheckIfExpression(ifExpr, env, arrayOf.apply(PrimitiveTypes.FLOAT));
             assertEquals(
@@ -617,7 +632,7 @@ class TypeCheckerExpectedTypeTest {
     class CallExpressionTests {
 
         @Test
-        public void noExpectedType_targetIsNotAFunction_returnsUnknown_hasUninvokeableTypeError() {
+        void noExpectedType_targetIsNotAFunction_returnsUnknown_hasUninvokeableTypeError() {
             CallExpression callExpr = parseExpression("[1, 2](4)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
@@ -628,7 +643,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_moreParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
+        void noExpectedType_moreParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
             CallExpression callExpr = parseExpression("((a: Int) => a)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
@@ -639,7 +654,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_fewerParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
+        void noExpectedType_fewerParamsThanFunctionArgs_returnsReturnType_hasFunctionArityError() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
@@ -650,7 +665,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_paramTypesDontMatch_returnsReturnType_hasFunctionTypeError() {
+        void noExpectedType_paramTypesDontMatch_returnsReturnType_hasFunctionTypeError() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 'a')", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(
@@ -661,7 +676,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
+        void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeMatchesParamType_returnsReturnType() {
             ValStatement valStmt = parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class);
             typeChecker.typecheckValStatement(valStmt, env);
 
@@ -672,7 +687,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeDoesntMatchParamType_returnsReturnType_hasMismatchError() {
+        void noExpectedType_arrowFunctionPassedThatRequireInference_inferredTypeDoesntMatchParamType_returnsReturnType_hasMismatchError() {
             ValStatement valStmt = parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class);
             typeChecker.typecheckValStatement(valStmt, env);
 
@@ -690,7 +705,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_identifierPassedThatRequiresInference_inferredTypeMatchesParamType_returnsReturnType() {
+        void noExpectedType_identifierPassedThatRequiresInference_inferredTypeMatchesParamType_returnsReturnType() {
             typeChecker.typecheckValStatement(parseStatement("val call = (fn: Int => Int, a: Int) => fn(a)", ValStatement.class), env);
             typeChecker.typecheckValStatement(parseStatement("val identity = a => a", ValStatement.class), env);
 
@@ -701,7 +716,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_targetRequiresInference_targetTypeMatchesInference_returnsReturnType() {
+        void noExpectedType_targetRequiresInference_targetTypeMatchesInference_returnsReturnType() {
             CallExpression callExpr = parseExpression("(a => a)(4)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -709,7 +724,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_targetRequiresInference_targetTypeDoesntMatchInference_returnsUnknown() {
+        void noExpectedType_targetRequiresInference_targetTypeDoesntMatchInference_returnsUnknown() {
             typeChecker.typecheckValStatement(parseStatement("val halve = a => a / 2", ValStatement.class), env);
 
             CallExpression callExpr = parseExpression("halve('asdf')", CallExpression.class);
@@ -722,7 +737,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_returnsReturnType() {
+        void noExpectedType_returnsReturnType() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, null);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -730,7 +745,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_expectedTypeDoesntMatchReturnType_returnsExpected_hasMismatchError() {
+        void expectedType_expectedTypeDoesntMatchReturnType_returnsExpected_hasMismatchError() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.STRING);
             assertEquals(
@@ -741,7 +756,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_expectedTypeMatchesReturnType_returnsExpected() {
+        void expectedType_expectedTypeMatchesReturnType_returnsExpected() {
             CallExpression callExpr = parseExpression("((a: Int, b: Int) => a + b)(1, 2)", CallExpression.class);
             MegaType type = typeChecker.typecheckCallExpression(callExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -753,7 +768,7 @@ class TypeCheckerExpectedTypeTest {
     class IndexExpressionTests {
 
         @Test
-        public void noExpectedType_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
+        void noExpectedType_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
             IndexExpression indexExpr = parseExpression("'asdf'[0]", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
             assertEquals(
@@ -764,7 +779,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_targetIsIdent_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
+        void noExpectedType_targetIsIdent_targetIsNotArray_returnsUnknownType_hasUnindexableTypeError() {
             IndexExpression indexExpr = parseExpression("arr[0]", IndexExpression.class);
             env.addBindingWithType("arr", PrimitiveTypes.STRING, true);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
@@ -776,7 +791,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_indexIsNotInteger_returnsArrayTypeArg_hasMismatchError() {
+        void noExpectedType_indexIsNotInteger_returnsArrayTypeArg_hasMismatchError() {
             IndexExpression indexExpr = parseExpression("[1, 2]['ab']", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, null);
             assertEquals(
@@ -787,7 +802,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_arrayTypeArgDoesntMatchExpected_returnsExpected_hasMismatchError() {
+        void expectedType_arrayTypeArgDoesntMatchExpected_returnsExpected_hasMismatchError() {
             IndexExpression indexExpr = parseExpression("[1, 2][1]", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
             assertEquals(
@@ -798,7 +813,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_arrayTypeArgMatchesExpected_returnsExpected() {
+        void expectedType_arrayTypeArgMatchesExpected_returnsExpected() {
             IndexExpression indexExpr = parseExpression("['abc', 'def'][1]", IndexExpression.class);
             MegaType type = typeChecker.typecheckIndexExpression(indexExpr, env, PrimitiveTypes.STRING);
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
@@ -810,7 +825,7 @@ class TypeCheckerExpectedTypeTest {
     class AssignmentExpressionTests {
 
         @Test
-        public void noExpectedType_assignmentTypeDoesntMatchAssigneeType_returnsUnit_hasMismatchError() {
+        void noExpectedType_assignmentTypeDoesntMatchAssigneeType_returnsUnit_hasMismatchError() {
             AssignmentExpression assignmentExpr = parseExpression("a = 4", AssignmentExpression.class);
             env.addBindingWithType("a", PrimitiveTypes.STRING, false);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
@@ -822,7 +837,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_assigneeDoesntExist_returnsUnit_hasUnknownIdentifierError() {
+        void noExpectedType_assigneeDoesntExist_returnsUnit_hasUnknownIdentifierError() {
             AssignmentExpression assignmentExpr = parseExpression("a = 4 + 4.3", AssignmentExpression.class);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
             assertEquals(
@@ -833,7 +848,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_assigneeIsImmutable_returnsUnit_hasMutabilityError() {
+        void noExpectedType_assigneeIsImmutable_returnsUnit_hasMutabilityError() {
             AssignmentExpression assignmentExpr = parseExpression("a = 'abcd' + 'bcd'", AssignmentExpression.class);
             env.addBindingWithType("a", PrimitiveTypes.STRING, true);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, null);
@@ -845,7 +860,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_expectedTypeIsNotUnit_returnsUnit_hasMismatchError() {
+        void expectedType_expectedTypeIsNotUnit_returnsUnit_hasMismatchError() {
             AssignmentExpression assignmentExpr = parseExpression("a = 4", AssignmentExpression.class);
             MegaType type = typeChecker.typecheckAssignmentExpression(assignmentExpr, env, PrimitiveTypes.INTEGER);
             assertEquals(
@@ -860,7 +875,7 @@ class TypeCheckerExpectedTypeTest {
     class RangeExpressionTests {
 
         @Test
-        public void noExpectedType_leftBoundIsNotInteger_returnsIntArray_hasMismatchError() {
+        void noExpectedType_leftBoundIsNotInteger_returnsIntArray_hasMismatchError() {
             RangeExpression rangeExpression = parseExpression("'a'..4", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
             assertEquals(
@@ -871,7 +886,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void noExpectedType_rightBoundIsNotInteger_returnsIntArray_hasMismatchError() {
+        void noExpectedType_rightBoundIsNotInteger_returnsIntArray_hasMismatchError() {
             RangeExpression rangeExpression = parseExpression("1..1.3", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, null);
             assertEquals(
@@ -882,7 +897,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_expectedTypeIsNotIntArray_returnsExpectedType_hasMismatchError() {
+        void expectedType_expectedTypeIsNotIntArray_returnsExpectedType_hasMismatchError() {
             RangeExpression rangeExpression = parseExpression("1..3", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.FLOAT));
             assertEquals(
@@ -893,7 +908,7 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        public void expectedType_expectedTypeIsIntArray_returnsExpectedType() {
+        void expectedType_expectedTypeIsIntArray_returnsExpectedType() {
             RangeExpression rangeExpression = parseExpression("1..3", RangeExpression.class);
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.INTEGER));
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");

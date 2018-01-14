@@ -143,7 +143,6 @@ public class TypeChecker {
             return this.typecheckObjectLiteral((ObjectLiteral) node, env, expectedType);
         } else if (node instanceof ParenthesizedExpression) {
             return this.typecheckParenthesizedExpression((ParenthesizedExpression) node, env, expectedType);
-//            return this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType);
         } else if (node instanceof PrefixExpression) {
             return this.typecheckPrefixExpression((PrefixExpression) node, env, expectedType);
         } else if (node instanceof InfixExpression) {
@@ -169,7 +168,7 @@ public class TypeChecker {
         return PrimitiveTypes.UNIT;
     }
 
-    private MegaType resolveType(Node typeTarget, TypeExpression typeExpr, TypeEnvironment typeEnvironment) {
+    private MegaType resolveType(TypeExpression typeExpr, TypeEnvironment typeEnvironment) {
         if (typeExpr instanceof BasicTypeExpression) {
             MegaType type = typeEnvironment.getTypeByName(((BasicTypeExpression) typeExpr).type);
             if (type == null) {
@@ -193,7 +192,7 @@ public class TypeChecker {
 
             List<TypeExpression> typeArgs = ((ParametrizedTypeExpression) typeExpr).typeArgs;
             List<MegaType> argTypes = typeArgs.stream()
-                .map(typeArg -> resolveType(typeTarget, typeArg, typeEnvironment))
+                .map(typeArg -> resolveType(typeArg, typeEnvironment))
                 .collect(toList());
 
             int expectedNumTypeArgs = baseType.numTypeArgs();
@@ -215,9 +214,9 @@ public class TypeChecker {
         if (typeExpr instanceof FunctionTypeExpression) {
             FunctionTypeExpression funcTypeExpr = (FunctionTypeExpression) typeExpr;
             List<MegaType> paramTypes = funcTypeExpr.paramTypes.stream()
-                .map(paramType -> resolveType(typeTarget, paramType, typeEnvironment))
+                .map(paramType -> resolveType(paramType, typeEnvironment))
                 .collect(toList());
-            MegaType returnType = resolveType(typeTarget, funcTypeExpr.returnType, typeEnvironment);
+            MegaType returnType = resolveType(funcTypeExpr.returnType, typeEnvironment);
             return new FunctionType(paramTypes, returnType);
         }
 
@@ -225,7 +224,7 @@ public class TypeChecker {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
             Map<String, MegaType> propTypes = structTypeExpr.propTypes.entrySet().stream().collect(toMap(
                 Entry::getKey,
-                entry -> resolveType(typeTarget, entry.getValue(), typeEnvironment)
+                entry -> resolveType(entry.getValue(), typeEnvironment)
             ));
             return new ObjectType(propTypes);
         }
@@ -260,7 +259,7 @@ public class TypeChecker {
     private void typecheckBindingStatement(Identifier name, Expression value, boolean isImmutable, TypeEnvironment env) {
         MegaType expectedType = null;
         if (name.typeAnnotation != null) {
-            expectedType = this.resolveType(name, name.typeAnnotation, env);
+            expectedType = this.resolveType(name.typeAnnotation, env);
         }
 
         MegaType type = this.typecheckNode(value, env, expectedType);
@@ -285,7 +284,7 @@ public class TypeChecker {
                     }
                 });
             } else {
-                MegaType type = this.resolveType(statement, parameter.typeAnnotation, env);
+                MegaType type = this.resolveType(parameter.typeAnnotation, env);
                 paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
                 parameter.setType(type);
@@ -330,7 +329,7 @@ public class TypeChecker {
 
     private void typecheckTypeDeclarationStatement(TypeDeclarationStatement statement, TypeEnvironment env) {
         String typeName = statement.typeName.value;
-        MegaType type = resolveType(statement, statement.typeExpr, env);
+        MegaType type = resolveType(statement.typeExpr, env);
         if (type instanceof ObjectType) {
             type = new StructType(typeName, ((ObjectType) type).properties);
         }
@@ -403,7 +402,6 @@ public class TypeChecker {
         return arrayType;
     }
 
-    // TODO: Add tests for this
     @VisibleForTesting
     MegaType typecheckParenthesizedExpression(ParenthesizedExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType type = this.typecheckNode(expr.expr, env, expectedType);
@@ -611,7 +609,7 @@ public class TypeChecker {
                     paramType = notInferredType;
                 }
             } else {
-                paramType = this.resolveType(parameter, parameter.typeAnnotation, env);
+                paramType = this.resolveType(parameter.typeAnnotation, env);
             }
             paramTypes.add(paramType);
             childEnv.addBindingWithType(parameter.value, paramType, true);

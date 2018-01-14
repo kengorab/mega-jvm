@@ -52,7 +52,7 @@ class TypeCheckerTest {
     private final Function<MegaType, ArrayType> arrayOf = ArrayType::new;
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIntegerLiteral() {
+    List<DynamicTest> testTypecheckIntegerLiteral() {
         List<String> testCases = Lists.newArrayList(
             "5",
             "10."
@@ -70,7 +70,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckFloatLiteral() {
+    List<DynamicTest> testTypecheckFloatLiteral() {
         List<String> testCases = Lists.newArrayList(
             "5.0",
             "1.03",
@@ -89,7 +89,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckBooleanLiteral() {
+    List<DynamicTest> testTypecheckBooleanLiteral() {
         List<String> testCases = Lists.newArrayList(
             "true", "false"
         );
@@ -106,7 +106,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckStringLiteral() {
+    List<DynamicTest> testTypecheckStringLiteral() {
         List<String> testCases = Lists.newArrayList(
             "\"hello\"",
             "\"hello \\u1215!\"",
@@ -125,7 +125,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckBindingDeclarationStatements_valAndVar() {
+    List<DynamicTest> testTypecheckBindingDeclarationStatements_valAndVar() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("val s = \"asdf\"", "s", PrimitiveTypes.STRING),
             Triple.of("val s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
@@ -168,7 +168,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType() {
+    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType() {
         StructType personType = new StructType("Person", ImmutableMap.of("name", PrimitiveTypes.STRING, "age", PrimitiveTypes.INTEGER));
         StructType teamType = new StructType("Team", ImmutableMap.of("manager", personType, "members", arrayOf.apply(personType)));
 
@@ -202,7 +202,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
+    List<DynamicTest> testTypecheckBindingDeclarationStatements_errors() {
         List<Triple<String, Pair<MegaType, MegaType>, Position>> testCases = Lists.newArrayList(
             Triple.of("val s: String = 123", Pair.of(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER), Position.at(1, 17)),
             Triple.of("val i: Int = \"asdf\"", Pair.of(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), Position.at(1, 14)),
@@ -237,7 +237,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
+    List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
@@ -265,7 +265,7 @@ class TypeCheckerTest {
     }
 
     @Test
-    public void testTypecheckFunctionDeclarationStatement_declaredReturnTypeMismatch() {
+    void testTypecheckFunctionDeclarationStatement_declaredReturnTypeMismatch() {
         String input = "func doSomething(a: Int): Int { a + '!' }";
         TypeEnvironment env = new TypeEnvironment();
         TypeCheckResult result = testTypecheckStatementAndGetResult(input, env);
@@ -279,7 +279,7 @@ class TypeCheckerTest {
     }
 
     @Test
-    public void testTypecheckForLoopStatement() {
+    void testTypecheckForLoopStatement() {
         String input = "for x in arr { val a: Int = x }";
 
         TypeEnvironment env = new TypeEnvironment();
@@ -291,7 +291,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckForLoopStatement_errors() {
+    List<DynamicTest> testTypecheckForLoopStatement_errors() {
         List<Triple<String, MegaType, MegaType>> testCases = Lists.newArrayList(
             Triple.of("for x in 123 { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.INTEGER),
             Triple.of("for x in \"asdf\" { }", arrayOf.apply(PrimitiveTypes.ANY), PrimitiveTypes.STRING),
@@ -321,7 +321,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckTypeDeclarationStatement() {
+    List<DynamicTest> testTypecheckTypeDeclarationStatement() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("type Id = Int", "Id", PrimitiveTypes.INTEGER),
             Triple.of("type Name = String", "Name", PrimitiveTypes.STRING),
@@ -353,14 +353,14 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckTypeDeclarationStatement_errors() {
+    List<DynamicTest> testTypecheckTypeDeclarationStatement_errors() {
         class TestCase {
             public final String input;
-            public final TypeCheckerError typeError;
-            public final MegaType savedType;
-            public final Map<String, MegaType> environment;
+            private final TypeCheckerError typeError;
+            private final MegaType savedType;
+            private final Map<String, MegaType> environment;
 
-            public TestCase(String input, TypeCheckerError typeError, MegaType savedType, Map<String, MegaType> environment) {
+            private TestCase(String input, TypeCheckerError typeError, MegaType savedType, Map<String, MegaType> environment) {
                 this.input = input;
                 this.typeError = typeError;
                 this.savedType = savedType;
@@ -426,22 +426,22 @@ class TypeCheckerTest {
     }
 
     @Test
-    public void testTypecheckEmptyArray_arrayOfNothing() {
+    void testTypecheckEmptyArray_arrayOfNothing() {
         ParametrizedMegaType type = (ParametrizedMegaType) testTypecheckExpression("[]");
         assertEquals("Array[Nothing]", type.signature());
         assertEquals(Lists.newArrayList(PrimitiveTypes.NOTHING), type.typeArgs());
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckArrayWithTypeMismatches_errors() {
+    List<DynamicTest> testTypecheckArrayWithTypeMismatches_errors() {
         class TestCase {
             public final String input;
-            public final MegaType arrayType;
-            public final MegaType elementType;
-            public final MegaType erroneousType;
-            public final Position errorPos;
+            private final MegaType arrayType;
+            private final MegaType elementType;
+            private final MegaType erroneousType;
+            private final Position errorPos;
 
-            public TestCase(String input, MegaType arrayType, MegaType elementType, MegaType erroneousType, Position errorPos) {
+            private TestCase(String input, MegaType arrayType, MegaType elementType, MegaType erroneousType, Position errorPos) {
                 this.input = input;
                 this.arrayType = arrayType;
                 this.elementType = elementType;
@@ -482,7 +482,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckArray_differentTypes() {
+    List<DynamicTest> testTypecheckArray_differentTypes() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("[1, 2, 3]", PrimitiveTypes.INTEGER),
             Pair.of("[1.2, 2.2, 3.2]", PrimitiveTypes.FLOAT),
@@ -510,7 +510,31 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckObjectLiteral() {
+    List<DynamicTest> testTypecheckParenthesizedExpression() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("(1)", PrimitiveTypes.INTEGER),
+            Pair.of("(1 + 1)", PrimitiveTypes.INTEGER),
+            Pair.of("('abc' * 3)", PrimitiveTypes.STRING),
+            Pair.of("((i: Int) => i + 1)", new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER)),
+            Pair.of("([true, false])", arrayOf.apply(PrimitiveTypes.BOOLEAN))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck inner expr and set the appropriate types", input);
+                return dynamicTest(name, () -> {
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckObjectLiteral() {
         List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
             Pair.of("{ }", ImmutableMap.of()),
 
@@ -557,7 +581,7 @@ class TypeCheckerTest {
     }
 
     @Test
-    public void testTypecheckObjectLiteral_nestedObjects() {
+    void testTypecheckObjectLiteral_nestedObjects() {
         String input = "" +
             "{\n" +
             "  a: { a1: \"asdf\", a2: false },\n" +
@@ -575,7 +599,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckPrefixOperator() {
+    List<DynamicTest> testTypecheckPrefixOperator() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("!1", PrimitiveTypes.BOOLEAN),
             Pair.of("!1.3", PrimitiveTypes.BOOLEAN),
@@ -604,7 +628,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckPrefixOperator_dash_errors() {
+    List<DynamicTest> testTypecheckPrefixOperator_dash_errors() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("-\"asdf\"", PrimitiveTypes.STRING),
             Pair.of("-true", PrimitiveTypes.BOOLEAN),
@@ -633,7 +657,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckInfixOperator() {
+    List<DynamicTest> testTypecheckInfixOperator() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             // Boolean and/or
             Pair.of("true && false", PrimitiveTypes.BOOLEAN),
@@ -704,13 +728,13 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckInfixOperator_errors() {
+    List<DynamicTest> testTypecheckInfixOperator_errors() {
         class TestCase {
             public final String input;
-            public final TypeCheckerError error;
-            public final MegaType overallType;
+            private final TypeCheckerError error;
+            private final MegaType overallType;
 
-            public TestCase(String input, TypeCheckerError error, MegaType overallType) {
+            private TestCase(String input, TypeCheckerError error, MegaType overallType) {
                 this.input = input;
                 this.error = error;
                 this.overallType = overallType;
@@ -789,7 +813,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIfExpression() {
+    List<DynamicTest> testTypecheckIfExpression() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             // When given no else-block, if-expr is typed to Unit
             Pair.of("if true { 1 + 2 }", PrimitiveTypes.UNIT),
@@ -816,15 +840,15 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIfExpression_errors() {
+    List<DynamicTest> testTypecheckIfExpression_errors() {
         class TestCase {
             public final String input;
-            public final MegaType expected;
-            public final MegaType actual;
-            public final MegaType overallType;
-            public final Position errorPos;
+            private final MegaType expected;
+            private final MegaType actual;
+            private final MegaType overallType;
+            private final Position errorPos;
 
-            public TestCase(String input, MegaType expected, MegaType actual, MegaType overallType, Position errorPos) {
+            private TestCase(String input, MegaType expected, MegaType actual, MegaType overallType, Position errorPos) {
                 this.input = input;
                 this.expected = expected;
                 this.actual = actual;
@@ -857,7 +881,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIdentifier() {
+    List<DynamicTest> testTypecheckIdentifier() {
         List<Triple<String, Map<String, MegaType>, MegaType>> testCases = Lists.newArrayList(
             Triple.of("a", ImmutableMap.of("a", PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
             Triple.of("-a", ImmutableMap.of("a", PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
@@ -883,7 +907,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckArrowFunction() {
+    List<DynamicTest> testTypecheckArrowFunction() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("(a: Int) => a + 1", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Pair.of("(a: Int, b: String) => a + b", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), PrimitiveTypes.STRING)),
@@ -905,7 +929,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation() {
+    List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("((a: Int) => a + 1)(1)", PrimitiveTypes.INTEGER),
             Pair.of("((s: String, a: Int) => a + s)(\"asdf\", 1)", PrimitiveTypes.STRING),
@@ -933,7 +957,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckCallExpression_errors() {
+    List<DynamicTest> testTypecheckCallExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
             // Uninvokeable type errors
             Triple.of("[1, 2, 3](1.3)", new UninvokeableTypeError(arrayOf.apply(PrimitiveTypes.INTEGER), Position.at(1, 1)), TypeChecker.unknownType),
@@ -974,7 +998,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIndexExpression() {
+    List<DynamicTest> testTypecheckIndexExpression() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("[1, 2, 3][0]", PrimitiveTypes.INTEGER),
             Pair.of("[1.2, 2.3, 3.4][1]", PrimitiveTypes.FLOAT),
@@ -998,7 +1022,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckIndexExpression_errors() {
+    List<DynamicTest> testTypecheckIndexExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
             Triple.of("[1, 2, 3][1.3]", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.FLOAT, Position.at(1, 11)), PrimitiveTypes.INTEGER),
             Triple.of("[1, 2, 3]['a']", new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 11)), PrimitiveTypes.INTEGER),
@@ -1021,7 +1045,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckAssignmentExpression() {
+    List<DynamicTest> testTypecheckAssignmentExpression() {
         List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
             Pair.of("a = 1", ImmutableMap.of("a", PrimitiveTypes.INTEGER)),
             Pair.of("a = 1.3", ImmutableMap.of("a", PrimitiveTypes.FLOAT)),
@@ -1048,7 +1072,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckAssignmentExpression_errors() {
+    List<DynamicTest> testTypecheckAssignmentExpression_errors() {
         List<Triple<String, Map<String, Pair<MegaType, Boolean>>, TypeCheckerError>> testCases = Lists.newArrayList(
             Triple.of(
                 "a = 'hello'",
@@ -1084,7 +1108,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckRangeExpression() {
+    List<DynamicTest> testTypecheckRangeExpression() {
         List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
             Pair.of("1..3", ImmutableMap.of()),
             Pair.of("-1..3", ImmutableMap.of()),
@@ -1109,7 +1133,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypecheckRangeExpression_errors() {
+    List<DynamicTest> testTypecheckRangeExpression_errors() {
         List<Triple<String, Map<String, MegaType>, TypeCheckerError>> testCases = Lists.newArrayList(
             Triple.of(
                 "'a'..'z'",
