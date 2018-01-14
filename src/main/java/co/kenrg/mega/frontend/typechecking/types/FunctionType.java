@@ -7,9 +7,11 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import mega.lang.functions.Function0;
 import mega.lang.functions.Function1;
@@ -43,6 +45,10 @@ public class FunctionType extends MegaType {
 
     public int arity() {
         return this.paramTypes.size();
+    }
+
+    public List<Entry<String, Binding>> getCapturedBindings() {
+        return Lists.newArrayList(this.capturedBindings.entrySet());
     }
 
     @Override

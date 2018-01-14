@@ -4,6 +4,8 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.compileArrowFunction;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.compileArrowFunctionWithClosure;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.getInitMethodDesc;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
@@ -54,12 +56,14 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
+import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V1_6;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.Scope.Binding;
@@ -567,6 +571,10 @@ public class Compiler {
         MegaType type = binding.type;
         assert type != null; // Should be filled in by the typechecking pass
 
+        loadIdentifier(identName, binding);
+    }
+
+    private void loadIdentifier(String identName, Binding binding) {
         if (binding.bindingType == BindingTypes.METHOD) {
             String lambdaName = "$ref_" + identName;
             String innerClassName = this.className + "$" + lambdaName;
@@ -581,6 +589,8 @@ public class Compiler {
             this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
             return;
         }
+
+        MegaType type = binding.type;
 
         if (binding.bindingType == BindingTypes.STATIC) {
             this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, this.className, identName, jvmDescriptor(type, false));
@@ -639,10 +649,36 @@ public class Compiler {
 
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
-        List<Pair<String, byte[]>> generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+
+        FunctionType fnType = (FunctionType) node.getType();
+        assert fnType != null; // Should be populated by typechecking pass
+
+        List<Entry<String, TypeEnvironment.Binding>> capturedBindings = fnType.getCapturedBindings();
+        boolean closesOverBindings = !capturedBindings.isEmpty();
+
+        List<Pair<String, byte[]>> generatedClasses;
+        if (closesOverBindings) {
+            generatedClasses = compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+        } else {
+            generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+        }
         innerClasses.addAll(generatedClasses);
 
-        this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+        if (closesOverBindings) {
+            this.scope.focusedMethod.writer.visitTypeInsn(NEW, innerClassName);
+            this.scope.focusedMethod.writer.visitInsn(DUP);
+
+            for (Entry<String, TypeEnvironment.Binding> capturedBinding : capturedBindings) {
+                Binding binding = this.scope.getBinding(capturedBinding.getKey());
+                assert binding != null; // If binding is not present, there's a bigger problem
+                loadIdentifier(capturedBinding.getKey(), binding);
+
+                String initMethodDesc = getInitMethodDesc(capturedBindings);
+                this.scope.focusedMethod.writer.visitMethodInsn(INVOKESPECIAL, innerClassName, "<init>", initMethodDesc, false);
+            }
+        } else {
+            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+        }
     }
 
     private void compileCallExpression(CallExpression node) {

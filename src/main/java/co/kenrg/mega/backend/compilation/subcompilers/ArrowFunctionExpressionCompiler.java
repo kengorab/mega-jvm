@@ -149,7 +149,9 @@ public class ArrowFunctionExpressionCompiler {
         for (Identifier parameter : node.parameters) {
             compiler.scope.addBinding(parameter.value, parameter.getType(), BindingTypes.LOCAL, false);
         }
+
         compiler.compileNode(node.body);
+
         if (arrowFnType.returnType == PrimitiveTypes.INTEGER) {
             invokeMethodWriter.visitInsn(IRETURN);
         } else if (arrowFnType.returnType == PrimitiveTypes.BOOLEAN) {
