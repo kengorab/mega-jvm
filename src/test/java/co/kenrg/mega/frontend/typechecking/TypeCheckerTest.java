@@ -169,8 +169,14 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType() {
-        StructType personType = new StructType("Person", ImmutableMap.of("name", PrimitiveTypes.STRING, "age", PrimitiveTypes.INTEGER));
-        StructType teamType = new StructType("Team", ImmutableMap.of("manager", personType, "members", arrayOf.apply(personType)));
+        StructType personType = new StructType("Person", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("age", PrimitiveTypes.INTEGER)
+        ));
+        StructType teamType = new StructType("Team", Lists.newArrayList(
+            Pair.of("manager", personType),
+            Pair.of("members", arrayOf.apply(personType))
+        ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("val p: Person = { name: 'Ken', age: 25 }", personType),
@@ -330,7 +336,10 @@ class TypeCheckerTest {
             Triple.of("type UnaryOp = Int => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", ImmutableMap.of("name", PrimitiveTypes.STRING, "age", PrimitiveTypes.INTEGER)))
+            Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", Lists.newArrayList(
+                Pair.of("name", PrimitiveTypes.STRING),
+                Pair.of("age", PrimitiveTypes.INTEGER)
+            )))
         );
 
         return testCases.stream()
@@ -395,7 +404,10 @@ class TypeCheckerTest {
             new TestCase(
                 "type MyType = { name: String, someField: BogusType }",
                 new UnknownTypeError("BogusType", Position.at(1, 42)),
-                new StructType("MyType", ImmutableMap.of("name", PrimitiveTypes.STRING, "someField", TypeChecker.unknownType)),
+                new StructType("MyType", Lists.newArrayList(
+                    Pair.of("name", PrimitiveTypes.STRING),
+                    Pair.of("someField", TypeChecker.unknownType)
+                )),
                 ImmutableMap.of()
             ),
 
@@ -535,41 +547,41 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckObjectLiteral() {
-        List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
-            Pair.of("{ }", ImmutableMap.of()),
+        List<Pair<String, List<Pair<String, MegaType>>>> testCases = Lists.newArrayList(
+            Pair.of("{ }", Lists.newArrayList()),
 
-            Pair.of("{ a: 1 }", ImmutableMap.of("a", PrimitiveTypes.INTEGER)),
-            Pair.of("{ a: 1.2 }", ImmutableMap.of("a", PrimitiveTypes.FLOAT)),
-            Pair.of("{ a: true }", ImmutableMap.of("a", PrimitiveTypes.BOOLEAN)),
-            Pair.of("{ a: \"a\" }", ImmutableMap.of("a", PrimitiveTypes.STRING)),
+            Pair.of("{ a: 1 }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.INTEGER))),
+            Pair.of("{ a: 1.2 }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.FLOAT))),
+            Pair.of("{ a: true }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.BOOLEAN))),
+            Pair.of("{ a: \"a\" }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.STRING))),
 
-            Pair.of("{ a: [1] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.INTEGER))),
-            Pair.of("{ a: [1.2] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.FLOAT))),
-            Pair.of("{ a: [true] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.BOOLEAN))),
-            Pair.of("{ a: [\"a\"] }", ImmutableMap.of("a", arrayOf.apply(PrimitiveTypes.STRING))),
+            Pair.of("{ a: [1] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.INTEGER)))),
+            Pair.of("{ a: [1.2] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.FLOAT)))),
+            Pair.of("{ a: [true] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.BOOLEAN)))),
+            Pair.of("{ a: [\"a\"] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.STRING)))),
 
-            Pair.of("{ a: 1, b: 2 }", ImmutableMap.of(
-                "a", PrimitiveTypes.INTEGER,
-                "b", PrimitiveTypes.INTEGER
+            Pair.of("{ a: 1, b: 2 }", Lists.newArrayList(
+                Pair.of("a", PrimitiveTypes.INTEGER),
+                Pair.of("b", PrimitiveTypes.INTEGER)
             )),
-            Pair.of("{ a: 1, b: 2.2 }", ImmutableMap.of(
-                "a", PrimitiveTypes.INTEGER,
-                "b", PrimitiveTypes.FLOAT
+            Pair.of("{ a: 1, b: 2.2 }", Lists.newArrayList(
+                Pair.of("a", PrimitiveTypes.INTEGER),
+                Pair.of("b", PrimitiveTypes.FLOAT)
             )),
-            Pair.of("{ a: \"asdf\", b: 2.2 }", ImmutableMap.of(
-                "a", PrimitiveTypes.STRING,
-                "b", PrimitiveTypes.FLOAT
+            Pair.of("{ a: \"asdf\", b: 2.2 }", Lists.newArrayList(
+                Pair.of("a", PrimitiveTypes.STRING),
+                Pair.of("b", PrimitiveTypes.FLOAT)
             )),
-            Pair.of("{ a: true, b: [2.2] }", ImmutableMap.of(
-                "a", PrimitiveTypes.BOOLEAN,
-                "b", arrayOf.apply(PrimitiveTypes.FLOAT)
+            Pair.of("{ a: true, b: [2.2] }", Lists.newArrayList(
+                Pair.of("a", PrimitiveTypes.BOOLEAN),
+                Pair.of("b", arrayOf.apply(PrimitiveTypes.FLOAT))
             ))
         );
 
         return testCases.stream()
             .map(testCase -> {
                 String input = testCase.getLeft();
-                Map<String, MegaType> objProps = testCase.getRight();
+                List<Pair<String, MegaType>> objProps = testCase.getRight();
 
                 String name = String.format("'%s' should typecheck to an Object with appropriate props", input);
                 return dynamicTest(name, () -> {
@@ -588,12 +600,12 @@ class TypeCheckerTest {
             "  b: [1, 2, 3, 4]\n" +
             "}";
         MegaType type = testTypecheckExpression(input);
-        MegaType expected = new ObjectType(ImmutableMap.of(
-            "a", new ObjectType(ImmutableMap.of(
-                "a1", PrimitiveTypes.STRING,
-                "a2", PrimitiveTypes.BOOLEAN
-            )),
-            "b", arrayOf.apply(PrimitiveTypes.INTEGER)
+        MegaType expected = new ObjectType(Lists.newArrayList(
+            Pair.of("a", new ObjectType(Lists.newArrayList(
+                Pair.of("a1", PrimitiveTypes.STRING),
+                Pair.of("a2", PrimitiveTypes.BOOLEAN)
+            ))),
+            Pair.of("b", arrayOf.apply(PrimitiveTypes.INTEGER))
         ));
         assertEquals(expected, type);
     }
@@ -633,7 +645,9 @@ class TypeCheckerTest {
             Pair.of("-\"asdf\"", PrimitiveTypes.STRING),
             Pair.of("-true", PrimitiveTypes.BOOLEAN),
             Pair.of("-[1, 2, 3]", arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Pair.of("-{ a: 1 }", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)))
+            Pair.of("-{ a: 1 }", new ObjectType(Lists.newArrayList(
+                Pair.of("a", PrimitiveTypes.INTEGER))
+            ))
         );
 
         return testCases.stream()
@@ -1157,8 +1171,16 @@ class TypeCheckerTest {
             ),
             Triple.of(
                 "a..d",
-                ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER))),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, new ObjectType(ImmutableMap.of("a", PrimitiveTypes.INTEGER)), Position.at(1, 4))
+                ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(Lists.newArrayList(
+                    Pair.of("a", PrimitiveTypes.INTEGER)
+                ))),
+                new TypeMismatchError(
+                    PrimitiveTypes.INTEGER,
+                    new ObjectType(Lists.newArrayList(
+                        Pair.of("a", PrimitiveTypes.INTEGER)
+                    )),
+                    Position.at(1, 4)
+                )
             ),
             Triple.of(
                 "((a: Int) => a)..((b: Int) => b)",

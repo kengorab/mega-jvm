@@ -1,6 +1,7 @@
 package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.getInnerClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticMethodsFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticVariableFromClass;
@@ -9,10 +10,12 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -700,6 +703,63 @@ class CompilerTest {
         }
     }
 
+    @Nested
+    class TestTypeDeclarationStatement {
+        class TestCase {
+            private final String input;
+            private final String typeName;
+            private final Object[] args;
+            private final String toStringOutput;
+
+            public TestCase(String input, String typeName, Object[] args, String toStringOutput) {
+                this.input = input;
+                this.typeName = typeName;
+                this.args = args;
+                this.toStringOutput = toStringOutput;
+            }
+        }
+
+        @TestFactory
+        List<DynamicTest> testCustomTypeToString() {
+            List<TestCase> testCases = Lists.newArrayList(
+                new TestCase(
+                    "type Person = { name: String }",
+                    "Person",
+                    new Object[]{"Ken"},
+                    "Person { name: \"Ken\" }"
+                ),
+                new TestCase(
+                    "type Person = { name: String, age: Int }",
+                    "Person",
+                    new Object[]{"Ken", 26},
+                    "Person { name: \"Ken\", age: 26 }"
+                ),
+                new TestCase(
+                    "type Person = { name: String, age: Int, familyMembers: Array[String] }",
+                    "Person",
+                    new Object[]{"Ken", 26, new String[]{"Meg"}},
+                    "Person { name: \"Ken\", age: 26, familyMembers: [\"Meg\"] }"
+                )
+            );
+
+            return testCases.stream()
+                .map(testCase -> {
+                    String name = String.format(
+                        "An instance of `%s` invoked with `%s` should have a toString output of `%s`",
+                        testCase.input, Arrays.toString(testCase.args), testCase.toStringOutput
+                    );
+                    return dynamicTest(name, () -> {
+                        TestCompilationResult result = parseTypecheckAndCompileInput(testCase.input);
+                        Object instance = getInstanceOfInnerClass(result.className, testCase.typeName, testCase.args);
+
+                        assertNotNull(instance, "The instance of the type should not be null");
+                        assertEquals(testCase.toStringOutput, instance.toString());
+                    });
+                })
+                .collect(toList());
+        }
+    }
+
     private void assertFinalityOnStaticBinding(String className, String fieldName, boolean expectedFinal) {
         Field field = loadStaticVariableFromClass(className, fieldName);
         if (expectedFinal) {
@@ -763,6 +823,27 @@ class CompilerTest {
         } catch (IllegalAccessException | InvocationTargetException e) {
             fail("Invoking static method " + name + " with arguments " + arguments + " failed", e);
             e.printStackTrace();
+        }
+    }
+
+    private Object getInstanceOfInnerClass(String outerClassName, String innerClassName, Object[] args) {
+        Class innerClass = getInnerClass(outerClassName, innerClassName);
+        List<Constructor> constructors = Arrays.stream(innerClass.getConstructors())
+            .filter(constructor -> constructor.getParameterCount() == args.length)
+            .collect(toList());
+        if (constructors.size() == 0) {
+            fail("No constructors found for class " + innerClassName + " with arity " + args.length);
+            return null;
+        } else if (constructors.size() > 1) {
+            fail("Too many constructors found for class " + innerClassName + " with arity " + args.length);
+            return null;
+        }
+
+        try {
+            return constructors.get(0).newInstance(args);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            fail("Failed to instantiate instance of " + innerClassName, e);
+            return null;
         }
     }
 }

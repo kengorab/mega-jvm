@@ -15,6 +15,7 @@ import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnbo
 import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
+import static co.kenrg.mega.backend.compilation.subcompilers.TypeDeclarationStatementCompiler.compileTypeDeclaration;
 import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
@@ -92,6 +93,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
@@ -179,6 +181,8 @@ public class Compiler {
             this.compileForLoopStatement((ForLoopStatement) node);
         } else if (node instanceof FunctionDeclarationStatement) {
             this.compileFunctionDeclarationStatement((FunctionDeclarationStatement) node);
+        } else if (node instanceof TypeDeclarationStatement) {
+            this.compileTypeDeclarationStatement((TypeDeclarationStatement) node);
         }
 
         // Expressions
@@ -360,6 +364,13 @@ public class Compiler {
         this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false);
     }
 
+    private void compileTypeDeclarationStatement(TypeDeclarationStatement node) {
+        String innerClassName = this.className + "$" + node.typeName.value;
+        this.cw.visitInnerClass(innerClassName, this.className, node.typeName.value, ACC_PUBLIC | ACC_FINAL | ACC_STATIC);
+        List<Pair<String, byte[]>> generatedClasses = compileTypeDeclaration(this.className, innerClassName, node, this.typeEnv);
+        innerClasses.addAll(generatedClasses);
+    }
+
     //***************************************************************
     //************              Expressions              ************
     //***************************************************************
@@ -404,7 +415,7 @@ public class Compiler {
     }
 
     private void compileObjectLiteral(ObjectLiteral node) {
-        // TODO: compile object literals
+        // TODO: compile object literals (wait until type declaration is done)
     }
 
     private void compileIndexExpression(IndexExpression node) {

@@ -332,7 +332,7 @@ public class Parser {
         if (this.curTokenIs(TokenType.LBRACE)) {
             this.nextToken();
 
-            Map<String, TypeExpression> propTypes = Maps.newHashMap();
+            List<Pair<String, TypeExpression>> propTypes = Lists.newArrayList();
 
             Identifier prop = (Identifier) this.parseIdentifier();
 
@@ -341,7 +341,7 @@ public class Parser {
             }
             this.nextToken();
 
-            propTypes.put(prop.value, this.parseTypeExpression(true));
+            propTypes.add(Pair.of(prop.value, this.parseTypeExpression(true)));
 
             while (this.peekTokenIs(TokenType.COMMA)) {
                 this.nextToken();   // Consume ','
@@ -354,7 +354,7 @@ public class Parser {
                 }
                 this.nextToken();
 
-                propTypes.put(propName, this.parseTypeExpression(true));
+                propTypes.add(Pair.of(propName, this.parseTypeExpression(true)));
             }
 
             if (!expectPeek(TokenType.RBRACE)) {
@@ -582,7 +582,7 @@ public class Parser {
     // { [<ident>: <expr> [,<ident>: <expr>]*] }
     private Expression parseObjectLiteral() {
         Token t = this.curTok;
-        Map<Identifier, Expression> pairs = Maps.newHashMap();
+        List<Pair<Identifier, Expression>> pairs = Lists.newArrayList();
 
         while (!this.peekTokenIs(TokenType.RBRACE)) {
             this.nextToken();
@@ -594,7 +594,7 @@ public class Parser {
             this.nextToken();
 
             Expression value = this.parseExpression(LOWEST);
-            pairs.put(key, value);
+            pairs.add(Pair.of(key, value));
 
             if (!this.peekTokenIs(TokenType.RBRACE) && !this.expectPeek(TokenType.COMMA)) {
                 return null;

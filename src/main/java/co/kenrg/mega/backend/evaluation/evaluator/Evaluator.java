@@ -16,6 +16,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Supplier;
 
+import co.kenrg.mega.backend.evaluation.object.ArrayObj;
+import co.kenrg.mega.backend.evaluation.object.ArrowFunctionObj;
+import co.kenrg.mega.backend.evaluation.object.BooleanObj;
+import co.kenrg.mega.backend.evaluation.object.FloatObj;
+import co.kenrg.mega.backend.evaluation.object.FunctionObj;
+import co.kenrg.mega.backend.evaluation.object.IntegerObj;
+import co.kenrg.mega.backend.evaluation.object.NullObj;
+import co.kenrg.mega.backend.evaluation.object.ObjectObj;
+import co.kenrg.mega.backend.evaluation.object.StringObj;
+import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
+import co.kenrg.mega.backend.evaluation.object.iface.Obj;
+import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
@@ -43,21 +55,10 @@ import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
-import co.kenrg.mega.backend.evaluation.object.ArrayObj;
-import co.kenrg.mega.backend.evaluation.object.ArrowFunctionObj;
-import co.kenrg.mega.backend.evaluation.object.BooleanObj;
-import co.kenrg.mega.backend.evaluation.object.FloatObj;
-import co.kenrg.mega.backend.evaluation.object.FunctionObj;
-import co.kenrg.mega.backend.evaluation.object.IntegerObj;
-import co.kenrg.mega.backend.evaluation.object.NullObj;
-import co.kenrg.mega.backend.evaluation.object.ObjectObj;
-import co.kenrg.mega.backend.evaluation.object.StringObj;
-import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
-import co.kenrg.mega.backend.evaluation.object.iface.Obj;
-import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class Evaluator {
 
@@ -247,7 +248,7 @@ public class Evaluator {
     private static Obj evalObjectLiteral(ObjectLiteral obj, Environment env) {
         Map<String, Obj> pairs = Maps.newHashMap();
 
-        for (Entry<Identifier, Expression> entry : obj.pairs.entrySet()) {
+        for (Pair<Identifier, Expression> entry : obj.pairs) {
             Obj value = eval(entry.getValue(), env);
             pairs.put(entry.getKey().value, value);
         }

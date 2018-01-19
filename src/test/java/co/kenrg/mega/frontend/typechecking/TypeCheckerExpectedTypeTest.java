@@ -42,8 +42,8 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
@@ -180,9 +180,9 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(
-                new ObjectType(ImmutableMap.of(
-                    "name", PrimitiveTypes.STRING,
-                    "age", PrimitiveTypes.INTEGER
+                new ObjectType(Lists.newArrayList(
+                    Pair.of("name", PrimitiveTypes.STRING),
+                    Pair.of("age", PrimitiveTypes.INTEGER)
                 )),
                 objectType
             );
@@ -192,9 +192,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsStruct_matchesStructOfExpectedType_returnsExpectedType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
-            StructType personType = new StructType("Person", ImmutableMap.of(
-                "name", PrimitiveTypes.STRING,
-                "age", PrimitiveTypes.INTEGER
+            StructType personType = new StructType("Person", Lists.newArrayList(
+                Pair.of("name", PrimitiveTypes.STRING),
+                Pair.of("age", PrimitiveTypes.INTEGER)
             ));
             env.addType("Person", personType);
             MegaType objectType = typeChecker.typecheckObjectLiteral(object, env, personType);
@@ -213,9 +213,9 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(
                     arrayType,
-                    new ObjectType(ImmutableMap.of(
-                        "name", PrimitiveTypes.STRING,
-                        "age", PrimitiveTypes.INTEGER
+                    new ObjectType(Lists.newArrayList(
+                        Pair.of("name", PrimitiveTypes.STRING),
+                        Pair.of("age", PrimitiveTypes.INTEGER)
                     )),
                     Position.at(1, 1)
                 )),

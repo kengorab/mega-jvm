@@ -2,13 +2,11 @@ package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.isBooleanOperator;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -34,8 +32,8 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -222,10 +220,9 @@ public class TypeChecker {
 
         if (typeExpr instanceof StructTypeExpression) {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
-            Map<String, MegaType> propTypes = structTypeExpr.propTypes.entrySet().stream().collect(toMap(
-                Entry::getKey,
-                entry -> resolveType(entry.getValue(), typeEnvironment)
-            ));
+            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
+                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
+                .collect(toList());
             return new ObjectType(propTypes);
         }
 
@@ -411,11 +408,9 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
-        Map<String, MegaType> objectPropertyTypes = object.pairs.entrySet().stream()
-            .collect(toMap(
-                entry -> entry.getKey().value,
-                entry -> typecheckNode(entry.getValue(), env)
-            ));
+        List<Pair<String, MegaType>> objectPropertyTypes = object.pairs.stream()
+            .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
+            .collect(toList());
         ObjectType type = new ObjectType(objectPropertyTypes);
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(type)) {

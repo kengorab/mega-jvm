@@ -39,6 +39,10 @@ class CompilerTestUtils {
         TestFailureException(Throwable cause) {
             super("Failing test due to exception", cause);
         }
+
+        TestFailureException(String message) {
+            super("Failing test: " + message);
+        }
     }
 
     static TestCompilationResult parseTypecheckAndCompileInput(String input) {
@@ -117,6 +121,24 @@ class CompilerTestUtils {
         try {
             return loadStaticVariableFromClass(className, fieldName).get(null);
         } catch (IllegalAccessException e) {
+            throw new TestFailureException(e);
+        }
+    }
+
+    static Class getInnerClass(String outerClassName, String innerClassName) {
+        try {
+            Class<?>[] innerClasses = CompilerTestUtils.class.getClassLoader().loadClass(outerClassName).getClasses();
+            List<Class<?>> classesMatchingName = Arrays.stream(innerClasses)
+                .filter(clazz -> clazz.getSimpleName().equals(innerClassName))
+                .collect(toList());
+            if (classesMatchingName.size() == 0) {
+                throw new TestFailureException("No classes found for name: " + innerClassName);
+            }
+            if (classesMatchingName.size() > 1) {
+                throw new TestFailureException("More than 1 class found for name: " + innerClassName);
+            }
+            return classesMatchingName.get(0);
+        } catch (ClassNotFoundException e) {
             throw new TestFailureException(e);
         }
     }
