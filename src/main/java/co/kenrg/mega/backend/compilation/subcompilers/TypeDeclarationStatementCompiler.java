@@ -191,6 +191,9 @@ public class TypeDeclarationStatementCompiler {
             } else if (propType == PrimitiveTypes.FLOAT) {
                 equalsWriter.visitInsn(FCMPL);
                 equalsWriter.visitJumpInsn(IFNE, falseLabel);
+            } else if (propType instanceof ArrayType) {
+                equalsWriter.visitMethodInsn(INVOKESTATIC, getInternalName(java.util.Arrays.class), "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z", false);
+                equalsWriter.visitJumpInsn(IFEQ, falseLabel);
             } else {
                 equalsWriter.visitMethodInsn(INVOKEVIRTUAL, propDesc, "equals", "(Ljava/lang/Object;)Z", false);
                 equalsWriter.visitJumpInsn(IFEQ, falseLabel);
