@@ -434,6 +434,11 @@ public class TypeChecker {
             objectPropertyTypes = object.pairs.stream()
                 .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
                 .collect(toList());
+            StructType structType = env.getStructTypeByProps(objectPropertyTypes);
+            if (structType != null) {
+                object.setType(structType);
+                return structType;
+            }
         }
 
         ObjectType type = new ObjectType(objectPropertyTypes);

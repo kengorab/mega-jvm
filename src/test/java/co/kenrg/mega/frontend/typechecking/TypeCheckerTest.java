@@ -210,6 +210,42 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_noTypeAnnotation_bindingHasCorrectlyGuessedType() {
+        StructType personType = new StructType("Person", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("age", PrimitiveTypes.INTEGER)
+        ));
+        StructType teamType = new StructType("Team", Lists.newArrayList(
+            Pair.of("manager", personType),
+            Pair.of("members", arrayOf.apply(personType))
+        ));
+
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("val x = { name: 'Ken', age: 25 }", personType),
+            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [{ name: 'Brian', age: 25 }] }", teamType),
+            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [] }", teamType)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getRight().signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    MegaType result = testTypecheckStatement(testCase.getLeft(), env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+
+                    Binding binding = env.getBinding("x");
+                    assertNotNull(binding);
+                    MegaType bindingType = binding.type;
+                    assertEquals(testCase.getRight(), bindingType);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_errors() {
         StructType personType = new StructType("Person", Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),

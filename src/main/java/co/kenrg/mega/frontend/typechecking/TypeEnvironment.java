@@ -1,16 +1,22 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static java.util.stream.Collectors.toMap;
+
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeEnvironment {
     public enum SetBindingStatus {
@@ -140,6 +146,31 @@ public class TypeEnvironment {
 
         if (parent != null) {
             return parent.getTypeByName(typeName);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    public StructType getStructTypeByProps(List<Pair<String, MegaType>> props) {
+        for (Entry<String, MegaType> entry : this.typesStore.entrySet()) {
+            if (entry.getValue() instanceof StructType) {
+                StructType structType = (StructType) entry.getValue();
+                Map<String, MegaType> expectedProps = structType.getProperties().stream()
+                    .collect(toMap(Pair::getKey, Pair::getValue));
+                boolean propsMatch = props.stream()
+                    .allMatch(prop -> {
+                        if (!expectedProps.containsKey(prop.getKey())) return false;
+                        else return expectedProps.get(prop.getKey()).isEquivalentTo(prop.getValue());
+                    });
+                if (propsMatch) {
+                    return structType;
+                }
+            }
+        }
+
+        if (parent != null) {
+            return parent.getStructTypeByProps(props);
         }
 
         return null;
