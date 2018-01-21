@@ -2,6 +2,7 @@ package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.isBooleanOperator;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -358,7 +359,12 @@ public class TypeChecker {
     @VisibleForTesting
     MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env, @Nullable MegaType expectedType) {
         if (array.elements.isEmpty()) {
-            ArrayType type = new ArrayType(PrimitiveTypes.NOTHING);
+            MegaType type;
+            if (expectedType != null) {
+                type = expectedType;
+            } else {
+                type = new ArrayType(PrimitiveTypes.NOTHING);
+            }
             array.setType(type);
             return type;
         }
@@ -408,9 +414,28 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
-        List<Pair<String, MegaType>> objectPropertyTypes = object.pairs.stream()
-            .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
-            .collect(toList());
+        List<Pair<String, MegaType>> objectPropertyTypes;
+        if (expectedType != null && (expectedType instanceof StructType || expectedType instanceof ObjectType)) {
+            Map<String, MegaType> expectedPairs;
+            if (expectedType instanceof StructType) {
+                expectedPairs = ((StructType) expectedType).getProperties().stream()
+                    .collect(toMap(Pair::getKey, Pair::getValue));
+            } else {
+                expectedPairs = ((ObjectType) expectedType).properties.stream()
+                    .collect(toMap(Pair::getKey, Pair::getValue));
+            }
+            objectPropertyTypes = object.pairs.stream()
+                .map(pair -> {
+                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
+                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
+                })
+                .collect(toList());
+        } else {
+            objectPropertyTypes = object.pairs.stream()
+                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
+                .collect(toList());
+        }
+
         ObjectType type = new ObjectType(objectPropertyTypes);
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(type)) {

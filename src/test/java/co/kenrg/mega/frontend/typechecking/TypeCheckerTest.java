@@ -179,13 +179,15 @@ class TypeCheckerTest {
         ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("val p: Person = { name: 'Ken', age: 25 }", personType),
-            Pair.of("val p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
-            Pair.of("val p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
+            Pair.of("val x: Person = { name: 'Ken', age: 25 }", personType),
+            Pair.of("val x: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
+            Pair.of("val x: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
+            Pair.of("val x: Team = { manager: { name: 'Ken', age: 25 }, members: []}", teamType),
 
-            Pair.of("var p: Person = { name: 'Ken', age: 25 }", personType),
-            Pair.of("var p: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
-            Pair.of("var p: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType)
+            Pair.of("var x: Person = { name: 'Ken', age: 25 }", personType),
+            Pair.of("var x: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
+            Pair.of("var x: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
+            Pair.of("var x: Team = { manager: { name: 'Ken', age: 25 }, members: [] }", teamType)
         );
 
         return testCases.stream()
@@ -198,10 +200,57 @@ class TypeCheckerTest {
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
-                    Binding binding = env.getBinding("p");
+                    Binding binding = env.getBinding("x");
                     assertNotNull(binding);
                     MegaType bindingType = binding.type;
                     assertEquals(testCase.getRight(), bindingType);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_errors() {
+        StructType personType = new StructType("Person", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("age", PrimitiveTypes.INTEGER)
+        ));
+        StructType teamType = new StructType("Team", Lists.newArrayList(
+            Pair.of("manager", personType),
+            Pair.of("members", arrayOf.apply(personType))
+        ));
+
+        List<Triple<String, MegaType, String>> testCases = Lists.newArrayList(
+            Triple.of(
+                "val x: Person = { name: 'Ken' }",
+                personType,
+                "(1, 17): Expected Person, got { name: String }; missing properties { age: Int }"
+            ),
+            Triple.of(
+                "val x: Team = { manager: { name: 'Ken' }, members: [] }",
+                teamType,
+                "(1, 26): Expected Person, got { name: String }; missing properties { age: Int }"
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getMiddle().signature());
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft(), env);
+                    assertEquals(PrimitiveTypes.UNIT, result.type);
+
+                    Binding binding = env.getBinding("x");
+                    assertNotNull(binding);
+                    MegaType bindingType = binding.type;
+                    assertEquals(testCase.getMiddle(), bindingType);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(1, result.errors.size());
+                    assertEquals(testCase.getRight(), result.errors.get(0).toString());
                 });
             })
             .collect(toList());

@@ -144,6 +144,15 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
+        void expectedTypePassed_arrayIsEmpty_returnsExpectedType() {
+            ArrayLiteral array = parseExpression("[]", ArrayLiteral.class);
+            MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, arrayOf.apply(PrimitiveTypes.INTEGER));
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), arrayType);
+        }
+
+        @Test
         void expectedTypePassed_elementsDontMatchTypeArg_returnsExpectedType_hasMismatchError() {
             ArrayLiteral array = parseExpression("['abc', 2, 3]", ArrayLiteral.class);
             MegaType arrayType = typeChecker.typecheckArrayLiteral(array, env, arrayOf.apply(PrimitiveTypes.INTEGER));
