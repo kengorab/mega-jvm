@@ -62,7 +62,7 @@ import org.junit.jupiter.api.TestFactory;
 class ParserTest {
 
     @TestFactory
-    public List<DynamicTest> testValStatements() {
+    List<DynamicTest> testValStatements() {
         List<Pair<String, String>> tests = Lists.newArrayList(
             Pair.of("val x = 4", "x"),
             Pair.of("val y = 10", "y"),
@@ -87,7 +87,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypeAnnotations_identifiers() {
+    List<DynamicTest> testTypeAnnotations_identifiers() {
         class TestCase {
             private final String input;
             private final String identName;
@@ -188,6 +188,16 @@ class ParserTest {
                     Position.at(1, 5)
                 ),
                 getArrowFuncExprParamIdent.apply(0)
+            ),
+            new TestCase(
+                "(a: () => String) => a()",
+                "a",
+                new FunctionTypeExpression(
+                    Lists.newArrayList(),
+                    new BasicTypeExpression("String", Position.at(1, 11)),
+                    Position.at(1, 5)
+                ),
+                getArrowFuncExprParamIdent.apply(0)
             )
         );
 
@@ -212,7 +222,7 @@ class ParserTest {
     }
 
     @Test
-    public void testTypeAnnotations_functionDeclarationReturnType() {
+    void testTypeAnnotations_functionDeclarationReturnType() {
         String input = "func sum(a: Int, b: Int): Int { a + b }";
         Statement statement = parseStatement(input);
         FunctionDeclarationStatement functionDeclarationStatement = (FunctionDeclarationStatement) statement;
@@ -220,7 +230,7 @@ class ParserTest {
     }
 
     @Test
-    public void testTypeAnnotations_structTypeExpression_syntaxError() {
+    void testTypeAnnotations_structTypeExpression_syntaxError() {
         String input = "val person: { name: String } = { name: 'Ken' }";
         Pair<Statement, List<SyntaxError>> result = parseStatementAndGetErrors(input);
         ValStatement valStatement = (ValStatement) result.getLeft();
@@ -233,7 +243,7 @@ class ParserTest {
     }
 
     @Test
-    public void testValStatement_syntaxErrors() {
+    void testValStatement_syntaxErrors() {
         String input = "val x 4";
         Parser parser = new Parser(new Lexer(input));
         parser.parseModule();
@@ -242,7 +252,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testVarStatements() {
+    List<DynamicTest> testVarStatements() {
         List<Pair<String, String>> tests = Lists.newArrayList(
             Pair.of("var x = 4", "x"),
             Pair.of("var y = 10", "y"),
@@ -267,7 +277,7 @@ class ParserTest {
     }
 
     @Test
-    public void testVarStatement_syntaxErrors() {
+    void testVarStatement_syntaxErrors() {
         String input = "var x 4";
         Parser parser = new Parser(new Lexer(input));
         parser.parseModule();
@@ -276,14 +286,14 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testAssignmentExpression() {
+    List<DynamicTest> testAssignmentExpression() {
         class TestCase {
             private final String input;
             private final String identName;
             private final Object value;
             private final Position position;
 
-            public TestCase(String input, String identName, Object value, Position position) {
+            private TestCase(String input, String identName, Object value, Position position) {
                 this.input = input;
                 this.identName = identName;
                 this.value = value;
@@ -319,7 +329,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testParenthesizedExpressions() {
+    List<DynamicTest> testParenthesizedExpressions() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("(5)", "5"),
             Pair.of("(5.3)", "5.3"),
@@ -352,7 +362,7 @@ class ParserTest {
     }
 
     @Test
-    public void testFunctionDeclarationStatement() {
+    void testFunctionDeclarationStatement() {
         String input = "func add(a, b) { a + b }";
         Parser parser = new Parser(new Lexer(input));
         Module module = parser.parseModule();
@@ -387,7 +397,7 @@ class ParserTest {
     }
 
     @Test
-    public void testIdentifierExpression() {
+    void testIdentifierExpression() {
         String input = "foobar;";
 
         ExpressionStatement statement = parseExpressionStatement(input);
@@ -434,7 +444,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testIntegerLiteralExpression() {
+    List<DynamicTest> testIntegerLiteralExpression() {
         List<Pair<String, Integer>> testCases = Lists.newArrayList(
             Pair.of("5;", 5),
             Pair.of("15;", 15),
@@ -456,7 +466,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testFloatLiteralExpression() {
+    List<DynamicTest> testFloatLiteralExpression() {
         List<Pair<String, Float>> testCases = Lists.newArrayList(
             Pair.of("5.0;", 5.0f),
             Pair.of("0.15;", 0.15f),
@@ -478,7 +488,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testBooleanLiteralExpression() {
+    List<DynamicTest> testBooleanLiteralExpression() {
         List<Pair<String, Boolean>> testCases = Lists.newArrayList(
             Pair.of("true", true),
             Pair.of("false", false)
@@ -499,7 +509,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testStringLiteralExpression() {
+    List<DynamicTest> testStringLiteralExpression() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("\"hello\"", "hello")
         );
@@ -519,7 +529,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testStringInterpolationExpression() {
+    List<DynamicTest> testStringInterpolationExpression() {
         //TODO: The positions of interpolated expressions should be with respect to the string, not with respect to itself.
         // This is an artifact of how I'm (kind of jankily) supporting these nested expressions...
         List<Pair<String, Map<String, Expression>>> testCases = Lists.newArrayList(
@@ -564,7 +574,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testArrayLiteralExpression_elementsAreLiterals() {
+    List<DynamicTest> testArrayLiteralExpression_elementsAreLiterals() {
         List<Pair<String, List<Pair<Object, Position>>>> testCases = Lists.newArrayList(
             Pair.of("[]", Lists.newArrayList()),
             Pair.of("[\"hello\", 1]", Lists.newArrayList(
@@ -600,7 +610,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testObjectLiteralExpression() {
+    List<DynamicTest> testObjectLiteralExpression() {
         List<Pair<String, List<Triple<String, Position, String>>>> testCases = Lists.newArrayList(
             Pair.of("{}", Lists.newArrayList()),
             Pair.of("{prop1:1}", Lists.newArrayList(
@@ -629,7 +639,7 @@ class ParserTest {
 
                     // Sorting expected and actual by alphabetical order helps ensure non-flaky tests, since objects'
                     // key/value pairs aren't always ordered the same.
-                    List<Entry<Identifier, Expression>> elems = Lists.newArrayList(expr.pairs.entrySet());
+                    List<Pair<Identifier, Expression>> elems = Lists.newArrayList(expr.pairs);
                     elems.sort(Comparator.comparing(e -> e.getKey().value));
 
                     for (int i = 0; i < elems.size(); i++) {
@@ -645,7 +655,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testPrefixExpressions() {
+    List<DynamicTest> testPrefixExpressions() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of("!5", "!", 5),
             Triple.of("-15", "-", 15),
@@ -676,7 +686,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testInfixExpressions() {
+    List<DynamicTest> testInfixExpressions() {
         class TestCase {
             private final String input;
             private final String operator;
@@ -730,7 +740,7 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testOperatorPrecedence() {
+    List<DynamicTest> testOperatorPrecedence() {
         class TestCase {
             private final String input;
             private final String output;
@@ -782,7 +792,7 @@ class ParserTest {
     }
 
     @Test
-    public void testIfExpression() {
+    void testIfExpression() {
         String input = "if x < y { x }";
         ExpressionStatement statement = parseExpressionStatement(input);
         assertTrue(statement.expression instanceof IfExpression);
@@ -801,7 +811,7 @@ class ParserTest {
     }
 
     @Test
-    public void testIfElseExpression() {
+    void testIfElseExpression() {
         String input = "if x < y { x } else { y }";
         ExpressionStatement statement = parseExpressionStatement(input);
         assertTrue(statement.expression instanceof IfExpression);
@@ -822,7 +832,7 @@ class ParserTest {
     }
 
     @Test
-    public void testIfExpression_nestedIfElse() {
+    void testIfExpression_nestedIfElse() {
         String input = "" +
             "if x < y { \n" +
             "  if x > 0 {\n" +
@@ -859,13 +869,13 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testArrowFunction() {
+    List<DynamicTest> testArrowFunction() {
         class TestCase {
             public final String input;
-            public final List<String> params;
-            public final Position bodyPosition;
+            private final List<String> params;
+            private final Position bodyPosition;
 
-            public TestCase(String input, List<String> params, Position bodyPosition) {
+            private TestCase(String input, List<String> params, Position bodyPosition) {
                 this.input = input;
                 this.params = params;
                 this.bodyPosition = bodyPosition;
@@ -913,7 +923,7 @@ class ParserTest {
     }
 
     @Test
-    public void testArrowFunction_returnsAnotherArrowFunction() {
+    void testArrowFunction_returnsAnotherArrowFunction() {
         String input = "a => b => a + b";
         ExpressionStatement statement = parseExpressionStatement(input);
         assertTrue(statement.expression instanceof ArrowFunctionExpression);
@@ -941,7 +951,7 @@ class ParserTest {
     }
 
     @Test
-    public void testArrowFunction_errors() {
+    void testArrowFunction_errors() {
         String input = "1 => { 24 }";
         Parser p = new Parser(new Lexer(input));
         p.parseModule();
@@ -949,13 +959,13 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testCallExpression() {
+    List<DynamicTest> testCallExpression() {
         class TestCase {
             public final String input;
-            public final String targetRepr;
-            public final List<String> argReprs;
+            private final String targetRepr;
+            private final List<String> argReprs;
 
-            public TestCase(String input, String targetRepr, List<String> argReprs) {
+            private TestCase(String input, String targetRepr, List<String> argReprs) {
                 this.input = input;
                 this.targetRepr = targetRepr;
                 this.argReprs = argReprs;
@@ -994,13 +1004,13 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testIndexExpression() {
+    List<DynamicTest> testIndexExpression() {
         class TestCase {
             public final String input;
-            public final String targetRepr;
-            public final String index;
+            private final String targetRepr;
+            private final String index;
 
-            public TestCase(String input, String targetRepr, String index) {
+            private TestCase(String input, String targetRepr, String index) {
                 this.input = input;
                 this.targetRepr = targetRepr;
                 this.index = index;
@@ -1033,7 +1043,7 @@ class ParserTest {
     }
 
     @Test
-    public void testForInLoop() {
+    void testForInLoop() {
         String input = "for x in arr { x + 1 }";
 
         Statement statement = parseStatement(input);
@@ -1052,13 +1062,13 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testTypeDeclarationStatement() {
+    List<DynamicTest> testTypeDeclarationStatement() {
         class TestCase {
             public final String input;
-            public final String typeName;
-            public final TypeExpression typeExpr;
+            private final String typeName;
+            private final TypeExpression typeExpr;
 
-            public TestCase(String input, String typeName, TypeExpression typeExpr) {
+            private TestCase(String input, String typeName, TypeExpression typeExpr) {
                 this.input = input;
                 this.typeName = typeName;
                 this.typeExpr = typeExpr;
@@ -1152,13 +1162,13 @@ class ParserTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testRangeExpression() {
+    List<DynamicTest> testRangeExpression() {
         class TestCase {
             public final String input;
-            public final String lRepr;
-            public final String rRepr;
+            private final String lRepr;
+            private final String rRepr;
 
-            public TestCase(String input, String lRepr, String rRepr) {
+            private TestCase(String input, String lRepr, String rRepr) {
                 this.input = input;
                 this.lRepr = lRepr;
                 this.rRepr = rRepr;

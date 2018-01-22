@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
-import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import com.google.common.collect.Lists;
 
 public class HelpCommand implements ReplCommand {

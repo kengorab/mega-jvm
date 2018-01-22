@@ -5,4 +5,4 @@ out
 *.class
 .gradle
 .DS_Store
-
+*.class

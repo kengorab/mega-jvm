@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -34,8 +33,8 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -67,6 +66,7 @@ import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeChecker {
@@ -141,7 +141,7 @@ public class TypeChecker {
         } else if (node instanceof ObjectLiteral) {
             return this.typecheckObjectLiteral((ObjectLiteral) node, env, expectedType);
         } else if (node instanceof ParenthesizedExpression) {
-            return this.typecheckNode(((ParenthesizedExpression) node).expr, env, expectedType);
+            return this.typecheckParenthesizedExpression((ParenthesizedExpression) node, env, expectedType);
         } else if (node instanceof PrefixExpression) {
             return this.typecheckPrefixExpression((PrefixExpression) node, env, expectedType);
         } else if (node instanceof InfixExpression) {
@@ -221,10 +221,9 @@ public class TypeChecker {
 
         if (typeExpr instanceof StructTypeExpression) {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
-            Map<String, MegaType> propTypes = structTypeExpr.propTypes.entrySet().stream().collect(toMap(
-                Entry::getKey,
-                entry -> resolveType(entry.getValue(), typeEnvironment)
-            ));
+            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
+                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
+                .collect(toList());
             return new ObjectType(propTypes);
         }
 
@@ -270,6 +269,7 @@ public class TypeChecker {
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
+        // TODO: Only allow function declarations at top-level; typechecking should fail if env.parent != null
         TypeEnvironment childEnv = env.createChildEnvironment();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(statement.parameters.size());
 
@@ -285,6 +285,7 @@ public class TypeChecker {
                 MegaType type = this.resolveType(parameter.typeAnnotation, env);
                 paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
+                parameter.setType(type);
             }
         }
 
@@ -316,7 +317,9 @@ public class TypeChecker {
             this.errors.add(new TypeMismatchError(arrayAnyType, iterateeType, statement.iteratee.getToken().position));
             childEnv.addBindingWithType(iterator, unknownType, true);
         } else {
-            childEnv.addBindingWithType(iterator, ((ArrayType) iterateeType).typeArg, true);
+            MegaType iteratorType = ((ArrayType) iterateeType).typeArg;
+            childEnv.addBindingWithType(iterator, iteratorType, true);
+            statement.iterator.setType(iteratorType);
         }
 
         typecheckNode(statement.block, childEnv);
@@ -356,7 +359,12 @@ public class TypeChecker {
     @VisibleForTesting
     MegaType typecheckArrayLiteral(ArrayLiteral array, TypeEnvironment env, @Nullable MegaType expectedType) {
         if (array.elements.isEmpty()) {
-            ArrayType type = new ArrayType(PrimitiveTypes.NOTHING);
+            MegaType type;
+            if (expectedType != null) {
+                type = expectedType;
+            } else {
+                type = new ArrayType(PrimitiveTypes.NOTHING);
+            }
             array.setType(type);
             return type;
         }
@@ -398,12 +406,41 @@ public class TypeChecker {
     }
 
     @VisibleForTesting
+    MegaType typecheckParenthesizedExpression(ParenthesizedExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        MegaType type = this.typecheckNode(expr.expr, env, expectedType);
+        expr.setType(type);
+        return type;
+    }
+
+    @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
-        Map<String, MegaType> objectPropertyTypes = object.pairs.entrySet().stream()
-            .collect(toMap(
-                entry -> entry.getKey().value,
-                entry -> typecheckNode(entry.getValue(), env)
-            ));
+        List<Pair<String, MegaType>> objectPropertyTypes;
+        if (expectedType != null && (expectedType instanceof StructType || expectedType instanceof ObjectType)) {
+            Map<String, MegaType> expectedPairs;
+            if (expectedType instanceof StructType) {
+                expectedPairs = ((StructType) expectedType).getProperties().stream()
+                    .collect(toMap(Pair::getKey, Pair::getValue));
+            } else {
+                expectedPairs = ((ObjectType) expectedType).properties.stream()
+                    .collect(toMap(Pair::getKey, Pair::getValue));
+            }
+            objectPropertyTypes = object.pairs.stream()
+                .map(pair -> {
+                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
+                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
+                })
+                .collect(toList());
+        } else {
+            objectPropertyTypes = object.pairs.stream()
+                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
+                .collect(toList());
+            StructType structType = env.getStructTypeByProps(objectPropertyTypes);
+            if (structType != null) {
+                object.setType(structType);
+                return structType;
+            }
+        }
+
         ObjectType type = new ObjectType(objectPropertyTypes);
         if (expectedType != null) {
             if (!expectedType.isEquivalentTo(type)) {
@@ -458,6 +495,7 @@ public class TypeChecker {
         }
 
         // If no assumptions can be made about the operand types, bail early
+        // TODO: Be smarter about this, e.g. if lType is <NotInferred> but the operator is < and rType is Int, then we should be able to infer that lType is also Int
         if (leftType.equals(unknownType) || rightType.equals(unknownType) ||
             leftType.equals(notInferredType) || rightType.equals(notInferredType)) {
             expr.setType(unknownType);
@@ -573,7 +611,10 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckArrowFunctionExpression(ArrowFunctionExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        Map<String, Binding> capturedBindings = Maps.newHashMap();
         TypeEnvironment childEnv = env.createChildEnvironment();
+        childEnv.setOnAccessBindingFromOuterScope(capturedBindings::put);
+
         int numParams = expr.parameters.size();
         List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(numParams);
 
@@ -597,10 +638,11 @@ public class TypeChecker {
             }
             paramTypes.add(paramType);
             childEnv.addBindingWithType(parameter.value, paramType, true);
+            parameter.setType(paramType);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(paramTypes, returnType);
+        FunctionType functionType = new FunctionType(paramTypes, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }

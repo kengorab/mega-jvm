@@ -1,5 +1,7 @@
 package co.kenrg.mega.frontend.typechecking.types;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -14,6 +16,16 @@ public abstract class MegaType {
 
     public boolean isParametrized() {
         return false;
+    }
+
+    @Nullable
+    public String className() {
+        return null;
+    }
+
+    @Nullable
+    public Class typeClass() {
+        return null;
     }
 
     @Override

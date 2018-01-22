@@ -3,7 +3,7 @@ package co.kenrg.mega.repl.commands;
 import java.util.List;
 
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
-import co.kenrg.mega.repl.evaluator.Environment;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 
 public interface ReplCommand {
     String description();

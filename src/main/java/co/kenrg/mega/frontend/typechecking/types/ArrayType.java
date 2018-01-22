@@ -23,6 +23,15 @@ public class ArrayType extends ParametrizedMegaType {
     }
 
     @Override
+    public boolean isEquivalentTo(MegaType other) {
+        // Support typechecking of passing an empty array as custom struct type property
+        if (other instanceof ArrayType && ((ArrayType) other).typeArg == PrimitiveTypes.NOTHING) {
+            return true;
+        }
+        return super.isEquivalentTo(other);
+    }
+
+    @Override
     public ParametrizedMegaType applyTypeArgs(List<MegaType> typeArgs) {
         //TODO: Fix this; parametrized types shouldn't require a dummy instance of them, from which all instances will be cloned
         return new ArrayType(typeArgs.get(0));
