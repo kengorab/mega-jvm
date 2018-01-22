@@ -2,6 +2,7 @@
 build
 out
 *.iml
+*.class
 .gradle
 .DS_Store
 
