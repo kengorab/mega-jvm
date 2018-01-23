@@ -5,6 +5,8 @@ import javax.annotation.Nullable;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import com.google.common.annotations.VisibleForTesting;
 
 public class Identifier extends Expression {
     public final Token token;
@@ -21,6 +23,14 @@ public class Identifier extends Expression {
         this.token = token;
         this.value = value;
         this.typeAnnotation = typeAnnotation;
+    }
+
+    @VisibleForTesting
+    public Identifier(Token token, String value, @Nullable TypeExpression typeAnnotation, MegaType type) {
+        this.token = token;
+        this.value = value;
+        this.typeAnnotation = typeAnnotation;
+        this.setType(type);
     }
 
     @Override

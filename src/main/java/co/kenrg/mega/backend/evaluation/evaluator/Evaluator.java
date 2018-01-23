@@ -520,6 +520,16 @@ public class Evaluator {
     }
 
     private static Obj evalCallExpression(CallExpression expr, Environment env) {
+        if (expr instanceof CallExpression.UnnamedArgs) {
+            return evalUnnamedArgsCallExpression((CallExpression.UnnamedArgs) expr, env);
+        } else if (expr instanceof CallExpression.NamedArgs) {
+            return evalNamedArgsCallExpression((CallExpression.NamedArgs) expr, env);
+        } else {
+            throw new IllegalStateException("No other possible subclass of CallExpression: " + expr.getClass());
+        }
+    }
+
+    private static Obj evalUnnamedArgsCallExpression(CallExpression.UnnamedArgs expr, Environment env) {
         Obj result = eval(expr.target, env);
         if (result.isError()) {
             return result;
@@ -553,6 +563,10 @@ public class Evaluator {
         }
 
         return eval(func.getBody(), fnEnv);
+    }
+
+    private static Obj evalNamedArgsCallExpression(CallExpression.NamedArgs expr, Environment env) {
+        return null;
     }
 
     private static Obj evalIndexExpression(IndexExpression expr, Environment env) {

@@ -12,12 +12,14 @@ import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 
+import java.util.Collection;
 import java.util.function.Consumer;
 
 import co.kenrg.mega.backend.compilation.Scope;
 import co.kenrg.mega.backend.compilation.Scope.Binding;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
+import co.kenrg.mega.frontend.ast.expression.CallExpression.NamedArgs;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Node;
@@ -27,6 +29,16 @@ import com.google.common.base.Strings;
 
 public class CallExpressionCompiler {
     public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode) {
+        if (node instanceof CallExpression.UnnamedArgs) {
+            compileUnnamedArgsInvocation((CallExpression.UnnamedArgs) node, scope, className, compileNode);
+        } else if (node instanceof CallExpression.NamedArgs) {
+            compileNamedArgsInvocation((CallExpression.NamedArgs) node, scope, className, compileNode);
+        } else {
+            throw new IllegalStateException("No other possible subclass of CallExpression: " + node.getClass());
+        }
+    }
+
+    public static void compileUnnamedArgsInvocation(CallExpression.UnnamedArgs node, Scope scope, String className, Consumer<Node> compileNode) {
         FunctionType fnType;
 
         if (node.target instanceof Identifier) {
@@ -36,7 +48,7 @@ public class CallExpressionCompiler {
 
             fnType = (FunctionType) binding.type;
             if (binding.bindingType == BindingTypes.METHOD) {
-                pushArguments(node, scope, compileNode, false);
+                pushArguments(node.arguments, scope, compileNode, false);
 
                 String jvmDesc = jvmMethodDescriptor(fnType, false);
                 scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, name, jvmDesc, false); // TODO: Don't assume all methods are static
@@ -58,7 +70,7 @@ public class CallExpressionCompiler {
 
         scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, getInternalName(fnType.typeClass()));
 
-        pushArguments(node, scope, compileNode, true);
+        pushArguments(node.arguments, scope, compileNode, true);
 
         String invokeDesc = String.format("(%s)Ljava/lang/Object;", Strings.repeat("Ljava/lang/Object;", fnType.arity()));
         scope.focusedMethod.writer.visitMethodInsn(INVOKEINTERFACE, getInternalName(fnType.typeClass()), "invoke", invokeDesc, true);
@@ -70,8 +82,12 @@ public class CallExpressionCompiler {
         }
     }
 
-    private static void pushArguments(CallExpression node, Scope scope, Consumer<Node> compileNode, boolean shouldBox) {
-        for (Expression arg : node.arguments) {
+    private static void compileNamedArgsInvocation(NamedArgs node, Scope scope, String className, Consumer<Node> compileNode) {
+
+    }
+
+    private static void pushArguments(Collection<Expression> arguments, Scope scope, Consumer<Node> compileNode, boolean shouldBox) {
+        for (Expression arg : arguments) {
             MegaType argType = arg.getType();
             assert argType != null; // Should be populated in typechecking pass
 

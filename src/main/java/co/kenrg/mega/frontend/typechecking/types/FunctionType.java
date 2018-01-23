@@ -2,15 +2,15 @@ package co.kenrg.mega.frontend.typechecking.types;
 
 import static com.google.common.collect.Streams.zip;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import mega.lang.functions.Function0;
@@ -22,25 +22,27 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
     public final List<MegaType> paramTypes;
+    public List<Identifier> params;
     @Nullable public final MegaType returnType;
     public Map<String, Binding> capturedBindings;
 
-    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+    private FunctionType(List<MegaType> paramTypes, List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
         this.paramTypes = paramTypes;
+        this.params = params;
         this.returnType = returnType;
         this.capturedBindings = capturedBindings;
     }
 
-    public FunctionType(List<MegaType> paramTypes, @Nullable MegaType returnType) {
-        this(paramTypes, returnType, Maps.newHashMap());
+    public FunctionType(List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+        this(params.stream().map(Identifier::getType).collect(toList()), params, returnType, capturedBindings);
     }
 
-    @VisibleForTesting
-    public FunctionType(MegaType... typeArgs) {
-        List<MegaType> typeArgsList = Arrays.asList(typeArgs);
-        this.paramTypes = typeArgsList.subList(0, typeArgsList.size() - 1);
-        this.returnType = typeArgsList.get(typeArgsList.size() - 1);
-        this.capturedBindings = Maps.newHashMap();
+    public FunctionType(List<Identifier> params, @Nullable MegaType returnType) {
+        this(params, returnType, Maps.newHashMap());
+    }
+
+    public static FunctionType ofSignature(List<MegaType> paramTypes, @Nullable MegaType returnType) {
+        return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap());
     }
 
     public int arity() {

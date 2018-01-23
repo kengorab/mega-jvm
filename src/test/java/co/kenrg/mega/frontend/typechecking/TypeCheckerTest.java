@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.token.Position;
+import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
@@ -136,7 +139,22 @@ class TypeCheckerTest {
             Triple.of("val b = true", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("val b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("val arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Triple.of("val sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("val sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 31)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 34)),
+                        PrimitiveTypes.INTEGER
+                    ),
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 39)),
+                        "b",
+                        new BasicTypeExpression("Int", Position.at(1, 42)),
+                        PrimitiveTypes.INTEGER
+                    )),
+                PrimitiveTypes.INTEGER
+            )),
 
             Triple.of("var s = \"asdf\"", "s", PrimitiveTypes.STRING),
             Triple.of("var s: String = \"asdf\"", "s", PrimitiveTypes.STRING),
@@ -147,7 +165,22 @@ class TypeCheckerTest {
             Triple.of("var b = true", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("var b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("var arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Triple.of("var sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+            Triple.of("var sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 31)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 34)),
+                        PrimitiveTypes.INTEGER
+                    ),
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 39)),
+                        "b",
+                        new BasicTypeExpression("Int", Position.at(1, 42)),
+                        PrimitiveTypes.INTEGER
+                    )),
+                PrimitiveTypes.INTEGER
+            ))
         );
 
         return testCases.stream()
@@ -330,8 +363,28 @@ class TypeCheckerTest {
     @TestFactory
     List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
-            Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER))
+            Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 13)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 16)),
+                        PrimitiveTypes.INTEGER
+                    )
+                ),
+                PrimitiveTypes.INTEGER
+            )),
+            Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 13)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 16)),
+                        PrimitiveTypes.INTEGER
+                    )
+                ),
+                PrimitiveTypes.INTEGER
+            ))
         );
 
         return testCases.stream()
@@ -418,9 +471,9 @@ class TypeCheckerTest {
             Triple.of("type Name = String", "Name", PrimitiveTypes.STRING),
             Triple.of("type Names = Array[String]", "Names", arrayOf.apply(PrimitiveTypes.STRING)),
             Triple.of("type Matrix = Array[Array[Int]]", "Matrix", arrayOf.apply(arrayOf.apply(PrimitiveTypes.INTEGER))),
-            Triple.of("type UnaryOp = Int => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("type BinOp = (Int, Int) => Int", "BinOp", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type UnaryOp = Int => Int", "UnaryOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
+            Triple.of("type BinOp = (Int, Int) => Int", "BinOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", Lists.newArrayList(
                 Pair.of("name", PrimitiveTypes.STRING),
                 Pair.of("age", PrimitiveTypes.INTEGER)
@@ -477,13 +530,13 @@ class TypeCheckerTest {
             new TestCase(
                 "type MyType = Identifier => Int",
                 new UnknownTypeError("Identifier", Position.at(1, 15)),
-                new FunctionType(Lists.newArrayList(TypeChecker.unknownType), PrimitiveTypes.INTEGER),
+                FunctionType.ofSignature(Lists.newArrayList(TypeChecker.unknownType), PrimitiveTypes.INTEGER),
                 ImmutableMap.of()
             ),
             new TestCase(
                 "type MyType = Int => Identifier",
                 new UnknownTypeError("Identifier", Position.at(1, 22)),
-                new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
+                FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), TypeChecker.unknownType),
                 ImmutableMap.of()
             ),
             new TestCase(
@@ -612,7 +665,16 @@ class TypeCheckerTest {
             Pair.of("(1)", PrimitiveTypes.INTEGER),
             Pair.of("(1 + 1)", PrimitiveTypes.INTEGER),
             Pair.of("('abc' * 3)", PrimitiveTypes.STRING),
-            Pair.of("((i: Int) => i + 1)", new FunctionType(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER)),
+            Pair.of("((i: Int) => i + 1)", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("i", Position.at(1, 3)),
+                        "i",
+                        new BasicTypeExpression("Int", Position.at(1, 6)),
+                        PrimitiveTypes.INTEGER
+                    )),
+                PrimitiveTypes.INTEGER
+            )),
             Pair.of("([true, false])", arrayOf.apply(PrimitiveTypes.BOOLEAN))
         );
 
@@ -1008,9 +1070,70 @@ class TypeCheckerTest {
     @TestFactory
     List<DynamicTest> testTypecheckArrowFunction() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("(a: Int) => a + 1", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Pair.of("(a: Int, b: String) => a + b", new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING), PrimitiveTypes.STRING)),
-            Pair.of("() => 24", new FunctionType(Lists.newArrayList(), PrimitiveTypes.INTEGER))
+            Pair.of("(a: Int) => a + 1", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 2)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 5)),
+                        PrimitiveTypes.INTEGER
+                    )),
+                PrimitiveTypes.INTEGER
+            )),
+            Pair.of("(a: Int, b: String) => a + b", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 2)),
+                        "a",
+                        new BasicTypeExpression("Int", Position.at(1, 5)),
+                        PrimitiveTypes.INTEGER
+                    ),
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 10)),
+                        "b",
+                        new BasicTypeExpression("String", Position.at(1, 13)),
+                        PrimitiveTypes.STRING
+                    )),
+                PrimitiveTypes.STRING
+            )),
+            Pair.of("() => 24", FunctionType.ofSignature(Lists.newArrayList(), PrimitiveTypes.INTEGER))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, type.signature());
+                return dynamicTest(name, () -> {
+                    String _input = testCase.getLeft();
+                    MegaType _type = testCase.getRight();
+                    MegaType result = testTypecheckExpression(input);
+                    assertEquals(_type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_unnamedArgs() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of("((a: Int) => a + 1)(1)", PrimitiveTypes.INTEGER),
+            Pair.of("((s: String, a: Int) => a + s)(\"asdf\", 1)", PrimitiveTypes.STRING),
+            Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(\"asdf\", 1, \"qwer\")", PrimitiveTypes.STRING),
+            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")(\"qwer\")", PrimitiveTypes.STRING),
+            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 18)),
+                        "b",
+                        new BasicTypeExpression("String", Position.at(1, 21)),
+                        PrimitiveTypes.STRING
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null))
+            ))
         );
 
         return testCases.stream()
@@ -1028,14 +1151,22 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation() {
+    List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("((a: Int) => a + 1)(1)", PrimitiveTypes.INTEGER),
-            Pair.of("((s: String, a: Int) => a + s)(\"asdf\", 1)", PrimitiveTypes.STRING),
-            Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(\"asdf\", 1, \"qwer\")", PrimitiveTypes.STRING),
-            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")(\"qwer\")", PrimitiveTypes.STRING),
-            Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")", new FunctionType(
-                Lists.newArrayList(PrimitiveTypes.STRING),
+            Pair.of("((a: Int) => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
+            Pair.of("(a => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
+            Pair.of("((s: String, a: Int) => a + s)(s: \"asdf\", a: 1)", PrimitiveTypes.STRING),
+            Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(s1: \"asdf\", a: 1, s2: \"qwer\")", PrimitiveTypes.STRING),
+            Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")(b: \"qwer\")", PrimitiveTypes.STRING),
+            Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")", new FunctionType(
+                Lists.newArrayList(
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 18)),
+                        "b",
+                        new BasicTypeExpression("String", Position.at(1, 21)),
+                        PrimitiveTypes.STRING
+                    )
+                ),
                 PrimitiveTypes.STRING,
                 ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null))
             ))
@@ -1270,7 +1401,21 @@ class TypeCheckerTest {
             Triple.of(
                 "((a: Int) => a)..((b: Int) => b)",
                 ImmutableMap.of(),
-                new TypeMismatchError(PrimitiveTypes.INTEGER, new FunctionType(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER), Position.at(1, 2))
+                new TypeMismatchError(
+                    PrimitiveTypes.INTEGER,
+                    new FunctionType(
+                        Lists.newArrayList(
+                            new Identifier(
+                                Token.ident("a", Position.at(1, 3)),
+                                "a",
+                                new BasicTypeExpression("Int", Position.at(1, 6)),
+                                PrimitiveTypes.INTEGER
+                            )
+                        ),
+                        PrimitiveTypes.INTEGER
+                    ),
+                    Position.at(1, 2)
+                )
             )
         );
 

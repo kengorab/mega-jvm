@@ -46,6 +46,7 @@ import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionInvalidNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
@@ -216,7 +217,7 @@ public class TypeChecker {
                 .map(paramType -> resolveType(paramType, typeEnvironment))
                 .collect(toList());
             MegaType returnType = resolveType(funcTypeExpr.returnType, typeEnvironment);
-            return new FunctionType(paramTypes, returnType);
+            return FunctionType.ofSignature(paramTypes, returnType);
         }
 
         if (typeExpr instanceof StructTypeExpression) {
@@ -271,7 +272,6 @@ public class TypeChecker {
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {
         // TODO: Only allow function declarations at top-level; typechecking should fail if env.parent != null
         TypeEnvironment childEnv = env.createChildEnvironment();
-        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(statement.parameters.size());
 
         for (Identifier parameter : statement.parameters) {
             if (parameter.typeAnnotation == null) {
@@ -283,7 +283,6 @@ public class TypeChecker {
                 });
             } else {
                 MegaType type = this.resolveType(parameter.typeAnnotation, env);
-                paramTypes.add(type);
                 childEnv.addBindingWithType(parameter.value, type, true);
                 parameter.setType(type);
             }
@@ -300,11 +299,11 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, declaredReturnType), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType), true);
             }
         }
 
-        env.addBindingWithType(statement.name.value, new FunctionType(paramTypes, returnType), true);
+        env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -616,8 +615,6 @@ public class TypeChecker {
         childEnv.setOnAccessBindingFromOuterScope(capturedBindings::put);
 
         int numParams = expr.parameters.size();
-        List<MegaType> paramTypes = Lists.newArrayListWithExpectedSize(numParams);
-
         List<MegaType> expectedParamTypes = (expectedType != null && expectedType instanceof FunctionType)
             ? ((FunctionType) expectedType).paramTypes
             : Collections.nCopies(numParams, null);
@@ -636,13 +633,12 @@ public class TypeChecker {
             } else {
                 paramType = this.resolveType(parameter.typeAnnotation, env);
             }
-            paramTypes.add(paramType);
             childEnv.addBindingWithType(parameter.value, paramType, true);
             parameter.setType(paramType);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(paramTypes, returnType, capturedBindings);
+        FunctionType functionType = new FunctionType(expr.parameters, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
@@ -652,6 +648,16 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckCallExpression(CallExpression expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        if (expr instanceof CallExpression.UnnamedArgs) {
+            return this.typecheckUnnamedArgsCallExpression((CallExpression.UnnamedArgs) expr, env, expectedType);
+        } else if (expr instanceof CallExpression.NamedArgs) {
+            return this.typecheckNamedArgsCallExpression((CallExpression.NamedArgs) expr, env, expectedType);
+        } else {
+            throw new IllegalStateException("No other possible subclass of CallExpression: " + expr.getClass());
+        }
+    }
+
+    private MegaType typecheckUnnamedArgsCallExpression(CallExpression.UnnamedArgs expr, TypeEnvironment env, @Nullable MegaType expectedType) {
         MegaType targetType = typecheckNode(expr.target, env);
         if (!(targetType instanceof FunctionType)) {
             this.errors.add(new UninvokeableTypeError(targetType, expr.target.getToken().position));
@@ -670,7 +676,7 @@ public class TypeChecker {
             List<MegaType> paramTypes = expr.arguments.stream()
                 .map(arg -> typecheckNode(arg, env))
                 .collect(toList());
-            FunctionType expectedFuncType = new FunctionType(paramTypes, expectedType);
+            FunctionType expectedFuncType = FunctionType.ofSignature(paramTypes, expectedType);
             funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
         } else {
             // Otherwise, typecheck the passed params with expected param types from non-inferred function type
@@ -678,6 +684,77 @@ public class TypeChecker {
                 Expression arg = expr.arguments.get(i);
                 MegaType expectedParamType = funcType.paramTypes.get(i);
                 typecheckNode(arg, env, expectedParamType);
+            }
+        }
+
+        if (expectedType != null) {
+            if (!expectedType.isEquivalentTo(funcType.returnType)) {
+                this.errors.add(new TypeMismatchError(expectedType, funcType.returnType, expr.token.position));
+            }
+            expr.setType(expectedType);
+            return expectedType;
+        }
+        MegaType type = (funcType.returnType == null) ? unknownType : funcType.returnType;
+        expr.setType(type);
+        return type;
+    }
+
+    private MegaType typecheckNamedArgsCallExpression(CallExpression.NamedArgs expr, TypeEnvironment env, @Nullable MegaType expectedType) {
+        MegaType targetType = typecheckNode(expr.target, env);
+        if (!(targetType instanceof FunctionType)) {
+            this.errors.add(new UninvokeableTypeError(targetType, expr.target.getToken().position));
+            expr.setType(unknownType);
+            return unknownType;
+        }
+        FunctionType funcType = (FunctionType) targetType;
+        assert funcType.params != null;
+
+        // The following 3 blocks act as an alternative to checking the arity:
+        // 1. Verify that the named arguments in the expr match the names/types in the function declaration
+        Map<String, MegaType> expectedParams = funcType.params.stream()
+            .collect(toMap(ident -> ident.value, Expression::getType));
+        for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
+            String argName = argument.getKey().value;
+            if (!expectedParams.containsKey(argName)) {
+                this.errors.add(new FunctionInvalidNamedArgumentError(argName, argument.getKey().token.position));
+                expr.setType(funcType.returnType);
+                return funcType.returnType;
+            }
+        }
+
+        // 2. If the function type contains inferences (params whose type prior to Calling is <NotInferred>) typecheck
+        // the expression for each named param (and set the named param's Identifier's type to be that type), and
+        // re-typecheck the expression target, now that the types of the parameters are provided by the Call.
+        if (this.containsInferences(funcType)) {
+            // If the target contains inferences, make two typechecking passes over it, since we know the param types...
+            List<Identifier> namedParamArguments = expr.namedParamArguments.stream()
+                .map(arg -> {
+                    MegaType argExprType = typecheckNode(arg.getValue(), env);
+                    arg.getLeft().setType(argExprType);
+                    return arg.getLeft();
+                })
+                .collect(toList());
+            FunctionType expectedFuncType = new FunctionType(namedParamArguments, expectedType, funcType.capturedBindings);
+            funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
+            assert funcType.params != null;
+        } else {
+            // Otherwise, typecheck the passed params with expected param types from non-inferred function type
+            for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
+                String argName = argument.getKey().value;
+                MegaType expectedArgType = expectedParams.get(argName);
+                typecheckNode(argument.getValue(), env, expectedArgType);
+            }
+        }
+
+        // 3. Verify that the named arguments in the function declaration are all present in the expr
+        Map<String, Expression> actualParams = expr.namedParamArguments.stream()
+            .collect(toMap(arg -> arg.getKey().value, Pair::getValue));
+        for (Identifier argument : funcType.params) {
+            String argName = argument.value;
+            if (!actualParams.containsKey(argName)) {
+                this.errors.add(new FunctionInvalidNamedArgumentError(argName, argument.token.position));
+                expr.setType(funcType.returnType);
+                return funcType.returnType;
             }
         }
 

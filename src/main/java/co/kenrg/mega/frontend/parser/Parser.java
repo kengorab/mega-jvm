@@ -34,8 +34,8 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
-import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
@@ -582,9 +582,18 @@ public class Parser {
     // { [<ident>: <expr> [,<ident>: <expr>]*] }
     private Expression parseObjectLiteral() {
         Token t = this.curTok;
-        List<Pair<Identifier, Expression>> pairs = Lists.newArrayList();
+        List<Pair<Identifier, Expression>> pairs = this.parseNamedExpressionPairs(TokenType.RBRACE);
 
-        while (!this.peekTokenIs(TokenType.RBRACE)) {
+        if (!this.expectPeek(TokenType.RBRACE)) {
+            return null;
+        }
+
+        return new ObjectLiteral(t, pairs);
+    }
+
+    private List<Pair<Identifier, Expression>> parseNamedExpressionPairs(TokenType endToken) {
+        List<Pair<Identifier, Expression>> pairs = Lists.newArrayList();
+        while (!this.peekTokenIs(endToken)) {
             this.nextToken();
             Identifier key = (Identifier) this.parseIdentifier();
 
@@ -596,16 +605,11 @@ public class Parser {
             Expression value = this.parseExpression(LOWEST);
             pairs.add(Pair.of(key, value));
 
-            if (!this.peekTokenIs(TokenType.RBRACE) && !this.expectPeek(TokenType.COMMA)) {
+            if (!this.peekTokenIs(endToken) && !this.expectPeek(TokenType.COMMA)) {
                 return null;
             }
         }
-
-        if (!this.expectPeek(TokenType.RBRACE)) {
-            return null;
-        }
-
-        return new ObjectLiteral(t, pairs);
+        return pairs;
     }
 
     // <operator><expr>
@@ -762,9 +766,20 @@ public class Parser {
         return params;
     }
 
-    // <expr>([<expr> [, <expr>]*])
+    // Unnamed args: <expr>([<expr> [, <expr>]*])
+    // Named args: <expr>([<ident>: <expr> [, <ident>: <expr>]*])
     private Expression parseCallExpression(Expression leftExpr) {
-        return new CallExpression(this.curTok, leftExpr, this.parseExpressionList(TokenType.RPAREN));
+        boolean hasNamedArgs = this.peekAheadTokenIs(TokenType.COLON);
+        if (hasNamedArgs) {
+            List<Pair<Identifier, Expression>> namedArgs = this.parseNamedExpressionPairs(TokenType.RPAREN);
+            CallExpression.NamedArgs callExpression = new CallExpression.NamedArgs(this.curTok, leftExpr, namedArgs);
+            if (!this.expectPeek(TokenType.RPAREN)) {
+                return null;
+            }
+            return callExpression;
+        } else {
+            return new CallExpression.UnnamedArgs(this.curTok, leftExpr, this.parseExpressionList(TokenType.RPAREN));
+        }
     }
 
     // <expr>[<expr>]

@@ -959,7 +959,7 @@ class ParserTest {
     }
 
     @TestFactory
-    List<DynamicTest> testCallExpression() {
+    List<DynamicTest> testCallExpression_nonNamedArguments() {
         class TestCase {
             public final String input;
             private final String targetRepr;
@@ -985,11 +985,11 @@ class ParserTest {
                 String targetRepr = testCase.targetRepr;
                 List<String> argReprs = testCase.argReprs;
 
-                String name = String.format("'%s', should be a CallExpression, applying %s to '%s'", input, argReprs, targetRepr);
+                String name = String.format("'%s', should be an unnamed-args CallExpression, applying %s to '%s'", input, argReprs, targetRepr);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertTrue(statement.expression instanceof CallExpression);
-                    CallExpression expr = (CallExpression) statement.expression;
+                    assertTrue(statement.expression instanceof CallExpression.UnnamedArgs);
+                    CallExpression.UnnamedArgs expr = (CallExpression.UnnamedArgs) statement.expression;
 
                     assertEquals(targetRepr, expr.target.repr(true, 0));
                     assertEquals(
@@ -1001,6 +1001,68 @@ class ParserTest {
                 });
             })
             .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testCallExpression_namedArguments() {
+        class TestCase {
+            public final String input;
+            private final String targetRepr;
+            private final List<Pair<String, String>> argReprs;
+
+            private TestCase(String input, String targetRepr, List<Pair<String, String>> argReprs) {
+                this.input = input;
+                this.targetRepr = targetRepr;
+                this.argReprs = argReprs;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase("add(a: 1, b: 2)", "add", Lists.newArrayList(
+                Pair.of("a", "1"),
+                Pair.of("b", "2")
+            )),
+            new TestCase("add(abc: a + 1, xyz: 2 * 2)", "add", Lists.newArrayList(
+                Pair.of("abc", "(a + 1)"),
+                Pair.of("xyz", "(2 * 2)")
+            )),
+            new TestCase("(a => a + 1)(a: 2)", "(a => (a + 1))", Lists.newArrayList(
+                Pair.of("a", "2")
+            )),
+            new TestCase("map(coll: arr, fn: a => a)", "map", Lists.newArrayList(
+                Pair.of("coll", "arr"),
+                Pair.of("fn", "a => a")
+            ))
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                String targetRepr = testCase.targetRepr;
+                List<Pair<String, String>> argReprs = testCase.argReprs;
+
+                String name = String.format("'%s', should be a named-args CallExpression, applying %s to '%s'", input, argReprs, targetRepr);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertTrue(statement.expression instanceof CallExpression.NamedArgs);
+                    CallExpression.NamedArgs expr = (CallExpression.NamedArgs) statement.expression;
+
+                    assertEquals(targetRepr, expr.target.repr(true, 0));
+                    assertEquals(
+                        argReprs,
+                        expr.namedParamArguments.stream()
+                            .map(arg -> Pair.of(arg.getKey().value, arg.getValue().repr(true, 0)))
+                            .collect(toList())
+                    );
+                });
+            })
+            .collect(toList());
+    }
+
+    @Test
+    void testCallExpression_noArgs_isUnnamedArgsCallExpression() {
+        ExpressionStatement statement = parseExpressionStatement("noArgs()");
+        assertTrue(statement.expression instanceof CallExpression.UnnamedArgs);
     }
 
     @TestFactory
