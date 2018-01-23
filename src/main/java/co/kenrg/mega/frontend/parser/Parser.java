@@ -769,16 +769,17 @@ public class Parser {
     // Unnamed args: <expr>([<expr> [, <expr>]*])
     // Named args: <expr>([<ident>: <expr> [, <ident>: <expr>]*])
     private Expression parseCallExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '(' token
         boolean hasNamedArgs = this.peekAheadTokenIs(TokenType.COLON);
         if (hasNamedArgs) {
             List<Pair<Identifier, Expression>> namedArgs = this.parseNamedExpressionPairs(TokenType.RPAREN);
-            CallExpression.NamedArgs callExpression = new CallExpression.NamedArgs(this.curTok, leftExpr, namedArgs);
+            CallExpression.NamedArgs callExpression = new CallExpression.NamedArgs(t, leftExpr, namedArgs);
             if (!this.expectPeek(TokenType.RPAREN)) {
                 return null;
             }
             return callExpression;
         } else {
-            return new CallExpression.UnnamedArgs(this.curTok, leftExpr, this.parseExpressionList(TokenType.RPAREN));
+            return new CallExpression.UnnamedArgs(t, leftExpr, this.parseExpressionList(TokenType.RPAREN));
         }
     }
 

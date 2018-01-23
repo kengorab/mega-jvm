@@ -21,6 +21,9 @@ import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionDuplicateNamedArgumentError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionInvalidNamedArgumentError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionMissingNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
@@ -1106,10 +1109,8 @@ class TypeCheckerTest {
 
                 String name = String.format("'%s' should typecheck to %s", input, type.signature());
                 return dynamicTest(name, () -> {
-                    String _input = testCase.getLeft();
-                    MegaType _type = testCase.getRight();
                     MegaType result = testTypecheckExpression(input);
-                    assertEquals(_type, result);
+                    assertEquals(type, result);
                 });
             })
             .collect(toList());
@@ -1155,7 +1156,7 @@ class TypeCheckerTest {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("((a: Int) => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
             Pair.of("(a => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
-            Pair.of("((s: String, a: Int) => a + s)(s: \"asdf\", a: 1)", PrimitiveTypes.STRING),
+            Pair.of("((s: String, a: Int) => a + s)(a: 1, s: \"asdf\")", PrimitiveTypes.STRING),
             Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(s1: \"asdf\", a: 1, s2: \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")(b: \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")", new FunctionType(
@@ -1181,6 +1182,65 @@ class TypeCheckerTest {
                 return dynamicTest(name, () -> {
                     MegaType result = testTypecheckExpression(input);
                     assertEquals(type, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs_errors() {
+        List<Triple<String, List<TypeCheckerError>, MegaType>> testCases = Lists.newArrayList(
+            Triple.of(
+                "((a: Int) => a + 1)(a: 'str!')",
+                Lists.newArrayList(
+                    new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 24))
+                ),
+                PrimitiveTypes.INTEGER
+            ),
+            Triple.of(
+                "((a: Int) => a + 1)(a: 'str!', a: 3)",
+                Lists.newArrayList(
+                    new FunctionDuplicateNamedArgumentError("a", Position.at(1, 32))
+                ),
+                PrimitiveTypes.INTEGER
+            ),
+            Triple.of(
+                "((a: Int, b: String) => a * b)(a: 1)",
+                Lists.newArrayList(
+                    new FunctionMissingNamedArgumentError("b", Position.at(1, 31))
+                ),
+                PrimitiveTypes.STRING
+            ),
+            Triple.of(
+                "((a: Int, b: String) => a * b)(b: 1)",
+                Lists.newArrayList(
+                    new TypeMismatchError(PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 35)),
+                    new FunctionMissingNamedArgumentError("a", Position.at(1, 31))
+                ),
+                PrimitiveTypes.STRING
+            ),
+            Triple.of(
+                "((a: Int, b: String) => a * b)(b: 'hello', a: 1, c: 'huh?')",
+                Lists.newArrayList(
+                    new FunctionInvalidNamedArgumentError("c", Position.at(1, 50))
+                ),
+                PrimitiveTypes.STRING
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType type = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s, with errors", input, type.signature());
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(testCase.getLeft());
+                    // Even though typechecking fails, there should still be some kind of overall type returned
+                    assertEquals(testCase.getRight(), result.type);
+
+                    assertTrue(result.hasErrors());
+                    assertEquals(testCase.getMiddle(), result.errors);
                 });
             })
             .collect(toList());

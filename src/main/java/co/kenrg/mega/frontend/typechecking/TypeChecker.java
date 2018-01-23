@@ -46,7 +46,9 @@ import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionDuplicateNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionInvalidNamedArgumentError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionMissingNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
@@ -713,12 +715,21 @@ public class TypeChecker {
         // 1. Verify that the named arguments in the expr match the names/types in the function declaration
         Map<String, MegaType> expectedParams = funcType.params.stream()
             .collect(toMap(ident -> ident.value, Expression::getType));
+        Map<String, Identifier> encounteredNamedArgs = Maps.newHashMap();
         for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
-            String argName = argument.getKey().value;
+            Identifier argIdent = argument.getKey();
+            String argName = argIdent.value;
             if (!expectedParams.containsKey(argName)) {
-                this.errors.add(new FunctionInvalidNamedArgumentError(argName, argument.getKey().token.position));
+                this.errors.add(new FunctionInvalidNamedArgumentError(argName, argIdent.token.position));
                 expr.setType(funcType.returnType);
                 return funcType.returnType;
+            }
+            if (encounteredNamedArgs.containsKey(argName)) {
+                this.errors.add(new FunctionDuplicateNamedArgumentError(argName, argIdent.token.position));
+                expr.setType(funcType.returnType);
+                return funcType.returnType;
+            } else {
+                encounteredNamedArgs.put(argName, argIdent);
             }
         }
 
@@ -752,7 +763,7 @@ public class TypeChecker {
         for (Identifier argument : funcType.params) {
             String argName = argument.value;
             if (!actualParams.containsKey(argName)) {
-                this.errors.add(new FunctionInvalidNamedArgumentError(argName, argument.token.position));
+                this.errors.add(new FunctionMissingNamedArgumentError(argName, expr.token.position));
                 expr.setType(funcType.returnType);
                 return funcType.returnType;
             }
