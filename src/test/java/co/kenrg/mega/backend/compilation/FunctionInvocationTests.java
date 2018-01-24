@@ -19,7 +19,7 @@ import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
 
-//    @BeforeAll
+    //    @BeforeAll
     @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
@@ -36,7 +36,10 @@ class FunctionInvocationTests {
                     "val helloWorld = shout(shout(addSpace('Hello') + 'world'))",
                 "helloWorld",
                 "Hello world!!"
-            )
+            ),
+
+            // With named parameters
+            Triple.of("val shout = (str: String) => str + '!'; val loudNoises = shout(str: 'shouting')", "loudNoises", "shouting!")
         );
 
         return testCases.stream()
@@ -82,7 +85,12 @@ class FunctionInvocationTests {
             ),
             Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
             Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
-            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true)
+            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true),
+
+            // With named parameters
+            Triple.of("val a = ((i: Int) => i + 1)(i: 2)", "a", 3),
+            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(i: 3)(s: 'abc')", "b", "abc"),
+            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(i: 3)(s: 'abc')(x: true)", "b", true)
         );
 
         return testCases.stream()
@@ -121,6 +129,14 @@ class FunctionInvocationTests {
             Triple.of("" +
                     "func returnFn() { (a: Int) => a + 1 };" +
                     "val two = returnFn()(1);",
+                "two",
+                2
+            ),
+
+            // With named parameters
+            Triple.of("" +
+                    "func returnFn() { (a: Int) => a + 1 };" +
+                    "val two = returnFn()(a: 1);",
                 "two",
                 2
             )
@@ -174,6 +190,16 @@ class FunctionInvocationTests {
                     "val str2 = apply(repeat, 4, 'aaa');",
                 "str1",
                 "abcabcabcabcabc"
+            ),
+
+            // With named parameters
+            Triple.of("" +
+                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
+                    "func repeat(num: Int, str: String) { num * str };" +
+                    "val str1 = apply(fn: repeat, a: 5, b: 'abc');" +
+                    "val str2 = apply(fn: repeat, a: 4, b: 'aaa');",
+                "str1",
+                "abcabcabcabcabc"
             )
         );
 
@@ -210,6 +236,16 @@ class FunctionInvocationTests {
                     "func apply(fn: Int => Int, a: Int) { fn(a) };" +
                     "func applyInc(i: Int) { apply(inc, i) };" +
                     "val two = applyInc(1)",
+                "two",
+                2
+            ),
+
+            // With named parameters
+            Triple.of("" +
+                    "func inc(a: Int) { a + 1 };" +
+                    "func apply(fn: Int => Int, a: Int) { fn(a) };" +
+                    "func applyInc(i: Int) { apply(fn: inc, a: i) };" +
+                    "val two = applyInc(i: 1)",
                 "two",
                 2
             )
