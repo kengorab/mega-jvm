@@ -41,7 +41,9 @@ import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
 import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
+import co.kenrg.mega.frontend.ast.type.TypeExpressions;
 import co.kenrg.mega.frontend.token.Position;
+import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
@@ -330,7 +332,19 @@ public class TypeChecker {
         String typeName = statement.typeName.value;
         MegaType type = resolveType(statement.typeExpr, env);
         if (type instanceof ObjectType) {
-            type = new StructType(typeName, ((ObjectType) type).properties);
+            List<Pair<String, MegaType>> properties = ((ObjectType) type).properties;
+            type = new StructType(typeName, properties);
+
+            List<Identifier> params = properties.stream()
+                .map(prop -> {
+                    String propName = prop.getLeft();
+                    MegaType propType = prop.getRight();
+
+                    TypeExpression typeExpr = TypeExpressions.fromType(propType);
+                    return new Identifier(Token.ident(propName, null), propName, typeExpr, propType);
+                })
+                .collect(toList());
+            env.addBindingWithType(typeName, new FunctionType(params, type), true);
         }
 
         switch (env.addType(typeName, type)) {

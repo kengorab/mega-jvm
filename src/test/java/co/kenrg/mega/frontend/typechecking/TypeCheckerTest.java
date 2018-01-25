@@ -16,6 +16,7 @@ import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.TypeExpressions;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
@@ -468,7 +469,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    List<DynamicTest> testTypecheckTypeDeclarationStatement() {
+    List<DynamicTest> testTypecheckTypeDeclarationStatement_typeAliases() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("type Id = Int", "Id", PrimitiveTypes.INTEGER),
             Triple.of("type Name = String", "Name", PrimitiveTypes.STRING),
@@ -497,6 +498,56 @@ class TypeCheckerTest {
 
                     MegaType type = env.getTypeByName(typeName);
                     assertEquals(expectedType, type);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckTypeDeclarationStatement_structType_constructorFunctionDeclared() {
+        List<Triple<String, String, List<Pair<String, MegaType>>>> testCases = Lists.newArrayList(
+            Triple.of("type Person = { name: String, age: Int }", "Person", Lists.newArrayList(
+                Pair.of("name", PrimitiveTypes.STRING),
+                Pair.of("age", PrimitiveTypes.INTEGER)
+            )),
+            Triple.of("type Team = { name: String, members: Array[String] }", "Team", Lists.newArrayList(
+                Pair.of("name", PrimitiveTypes.STRING),
+                Pair.of("members", arrayOf.apply(PrimitiveTypes.STRING))
+            ))
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String typeName = testCase.getMiddle();
+                List<Pair<String, MegaType>> props = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to Unit, and add type named %s to env, with constructor function", input, typeName);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    MegaType result = testTypecheckStatement(input, env);
+                    assertEquals(PrimitiveTypes.UNIT, result);
+
+                    MegaType type = env.getTypeByName(typeName);
+                    StructType expectedType = new StructType(typeName, props);
+                    assertEquals(expectedType, type);
+
+                    Binding binding = env.getBinding(typeName);
+                    Binding expected = new Binding(
+                        new FunctionType(
+                            props.stream()
+                                .map(prop -> new Identifier(
+                                    Token.ident(prop.getLeft(), null),
+                                    prop.getLeft(),
+                                    TypeExpressions.fromType(prop.getRight()),
+                                    prop.getRight()
+                                ))
+                                .collect(toList()),
+                            type
+                        ),
+                        true
+                    );
+                    assertEquals(expected, binding);
                 });
             })
             .collect(toList());
