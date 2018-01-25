@@ -1298,6 +1298,74 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    List<DynamicTest> testTypecheckCallExpression_constructorFunctionInvocation_namedArgs() {
+        class TestCase {
+            private final List<String> typeDecls;
+            private final List<String> valDecls;
+            private final String valName;
+            private final MegaType valType;
+
+            private TestCase(List<String> typeDecls, List<String> valDecls, String valName, MegaType valType) {
+                this.typeDecls = typeDecls;
+                this.valDecls = valDecls;
+                this.valName = valName;
+                this.valType = valType;
+            }
+        }
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                Lists.newArrayList(
+                    "type Person = { name: String, age: Int }"
+                ),
+                Lists.newArrayList(
+                    "val p = Person(name: 'Ken', age: 26)",
+                    "val p = Person(age: 26, name: 'Ke' + 'n')"
+                ),
+                "p",
+                new StructType("Person", Lists.newArrayList(
+                    Pair.of("name", PrimitiveTypes.STRING),
+                    Pair.of("age", PrimitiveTypes.INTEGER)
+                ))
+            ),
+            new TestCase(
+                Lists.newArrayList(
+                    "type Person = { name: String, age: Int }",
+                    "type Team = { teamName: String, members: Array[Person] }"
+                ),
+                Lists.newArrayList(
+                    "val t = Team(teamName: 'The Best Team', members: [Person(name: 'Ken', age: 26)])",
+                    "val t = Team(teamName: 'The Best Team', members: [])",
+                    "val t = Team(members: [Person(name: 'Ken', age: 26), Person(age: 25, name: 'Meg')], teamName: 'The' + ' ' + 'Best' + ' ' + 'Team')"
+                ),
+                "t",
+                new StructType("Team", Lists.newArrayList(
+                    Pair.of("teamName", PrimitiveTypes.STRING),
+                    Pair.of("members", arrayOf.apply(new StructType("Person", Lists.newArrayList(
+                        Pair.of("name", PrimitiveTypes.STRING),
+                        Pair.of("age", PrimitiveTypes.INTEGER)
+                    ))))
+                ))
+            )
+        );
+
+        return testCases.stream()
+            .flatMap(testCase -> testCase.valDecls.stream()
+                .map(valDecl -> {
+                    String name = String.format("'%s' should typecheck to an instance of its type", valDecl);
+                    return dynamicTest(name, () -> {
+                        TypeEnvironment env = new TypeEnvironment();
+                        testCase.typeDecls.forEach(decl -> testTypecheckStatement(decl, env));
+                        testTypecheckStatement(valDecl, env);
+
+                        Binding binding = env.getBinding(testCase.valName);
+                        assertNotNull(binding);
+                        assertEquals(testCase.valType, binding.type);
+                    });
+                }))
+            .collect(toList());
+    }
+
+    @TestFactory
     List<DynamicTest> testTypecheckCallExpression_errors() {
         List<Triple<String, TypeCheckerError, MegaType>> testCases = Lists.newArrayList(
             // Uninvokeable type errors
