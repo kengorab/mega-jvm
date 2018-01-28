@@ -3,6 +3,9 @@ package co.kenrg.mega.frontend.ast.expression;
 import javax.annotation.Nullable;
 
 import co.kenrg.mega.frontend.ast.iface.Expression;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class Parameter {
     public final Identifier ident;
@@ -29,4 +32,20 @@ public class Parameter {
             return this.ident.repr(debug, indentLevel);
         }
     }
+
+    @Override
+    public String toString() {
+        return ToStringBuilder.reflectionToString(this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return EqualsBuilder.reflectionEquals(this, o);
+    }
+
+    @Override
+    public int hashCode() {
+        return HashCodeBuilder.reflectionHashCode(this);
+    }
 }
+

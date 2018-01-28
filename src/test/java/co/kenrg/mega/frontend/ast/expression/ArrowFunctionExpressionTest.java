@@ -22,7 +22,7 @@ class ArrowFunctionExpressionTest {
     }
 
     @Test
-    public void testRepr_noParams() {
+    void testRepr_noParams() {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(),
@@ -38,7 +38,7 @@ class ArrowFunctionExpressionTest {
     }
 
     @Test
-    public void testRepr_oneParam() {
+    void testRepr_oneParam() {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(
@@ -56,7 +56,7 @@ class ArrowFunctionExpressionTest {
     }
 
     @Test
-    public void testRepr_multipleParameters() {
+    void testRepr_multipleParameters() {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(
@@ -75,7 +75,45 @@ class ArrowFunctionExpressionTest {
     }
 
     @Test
-    public void testRepr_multipleParameters_singleExpressionBody() {
+    void testRepr_multipleParameters_bothHaveDefaultValues() {
+        ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
+            lparenToken,
+            Lists.newArrayList(
+                new Parameter(identifier("a"), new IntegerLiteral(Token._int("1", null), 1)),
+                new Parameter(identifier("b"), new StringLiteral(Token.string("abc", null), "abc"))
+            ),
+            new BlockExpression(
+                lbraceToken,
+                Lists.newArrayList(
+                    new ExpressionStatement(identifierToken("a"), identifier("a"))
+                )
+            )
+        );
+        String expected = "(a = 1, b = \"abc\") => { a }";
+        assertEquals(expected, arrowFunction.repr(false, 0));
+    }
+
+    @Test
+    void testRepr_multipleParameters_onlyLastHasDefaultValue() {
+        ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
+            lparenToken,
+            Lists.newArrayList(
+                new Parameter(identifier("a")),
+                new Parameter(identifier("b"), new IntegerLiteral(Token._int("1", null), 1))
+            ),
+            new BlockExpression(
+                lbraceToken,
+                Lists.newArrayList(
+                    new ExpressionStatement(identifierToken("a"), identifier("a"))
+                )
+            )
+        );
+        String expected = "(a, b = 1) => { a }";
+        assertEquals(expected, arrowFunction.repr(false, 0));
+    }
+
+    @Test
+    void testRepr_multipleParameters_singleExpressionBody() {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(

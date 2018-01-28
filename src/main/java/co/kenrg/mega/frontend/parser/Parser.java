@@ -642,10 +642,12 @@ public class Parser {
         //   - Next 2 tokens are ')' and '=>'               Arrow fn w/ no-args
         //   - Next 2 tokens are <ident> and ','            Arrow fn w/ multiple, type-annotation-free args
         //   - Next 2 tokens are <ident> and ':'            Arrow fn w/ at least 1 type-annotated arg
+        //   - Next 2 tokens are <ident> and '='            Arrow fn w/ at least 1 arg, which has a default value
         //   - Next 3 tokens are <ident>, ')', and '=>'     Arrow fn with single arg
         if (this.curTokenIs(TokenType.RPAREN) && this.peekTokenIs(TokenType.ARROW) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COMMA) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COLON) ||
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.ASSIGN) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW)) {
             return this.parseArrowFunctionExpression();
         }
@@ -785,6 +787,7 @@ public class Parser {
         if (this.peekTokenIs(TokenType.ASSIGN)) {
             hasDefaultParamValues = true;
             this.nextToken();
+            this.nextToken();
             Expression defaultValueExpr = this.parseExpression(LOWEST);
             params.add(new Parameter(param1, defaultValueExpr));
         } else {
@@ -796,15 +799,17 @@ public class Parser {
             this.nextToken();
 
             Identifier param = this.parsePossiblyTypeAnnotatedIdentifier();
-            if (hasDefaultParamValues) {
+            if (hasDefaultParamValues) { // Once a param in a list has a default value, subsequent ones need to as well
                 if (!this.expectPeek(TokenType.ASSIGN)) {
                     return null;
                 }
+                this.nextToken();
                 Expression defaultValueExpr = this.parseExpression(LOWEST);
                 params.add(new Parameter(param, defaultValueExpr));
             } else {
                 if (this.peekTokenIs(TokenType.ASSIGN)) {
                     hasDefaultParamValues = true;
+                    this.nextToken();
                     this.nextToken();
                     Expression defaultValueExpr = this.parseExpression(LOWEST);
                     params.add(new Parameter(param, defaultValueExpr));

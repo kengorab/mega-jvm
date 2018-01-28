@@ -30,6 +30,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -922,6 +923,106 @@ class ParserTest {
 
     }
 
+    @TestFactory
+    List<DynamicTest> testArrowFunction_withDefaultParamValues() {
+        class TestCase {
+            public final String input;
+            private final List<Parameter> params;
+            private final Position bodyPosition;
+
+            private TestCase(String input, List<Parameter> params, Position bodyPosition) {
+                this.input = input;
+                this.params = params;
+                this.bodyPosition = bodyPosition;
+            }
+        }
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "(a = 1, b = 14) => { 24 }",
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(Token.ident("a", Position.at(1, 2)), "a", null),
+                        new IntegerLiteral(Token._int("1", Position.at(1, 6)), 1)
+                    ),
+                    new Parameter(
+                        new Identifier(Token.ident("b", Position.at(1, 9)), "b", null),
+                        new IntegerLiteral(Token._int("14", Position.at(1, 13)), 14)
+                    )
+                ),
+                Position.at(1, 22)
+            ),
+            new TestCase(
+                "(a, b = 14) => { 24 }",
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(Token.ident("a", Position.at(1, 2)), "a", null)
+                    ),
+                    new Parameter(
+                        new Identifier(Token.ident("b", Position.at(1, 5)), "b", null),
+                        new IntegerLiteral(Token._int("14", Position.at(1, 9)), 14)
+                    )
+                ),
+                Position.at(1, 18)
+            ),
+            new TestCase(
+                "(a, b: Int = 14) => { 24 }",
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(Token.ident("a", Position.at(1, 2)), "a", null)
+                    ),
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 5)),
+                            "b",
+                            new BasicTypeExpression("Int", Position.at(1, 8))
+                        ),
+                        new IntegerLiteral(Token._int("14", Position.at(1, 14)), 14)
+                    )
+                ),
+                Position.at(1, 23)
+            ),
+            new TestCase(
+                "(a = 'asdf') => { 24 }",
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            null
+                        ),
+                        new StringLiteral(Token.string("asdf", Position.at(1, 6)), "asdf")
+                    )
+                ),
+                Position.at(1, 19)
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("Correctly parses arrow function '%s'", testCase.input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(testCase.input);
+                    assertTrue(statement.expression instanceof ArrowFunctionExpression);
+                    ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
+
+                    assertEquals(testCase.params, expr.parameters);
+
+                    Expression body = expr.body;
+                    if (body instanceof BlockExpression) {
+                        BlockExpression block = (BlockExpression) body;
+
+                        assertEquals(1, block.statements.size());
+                        assertLiteralExpression(((ExpressionStatement) block.statements.get(0)).expression, 24, testCase.bodyPosition);
+                    } else {
+                        assertLiteralExpression(body, 24, testCase.bodyPosition);
+                    }
+                });
+            })
+            .collect(toList());
+
+    }
+
     @Test
     void testArrowFunction_returnsAnotherArrowFunction() {
         String input = "a => b => a + b";
@@ -950,12 +1051,23 @@ class ParserTest {
         );
     }
 
-    @Test
-    void testArrowFunction_errors() {
-        String input = "1 => { 24 }";
-        Parser p = new Parser(new Lexer(input));
-        p.parseModule();
-        assertTrue(p.errors.size() != 0);
+    @TestFactory
+    List<DynamicTest> testArrowFunction_errors() {
+        List<String> testCases = Lists.newArrayList(
+            "1 => { 24 }",
+            "a = 4 => { 24 }",
+            "(a = 4, b) => { 24 }"
+        );
+
+        return testCases.stream()
+            .map(testCase ->
+                dynamicTest("Parsing " + testCase + " should result in errors", () -> {
+                    Parser p = new Parser(new Lexer(testCase));
+                    p.parseModule();
+                    assertTrue(p.errors.size() != 0);
+                })
+            )
+            .collect(toList());
     }
 
     @TestFactory
