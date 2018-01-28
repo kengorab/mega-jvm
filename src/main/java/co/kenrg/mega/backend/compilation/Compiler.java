@@ -693,6 +693,6 @@ public class Compiler {
     }
 
     private void compileCallExpression(CallExpression node) {
-        compileInvocation(node, this.scope, this.className, this::compileNode, this.typeEnv);
+        compileInvocation(node, this.scope, this.className, this::compileNode);
     }
 }

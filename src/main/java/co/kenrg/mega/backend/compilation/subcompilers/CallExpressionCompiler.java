@@ -10,6 +10,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
+import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
@@ -30,15 +31,13 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Node;
-import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
-import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.base.Strings;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class CallExpressionCompiler {
-    public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode, TypeEnvironment typeEnv) {
+    public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode) {
         Node target;
         List<Expression> arguments;
         if (node instanceof CallExpression.UnnamedArgs) {
@@ -61,23 +60,24 @@ public class CallExpressionCompiler {
             throw new IllegalStateException("No other possible subclass of CallExpression: " + node.getClass());
         }
 
-        compileInvocation(target, arguments, scope, className, compileNode, typeEnv);
+        compileInvocation(target, arguments, scope, className, compileNode);
     }
 
-    public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode, TypeEnvironment typeEnv) {
+    public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null; // Should be populated in typechecking pass
 
         if (target instanceof Identifier) {
             if (fnType.isConstructor) {
-                assert fnType.returnType != null; // Should be populated in typechecking pass
-                MegaType constructorType = typeEnv.getTypeByName(((StructType) fnType.returnType).typeName);
-                String type = jvmDescriptor(fnType.returnType, false);
-                scope.focusedMethod.writer.visitTypeInsn(NEW, type);
+                MegaType classType = fnType.returnType;
+                assert classType != null; // Should be populated in typechecking pass
+
+                scope.focusedMethod.writer.visitTypeInsn(NEW, classType.className());
+                scope.focusedMethod.writer.visitInsn(DUP);
                 pushArguments(arguments, scope, compileNode, false);
 
-                String jvmDesc = jvmMethodDescriptor(fnType, false);
-                scope.focusedMethod.writer.visitMethodInsn(INVOKESPECIAL, type, "<init>", jvmDesc, false);
+                String jvmDesc = jvmMethodDescriptor(fnType, false, true);
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESPECIAL, classType.className(), "<init>", jvmDesc, false);
                 return;
             }
 

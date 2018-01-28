@@ -39,10 +39,14 @@ public class TypesAndSignatures {
     }
 
     public static String jvmMethodDescriptor(FunctionType methodType, boolean boxPrimitives) {
+        return jvmMethodDescriptor(methodType, boxPrimitives, false);
+    }
+
+    public static String jvmMethodDescriptor(FunctionType methodType, boolean boxPrimitives, boolean returnsVoid) {
         String paramTypeDescs = methodType.paramTypes.stream()
             .map(paramType -> jvmDescriptor(paramType, boxPrimitives))
             .collect(joining(""));
-        String returnTypeDesc = jvmDescriptor(methodType.returnType, boxPrimitives);
+        String returnTypeDesc = returnsVoid ? "V" : jvmDescriptor(methodType.returnType, boxPrimitives);
         return String.format("(%s)%s", paramTypeDescs, returnTypeDesc);
     }
 

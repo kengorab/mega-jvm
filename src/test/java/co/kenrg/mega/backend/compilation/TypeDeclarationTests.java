@@ -2,6 +2,7 @@ package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.getInnerClass;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,14 +19,14 @@ import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class TypeDeclarationTests {
 
-    @BeforeAll
-//    @AfterAll
+//    @BeforeAll
+    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -152,6 +153,61 @@ class TypeDeclarationTests {
                         else assertNotEquals(instance1.hashCode(), instance2.hashCode());
                     })
                 );
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testCustomTypeConstructor() {
+        class TestCase {
+            private final String input;
+            private final String expectedToString;
+            private final String valName;
+
+            public TestCase(String input, String expectedToString, String valName) {
+                this.input = input;
+                this.expectedToString = expectedToString;
+                this.valName = valName;
+            }
+        }
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "type Person = { name: String, age: Int }" +
+                    "val p = Person(name: 'Ken', age: 26)",
+                "Person { name: \"Ken\", age: 26 }",
+                "p"
+            ),
+            new TestCase(
+                "type Person = { name: String, age: Int }" +
+                    "val p = Person(age: 26, name: 'Ken')",
+                "Person { name: \"Ken\", age: 26 }",
+                "p"
+            ),
+
+            new TestCase(
+                "type Person = { name: String, age: Int }" +
+                    "type Team = { teamName: String, members: Array[Person] }" +
+                    "val p = Person(age: 26, name: 'Ken')" +
+                    "val t = Team(teamName: 'The Best Team', members: [p, Person(name: 'Meg', age: 25)])",
+                "Team { teamName: \"The Best Team\", members: [Person { name: \"Ken\", age: 26 }, Person { name: \"Meg\", age: 25 }] }",
+                "t"
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "Compiling and evaluating `%s` should result in the binding %s, whose toString value is `%s`",
+                    testCase.input, testCase.valName, testCase.expectedToString
+                );
+
+                return dynamicTest(name, () -> {
+                    TestCompilationResult result = parseTypecheckAndCompileInput(testCase.input);
+                    Object val = loadStaticValueFromClass(result.className, testCase.valName);
+
+                    assertEquals(testCase.expectedToString, val.toString());
+                });
             })
             .collect(toList());
     }
