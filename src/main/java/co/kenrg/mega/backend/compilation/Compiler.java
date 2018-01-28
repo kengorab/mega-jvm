@@ -159,7 +159,7 @@ public class Compiler {
         return results();
     }
 
-    public List<Pair<String, byte[]>> results() { // Used publicly by sub-compilers
+    public List<Pair<String, byte[]>> results() { /// // Used publicly by sub-compilers
         this.cw.visitEnd();
         innerClasses.add(Pair.of(this.className, this.cw.toByteArray()));
         return innerClasses;
@@ -693,6 +693,6 @@ public class Compiler {
     }
 
     private void compileCallExpression(CallExpression node) {
-        compileInvocation(node, this.scope, this.className, this::compileNode);
+        compileInvocation(node, this.scope, this.className, this::compileNode, this.typeEnv);
     }
 }

@@ -13,14 +13,14 @@ import java.util.List;
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
 
-    //    @BeforeAll
-    @AfterAll
+        @BeforeAll
+//    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }

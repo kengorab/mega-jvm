@@ -69,6 +69,7 @@ public class TypeDeclarationStatementCompiler {
         compiler.cw.visitInnerClass(innerClassName, outerClassName, typeClassName, ACC_PUBLIC | ACC_FINAL | ACC_STATIC);
 
         StructType structType = (StructType) type;
+        structType.setClassName(innerClassName);
         List<Pair<String, MegaType>> properties = structType.getProperties();
 
         writeClinitMethod(compiler, properties);

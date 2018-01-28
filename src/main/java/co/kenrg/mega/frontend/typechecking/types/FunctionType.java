@@ -25,16 +25,18 @@ public class FunctionType extends MegaType {
     public List<Identifier> params;
     @Nullable public final MegaType returnType;
     public Map<String, Binding> capturedBindings;
+    public final boolean isConstructor;
 
-    private FunctionType(List<MegaType> paramTypes, List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+    private FunctionType(List<MegaType> paramTypes, List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings, boolean isConstructor) {
         this.paramTypes = paramTypes;
         this.params = params;
         this.returnType = returnType;
         this.capturedBindings = capturedBindings;
+        this.isConstructor = isConstructor;
     }
 
     public FunctionType(List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
-        this(params.stream().map(Identifier::getType).collect(toList()), params, returnType, capturedBindings);
+        this(params.stream().map(Identifier::getType).collect(toList()), params, returnType, capturedBindings, false);
     }
 
     public FunctionType(List<Identifier> params, @Nullable MegaType returnType) {
@@ -42,7 +44,11 @@ public class FunctionType extends MegaType {
     }
 
     public static FunctionType ofSignature(List<MegaType> paramTypes, @Nullable MegaType returnType) {
-        return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap());
+        return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap(), false);
+    }
+
+    public static FunctionType constructor(List<Identifier> params, @Nullable MegaType returnType) {
+        return new FunctionType(params.stream().map(Identifier::getType).collect(toList()), params, returnType, Maps.newHashMap(), true);
     }
 
     public int arity() {

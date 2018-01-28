@@ -12,7 +12,9 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
+import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.NEW;
 
 import java.util.Collection;
 import java.util.List;
@@ -28,13 +30,15 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Node;
+import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.base.Strings;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class CallExpressionCompiler {
-    public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode) {
+    public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode, TypeEnvironment typeEnv) {
         Node target;
         List<Expression> arguments;
         if (node instanceof CallExpression.UnnamedArgs) {
@@ -57,31 +61,42 @@ public class CallExpressionCompiler {
             throw new IllegalStateException("No other possible subclass of CallExpression: " + node.getClass());
         }
 
-        compileInvocation(target, arguments, scope, className, compileNode);
+        compileInvocation(target, arguments, scope, className, compileNode, typeEnv);
     }
 
-    public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
+    public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode, TypeEnvironment typeEnv) {
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null; // Should be populated in typechecking pass
 
         if (target instanceof Identifier) {
+            if (fnType.isConstructor) {
+                assert fnType.returnType != null; // Should be populated in typechecking pass
+                MegaType constructorType = typeEnv.getTypeByName(((StructType) fnType.returnType).typeName);
+                String type = jvmDescriptor(fnType.returnType, false);
+                scope.focusedMethod.writer.visitTypeInsn(NEW, type);
+                pushArguments(arguments, scope, compileNode, false);
+
+                String jvmDesc = jvmMethodDescriptor(fnType, false);
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESPECIAL, type, "<init>", jvmDesc, false);
+                return;
+            }
+
             String name = ((Identifier) target).value;
             Binding binding = scope.getBinding(name);
             assert binding != null; // If binding is null, then typechecking must have failed (probably)
-
             if (binding.bindingType == BindingTypes.METHOD) {
                 pushArguments(arguments, scope, compileNode, false);
 
                 String jvmDesc = jvmMethodDescriptor(fnType, false);
                 scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, name, jvmDesc, false); // TODO: Don't assume all methods are static
                 return;
-            }
-
-            String jvmDesc = jvmDescriptor(fnType, true);
-            if (binding.bindingType == BindingTypes.STATIC) {
-                scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, className, name, jvmDesc);
             } else {
-                scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
+                String jvmDesc = jvmDescriptor(fnType, true);
+                if (binding.bindingType == BindingTypes.STATIC) {
+                    scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, className, name, jvmDesc);
+                } else {
+                    scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
+                }
             }
         } else {
             compileNode.accept(target);

@@ -43,7 +43,14 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.MethodVisitor;
 
 public class ArrowFunctionExpressionCompiler {
-    public static List<Pair<String, byte[]>> compileArrowFunction(String outerClassName, String lambdaName, String innerClassName, ArrowFunctionExpression node, TypeEnvironment typeEnv, Context context) {
+    public static List<Pair<String, byte[]>> compileArrowFunction(
+        String outerClassName,
+        String lambdaName,
+        String innerClassName,
+        ArrowFunctionExpression node,
+        TypeEnvironment typeEnv,
+        Context context
+    ) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
 

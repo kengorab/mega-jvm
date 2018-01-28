@@ -10,8 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.backend.compilation.Compiler;
+import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;

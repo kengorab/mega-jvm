@@ -12,9 +12,20 @@ public class StructType extends MegaType {
     public final String typeName;
     private final List<Pair<String, MegaType>> properties;
 
+    private String className;
+
     public StructType(String typeName, List<Pair<String, MegaType>> properties) {
         this.typeName = typeName;
         this.properties = properties;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    @Override
+    public String className() {
+        return this.className;
     }
 
     @Override

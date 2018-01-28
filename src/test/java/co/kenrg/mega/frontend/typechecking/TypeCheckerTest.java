@@ -534,7 +534,7 @@ class TypeCheckerTest {
 
                     Binding binding = env.getBinding(typeName);
                     Binding expected = new Binding(
-                        new FunctionType(
+                        FunctionType.constructor(
                             props.stream()
                                 .map(prop -> new Identifier(
                                     Token.ident(prop.getLeft(), null),

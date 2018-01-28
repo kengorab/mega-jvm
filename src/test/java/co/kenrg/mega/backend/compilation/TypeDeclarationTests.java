@@ -18,14 +18,14 @@ import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class TypeDeclarationTests {
 
-//    @BeforeAll
-    @AfterAll
+    @BeforeAll
+//    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }

@@ -344,7 +344,7 @@ public class TypeChecker {
                     return new Identifier(Token.ident(propName, null), propName, typeExpr, propType);
                 })
                 .collect(toList());
-            env.addBindingWithType(typeName, new FunctionType(params, type), true);
+            env.addBindingWithType(typeName, FunctionType.constructor(params, type), true);
         }
 
         switch (env.addType(typeName, type)) {
