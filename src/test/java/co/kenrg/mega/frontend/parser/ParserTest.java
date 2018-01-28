@@ -105,7 +105,7 @@ class ParserTest {
         Function<Statement, Identifier> getValStmtIdent = s -> ((ValStatement) s).name;
         Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
         Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
-        Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i);
+        Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i).ident;
         List<TestCase> tests = Lists.newArrayList(
             new TestCase(
                 "val x: Int = 4",
@@ -859,11 +859,11 @@ class ParserTest {
         assertEquals(condition2.left, new Identifier(Token.ident("x", Position.at(2, 6)), "x"));
         assertLiteralExpression(condition2.right, 0, Position.at(2, 10));
 
-        BlockExpression thenBlock2 = (BlockExpression) nestedIfExpr.thenExpr;
+        BlockExpression thenBlock2 = nestedIfExpr.thenExpr;
         IntegerLiteral thenExpr = (IntegerLiteral) ((ExpressionStatement) thenBlock2.statements.get(0)).expression;
         assertLiteralExpression(thenExpr, 0, Position.at(3, 5));
 
-        BlockExpression elseBlock = (BlockExpression) nestedIfExpr.elseExpr;
+        BlockExpression elseBlock = nestedIfExpr.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
         assertEquals(elseExpr, new Identifier(Token.ident("y", Position.at(5, 5)), "y"));
     }
@@ -903,7 +903,7 @@ class ParserTest {
                     assertEquals(
                         testCase.params,
                         expr.parameters.stream()
-                            .map(param -> param.value)
+                            .map(param -> param.ident.value)
                             .collect(toList())
                     );
 
@@ -929,14 +929,14 @@ class ParserTest {
         assertTrue(statement.expression instanceof ArrowFunctionExpression);
         ArrowFunctionExpression expr = (ArrowFunctionExpression) statement.expression;
 
-        assertIdentifier(expr.parameters.get(0), "a", Position.at(1, 1));
+        assertIdentifier(expr.parameters.get(0).ident, "a", Position.at(1, 1));
 
         Expression body = expr.body;
         assertTrue(body instanceof ArrowFunctionExpression);
         ArrowFunctionExpression arrowFunc = (ArrowFunctionExpression) body;
 
         assertEquals(1, arrowFunc.parameters.size());
-        assertIdentifier(arrowFunc.parameters.get(0), "b", Position.at(1, 6));
+        assertIdentifier(arrowFunc.parameters.get(0).ident, "b", Position.at(1, 6));
 
         Expression arrowFuncBody = arrowFunc.body;
         assertEquals(

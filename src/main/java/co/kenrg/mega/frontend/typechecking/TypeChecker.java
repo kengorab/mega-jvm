@@ -23,6 +23,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -636,25 +637,34 @@ public class TypeChecker {
             : Collections.nCopies(numParams, null);
 
         for (int i = 0; i < numParams; i++) {
-            Identifier parameter = expr.parameters.get(i);
+            Parameter parameter = expr.parameters.get(i);
             MegaType expectedParamType = expectedParamTypes.get(i);
 
             MegaType paramType;
-            if (parameter.typeAnnotation == null) {
-                if (expectedParamType != null) {
+            if (parameter.ident.typeAnnotation == null) {
+                if (parameter.hasDefaultValue()) {
+                    assert parameter.defaultValue != null; // hasDefaultValue check whether defaultValue is null
+                    paramType = typecheckNode(parameter.defaultValue, env);
+                } else if (expectedParamType != null) {
                     paramType = expectedParamType;
                 } else {
                     paramType = notInferredType;
                 }
             } else {
-                paramType = this.resolveType(parameter.typeAnnotation, env);
+                MegaType annotatedType = this.resolveType(parameter.ident.typeAnnotation, env);
+                if (parameter.hasDefaultValue()) {
+                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
+                } else {
+                    paramType = annotatedType;
+                }
             }
-            childEnv.addBindingWithType(parameter.value, paramType, true);
-            parameter.setType(paramType);
+            childEnv.addBindingWithType(parameter.ident.value, paramType, true);
+            parameter.ident.setType(paramType);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(expr.parameters, returnType, capturedBindings);
+        List<Identifier> parameters = expr.parameters.stream().map(p -> p.ident).collect(toList());
+        FunctionType functionType = new FunctionType(parameters, returnType, capturedBindings);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }

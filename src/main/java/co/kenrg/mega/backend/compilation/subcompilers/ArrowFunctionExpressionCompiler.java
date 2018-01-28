@@ -32,7 +32,7 @@ import co.kenrg.mega.backend.compilation.FocusedMethod;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.Scope.Context;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
-import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -153,8 +153,8 @@ public class ArrowFunctionExpressionCompiler {
         compiler.scope = compiler.scope.createChild(new FocusedMethod(invokeMethodWriter, null, null)); // TODO: Fix this, it's a little awkward...
         compiler.scope.addBinding("this", PrimitiveTypes.ANY, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
 
-        for (Identifier parameter : node.parameters) {
-            compiler.scope.addBinding(parameter.value, parameter.getType(), BindingTypes.LOCAL, false);
+        for (Parameter parameter : node.parameters) {
+            compiler.scope.addBinding(parameter.ident.value, parameter.ident.getType(), BindingTypes.LOCAL, false);
         }
 
         compiler.compileNode(node.body);

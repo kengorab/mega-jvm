@@ -42,7 +42,7 @@ class ArrowFunctionExpressionTest {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(
-                identifier("a")
+                new Parameter(identifier("a"))
             ),
             new BlockExpression(
                 lbraceToken,
@@ -60,8 +60,8 @@ class ArrowFunctionExpressionTest {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(
-                identifier("a"),
-                identifier("b")
+                new Parameter(identifier("a")),
+                new Parameter(identifier("b"))
             ),
             new BlockExpression(
                 lbraceToken,
@@ -79,8 +79,8 @@ class ArrowFunctionExpressionTest {
         ArrowFunctionExpression arrowFunction = new ArrowFunctionExpression(
             lparenToken,
             Lists.newArrayList(
-                identifier("a"),
-                identifier("b")
+                new Parameter(identifier("a")),
+                new Parameter(identifier("b"))
             ),
             new InfixExpression(
                 new Token(TokenType.PLUS, "+"),
