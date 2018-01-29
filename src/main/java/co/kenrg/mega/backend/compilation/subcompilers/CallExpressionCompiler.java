@@ -52,8 +52,8 @@ public class CallExpressionCompiler {
             assert fnType != null;
             Map<String, Expression> namedArgs = callExpr.namedParamArguments.stream()
                 .collect(toMap(param -> param.getKey().value, Pair::getValue));
-            arguments = fnType.params.stream()
-                .map(param -> param.value)
+            arguments = fnType.parameters.stream()
+                .map(param -> param.ident.value)
                 .map(namedArgs::get)
                 .collect(toList());
         } else {

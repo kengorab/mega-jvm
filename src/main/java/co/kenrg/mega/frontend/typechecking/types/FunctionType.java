@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -22,33 +23,45 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class FunctionType extends MegaType {
     public final List<MegaType> paramTypes;
-    public List<Identifier> params;
+    public List<Parameter> parameters;
     @Nullable public final MegaType returnType;
     public Map<String, Binding> capturedBindings;
     public final boolean isConstructor;
 
-    private FunctionType(List<MegaType> paramTypes, List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings, boolean isConstructor) {
+    private FunctionType(List<MegaType> paramTypes, List<Parameter> parameters, @Nullable MegaType returnType, Map<String, Binding> capturedBindings, boolean isConstructor) {
         this.paramTypes = paramTypes;
-        this.params = params;
+        this.parameters = parameters;
         this.returnType = returnType;
         this.capturedBindings = capturedBindings;
         this.isConstructor = isConstructor;
     }
 
     public FunctionType(List<Identifier> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
-        this(params.stream().map(Identifier::getType).collect(toList()), params, returnType, capturedBindings, false);
+        this(params.stream().map(Identifier::getType).collect(toList()), params.stream().map(Parameter::new).collect(toList()), returnType, capturedBindings, false);
+    }
+
+    public FunctionType(int _unused, List<Parameter> params, @Nullable MegaType returnType, Map<String, Binding> capturedBindings) {
+        this(params.stream().map(p -> p.ident.getType()).collect(toList()), params, returnType, capturedBindings, false);
     }
 
     public FunctionType(List<Identifier> params, @Nullable MegaType returnType) {
         this(params, returnType, Maps.newHashMap());
     }
 
+    public FunctionType(int _unused, List<Parameter> params, @Nullable MegaType returnType) {
+        this(_unused, params, returnType, Maps.newHashMap());
+    }
+
     public static FunctionType ofSignature(List<MegaType> paramTypes, @Nullable MegaType returnType) {
         return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap(), false);
     }
 
+    public static FunctionType ofSignature(int _unused, List<MegaType> paramTypes, @Nullable MegaType returnType) {
+        return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap(), false);
+    }
+
     public static FunctionType constructor(List<Identifier> params, @Nullable MegaType returnType) {
-        return new FunctionType(params.stream().map(Identifier::getType).collect(toList()), params, returnType, Maps.newHashMap(), true);
+        return new FunctionType(params.stream().map(Identifier::getType).collect(toList()), params.stream().map(Parameter::new).collect(toList()), returnType, Maps.newHashMap(), true);
     }
 
     public int arity() {
@@ -57,6 +70,15 @@ public class FunctionType extends MegaType {
 
     public List<Entry<String, Binding>> getCapturedBindings() {
         return Lists.newArrayList(this.capturedBindings.entrySet());
+    }
+
+    public boolean containsParamsWithDefaultValues() {
+        for (Parameter parameter : this.parameters) {
+            if (parameter.hasDefaultValue()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
