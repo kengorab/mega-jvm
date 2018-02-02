@@ -6,6 +6,9 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDesc
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.compileArrowFunction;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.compileArrowFunctionWithClosure;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.getInitMethodDesc;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.PROXY_SUFFIX;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.compileArrowFunctionProxy;
+import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.getArrowFnProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
@@ -232,17 +235,16 @@ public class Compiler {
     //***************************************************************
 
     private void compileValStatement(ValStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value, false);
+        compileBinding(stmt.name.value, stmt.value.getType(), false, () -> compileNode(stmt.value));
     }
 
     private void compileVarStatement(VarStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value, true);
+        compileBinding(stmt.name.value, stmt.value.getType(), true, () -> compileNode(stmt.value));
     }
 
-    private void compileBinding(String bindingName, Expression bindingExpr, boolean isMutable) {
-        MegaType type = bindingExpr.getType();
-        assert type != null; // Should have been set during typechecking pass
-        String jvmDescriptor = jvmDescriptor(type, false);
+    private void compileBinding(String bindingName, MegaType bindingType, boolean isMutable, Runnable onCompileNode) {
+        assert bindingType != null; // Should have been set during typechecking pass
+        String jvmDescriptor = jvmDescriptor(bindingType, false);
 
         if (this.scope.isRoot()) {
             int access = ACC_PUBLIC | ACC_STATIC; // At root scope, declare binding as static in the class
@@ -251,28 +253,28 @@ public class Compiler {
             }
             cw.visitField(access, bindingName, jvmDescriptor, null, null);
             this.scope.context.pushContext(bindingName);
-            compileNode(bindingExpr);
+            onCompileNode.run();
             this.scope.context.popContext();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-            this.scope.addBinding(bindingName, bindingExpr.getType(), BindingTypes.STATIC, isMutable);
+            this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable);
             return;
         }
 
         int index = this.scope.nextLocalVariableIndex();
         this.scope.context.pushContext(bindingName);
-        compileNode(bindingExpr);
+        onCompileNode.run();
         this.scope.context.popContext();
-        if (type == PrimitiveTypes.INTEGER) {
+        if (bindingType == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (type == PrimitiveTypes.BOOLEAN) {
+        } else if (bindingType == PrimitiveTypes.BOOLEAN) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (type == PrimitiveTypes.FLOAT) {
+        } else if (bindingType == PrimitiveTypes.FLOAT) {
             this.scope.focusedMethod.writer.visitVarInsn(FSTORE, index);
         } else {
             this.scope.focusedMethod.writer.visitVarInsn(ASTORE, index);
         }
-        this.scope.addBinding(bindingName, bindingExpr.getType(), BindingTypes.LOCAL, isMutable);
+        this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable);
     }
 
     private void compileForLoopStatement(ForLoopStatement node) {
@@ -672,6 +674,17 @@ public class Compiler {
             generatedClasses = compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
         } else {
             generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+            if (fnType.containsParamsWithDefaultValues()) {
+                String lambdaProxyName = lambdaName + PROXY_SUFFIX;
+                String innerProxyClassName = this.className + "$" + lambdaProxyName;
+                String bindingName = lambdaProxyName.replaceFirst("\\$\\d*", ""); // TODO: Fix this incredibly brittle assumption
+                FunctionType arrowFnProxyType = getArrowFnProxyType(fnType);
+                compileBinding(bindingName, arrowFnProxyType, false, () -> {
+                    this.cw.visitInnerClass(innerProxyClassName, this.className, lambdaProxyName, ACC_FINAL | ACC_STATIC);
+                    generatedClasses.addAll(compileArrowFunctionProxy(this.className, lambdaProxyName, innerProxyClassName, node, this.typeEnv, this.scope.context));
+                    this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerProxyClassName, "INSTANCE", "L" + innerProxyClassName + ";");
+                });
+            }
         }
         innerClasses.addAll(generatedClasses);
 

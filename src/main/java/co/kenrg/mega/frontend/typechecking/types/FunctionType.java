@@ -17,6 +17,9 @@ import com.google.common.collect.Maps;
 import mega.lang.functions.Function0;
 import mega.lang.functions.Function1;
 import mega.lang.functions.Function2;
+import mega.lang.functions.Function3;
+import mega.lang.functions.Function4;
+import mega.lang.functions.Function5;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.tuple.Pair;
@@ -56,8 +59,8 @@ public class FunctionType extends MegaType {
         return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap(), false);
     }
 
-    public static FunctionType ofSignature(int _unused, List<MegaType> paramTypes, @Nullable MegaType returnType) {
-        return new FunctionType(paramTypes, Lists.newArrayList(), returnType, Maps.newHashMap(), false);
+    public static FunctionType ofSignature(int _unused, List<Parameter> parameters, @Nullable MegaType returnType) {
+        return new FunctionType(Lists.newArrayList(), parameters, returnType, Maps.newHashMap(), false);
     }
 
     public static FunctionType constructor(List<Identifier> params, @Nullable MegaType returnType) {
@@ -91,6 +94,12 @@ public class FunctionType extends MegaType {
                 return Function1.class;
             case 2:
                 return Function2.class;
+            case 3:
+                return Function3.class;
+            case 4:
+                return Function4.class;
+            case 5:
+                return Function5.class;
             default:
                 throw new IllegalStateException("No class for function of arity: " + arity);
         }

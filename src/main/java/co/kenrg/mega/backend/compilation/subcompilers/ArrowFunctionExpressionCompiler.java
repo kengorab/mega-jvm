@@ -58,7 +58,7 @@ public class ArrowFunctionExpressionCompiler {
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
         writeClinitMethod(compiler, innerClassName);
-        writeInitMethod(compiler, arrowFnType);
+        writeInitMethod(compiler, arrowFnType.arity());
         writeIfaceInvokeMethod(compiler, innerClassName, arrowFnType);
         writeActualInvokeMethod(compiler, node, arrowFnType);
 
@@ -66,17 +66,27 @@ public class ArrowFunctionExpressionCompiler {
         return compiler.results();
     }
 
-    static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
-        String paramTypeDescs = arrowFnType.paramTypes.stream()
-            .map(type -> jvmDescriptor(type, true))
+    private static String getFunctionJvmDescriptor(FunctionType fnType) {
+        String paramTypeDescs = fnType.paramTypes.stream()
+            .map(type -> {
+                if (type instanceof FunctionType) {
+                    return getFunctionJvmDescriptor((FunctionType) type);
+                } else {
+                    return jvmDescriptor(type, true);
+                }
+            })
             .collect(joining(""));
-        String returnTypeDesc = jvmDescriptor(arrowFnType.returnType, true);
-        String functionDescTypeArgs = String.format("<%s%s>", paramTypeDescs, returnTypeDesc);
+        String returnTypeDesc = jvmDescriptor(fnType.returnType, true);
+        String functionDescTypeArgs = String.format("%s%s", paramTypeDescs, returnTypeDesc);
 
-        Class fnClass = arrowFnType.typeClass();
+        Class fnClass = fnType.typeClass();
         String desc = getDescriptor(fnClass);
-        String functionDesc = String.format("%s%s;", desc.substring(0, desc.length() - 1), functionDescTypeArgs);
-        String functionIfaceName = getInternalName(fnClass);
+        return String.format("%s<%s>;", desc.substring(0, desc.length() - 1), functionDescTypeArgs);
+    }
+
+    static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
+        String functionDesc = getFunctionJvmDescriptor(arrowFnType);
+        String functionIfaceName = getInternalName(arrowFnType.typeClass());
         String arrowFnSignature = String.format("%s%s", getDescriptor(Invokeable.class), functionDesc);
         Compiler compiler = new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
         compiler.scope.context = context;
@@ -94,12 +104,11 @@ public class ArrowFunctionExpressionCompiler {
         compiler.clinitWriter.visitEnd();
     }
 
-    static void writeInitMethod(Compiler compiler, FunctionType arrowFnType) {
+    static void writeInitMethod(Compiler compiler, int arity) {
         MethodVisitor initWriter = compiler.cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
         initWriter.visitCode();
         initWriter.visitVarInsn(ALOAD, 0);
 
-        int arity = arrowFnType.arity();
         if (0 <= arity && arity <= 5) {
             initWriter.visitInsn(arity + ICONST_0);
         } else {

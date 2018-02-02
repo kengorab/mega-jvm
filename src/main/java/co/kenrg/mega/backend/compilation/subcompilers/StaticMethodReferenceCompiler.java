@@ -47,7 +47,7 @@ public class StaticMethodReferenceCompiler {
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
 
         writeClinitMethod(compiler, innerClassName);
-        writeInitMethod(compiler, methodType);
+        writeInitMethod(compiler, methodType.arity());
         writeIfaceInvokeMethod(compiler, innerClassName, methodType);
         writeActualInvokeMethod(compiler, methodType, outerClassName, binding.name);
 

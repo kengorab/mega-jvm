@@ -13,14 +13,14 @@ import java.util.List;
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
 
-        @BeforeAll
-//    @AfterAll
+//    @BeforeAll
+    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -40,6 +40,44 @@ class FunctionInvocationTests {
 
             // With named parameters
             Triple.of("val shout = (str: String) => str + '!'; val loudNoises = shout(str: 'shouting')", "loudNoises", "shouting!")
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String bindingName = testCase.getMiddle();
+                Object val = testCase.getRight();
+
+                String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                return dynamicTest(name, () -> {
+                    TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                    String className = result.className;
+
+                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testInvocationOfStaticArrowFunctions_defaultParamValues() {
+        List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+            Triple.of(
+                "val returnsInt = (i: Int = 3) => i;" +
+                    "val four = returnsInt() + returnsInt(1)",
+                "four",
+                4
+            ),
+            Triple.of(
+                "val returnsSum = (i1: Int = 1, i2: Int = 2, i3: Int = 3) => i1 + i2 + i3;" +
+                    "val a = returnsSum();" +
+                    "val b = returnsSum(10);" +
+                    "val c = returnsSum(10, 20);" +
+                    "val d = returnsSum(10, 20, 30);" +
+                    "val sum = a + b + c + d;",
+                "sum",
+                114
+            )
         );
 
         return testCases.stream()
