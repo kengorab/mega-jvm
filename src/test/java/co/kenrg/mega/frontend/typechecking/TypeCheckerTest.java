@@ -15,9 +15,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.expression.Identifier;
-import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
-import co.kenrg.mega.frontend.ast.expression.StringLiteral;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpressions;
 import co.kenrg.mega.frontend.token.Position;
@@ -37,6 +35,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
@@ -49,6 +48,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -1164,22 +1164,22 @@ class TypeCheckerTest {
                 PrimitiveTypes.INTEGER,
                 Kind.ARROW_FN
             )),
-            Pair.of("(a: Int = 1) => a + 1", new FunctionType(
-                0,
-                Lists.newArrayList(
-                    new Parameter(
-                        new Identifier(
-                            Token.ident("a", Position.at(1, 2)),
-                            "a",
-                            new BasicTypeExpression("Int", Position.at(1, 5)),
-                            PrimitiveTypes.INTEGER
-                        ),
-                        new IntegerLiteral(Token._int("1", Position.at(1, 11)), 1, PrimitiveTypes.INTEGER)
-                    )
-                ),
-                PrimitiveTypes.INTEGER,
-                Kind.ARROW_FN
-            )),
+//            Pair.of("(a: Int = 1) => a + 1", new FunctionType(
+//                0,
+//                Lists.newArrayList(
+//                    new Parameter(
+//                        new Identifier(
+//                            Token.ident("a", Position.at(1, 2)),
+//                            "a",
+//                            new BasicTypeExpression("Int", Position.at(1, 5)),
+//                            PrimitiveTypes.INTEGER
+//                        ),
+//                        new IntegerLiteral(Token._int("1", Position.at(1, 11)), 1, PrimitiveTypes.INTEGER)
+//                    )
+//                ),
+//                PrimitiveTypes.INTEGER,
+//                Kind.ARROW_FN
+//            )),
             Pair.of("(a: Int, b: String) => a + b", new FunctionType(
                 0,
                 Lists.newArrayList(
@@ -1203,30 +1203,30 @@ class TypeCheckerTest {
                 PrimitiveTypes.STRING,
                 Kind.ARROW_FN
             )),
-            Pair.of("(a: Int, b: String = 'asdf') => a + b", new FunctionType(
-                0,
-                Lists.newArrayList(
-                    new Parameter(
-                        new Identifier(
-                            Token.ident("a", Position.at(1, 2)),
-                            "a",
-                            new BasicTypeExpression("Int", Position.at(1, 5)),
-                            PrimitiveTypes.INTEGER
-                        )
-                    ),
-                    new Parameter(
-                        new Identifier(
-                            Token.ident("b", Position.at(1, 10)),
-                            "b",
-                            new BasicTypeExpression("String", Position.at(1, 13)),
-                            PrimitiveTypes.STRING
-                        ),
-                        new StringLiteral(Token.string("asdf", Position.at(1, 22)), "asdf", PrimitiveTypes.STRING)
-                    )
-                ),
-                PrimitiveTypes.STRING,
-                Kind.ARROW_FN
-            )),
+//            Pair.of("(a: Int, b: String = 'asdf') => a + b", new FunctionType(
+//                0,
+//                Lists.newArrayList(
+//                    new Parameter(
+//                        new Identifier(
+//                            Token.ident("a", Position.at(1, 2)),
+//                            "a",
+//                            new BasicTypeExpression("Int", Position.at(1, 5)),
+//                            PrimitiveTypes.INTEGER
+//                        )
+//                    ),
+//                    new Parameter(
+//                        new Identifier(
+//                            Token.ident("b", Position.at(1, 10)),
+//                            "b",
+//                            new BasicTypeExpression("String", Position.at(1, 13)),
+//                            PrimitiveTypes.STRING
+//                        ),
+//                        new StringLiteral(Token.string("asdf", Position.at(1, 22)), "asdf", PrimitiveTypes.STRING)
+//                    )
+//                ),
+//                PrimitiveTypes.STRING,
+//                Kind.ARROW_FN
+//            )),
             Pair.of("() => 24",
                 new FunctionType(
                     0,
@@ -1252,6 +1252,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckArrowFunction_defaultValues_errors() {
         List<Pair<String, TypeCheckerError>> testCases = Lists.newArrayList(
             Pair.of(
@@ -1278,6 +1279,18 @@ class TypeCheckerTest {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    void testTypecheckArrowFunction_defaultValuedParameters_raisesError() {
+        String input = "(a: String = 'asdf') => a + 1";
+        TypeCheckResult result = testTypecheckExpressionAndGetResult(input);
+
+        assertTrue(result.hasErrors());
+        List<TypeCheckerError> errors = Lists.newArrayList(
+            new UnsupportedFeatureError("Arrow functions cannot have default-valued parameters", Position.at(1, 2))
+        );
+        assertEquals(errors, result.errors);
     }
 
     @TestFactory
@@ -1319,6 +1332,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_unnamedArgs_defaultParamValues() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("((a: Int = 4) => a + 1)(1)", PrimitiveTypes.INTEGER),
@@ -1339,7 +1353,20 @@ class TypeCheckerTest {
             .collect(toList());
     }
 
+    @Test
+    void testTypecheckCallExpression_arrowFunctionInvocation_namedArgs_raisesError() {
+        String input = "((a: Int) => a + 1)(a: 1)";
+        TypeCheckResult result = testTypecheckExpressionAndGetResult(input);
+
+        assertTrue(result.hasErrors());
+        List<TypeCheckerError> errors = Lists.newArrayList(
+            new UnsupportedFeatureError("Named argument invocation of arrow functions", Position.at(1, 20))
+        );
+        assertEquals(errors, result.errors);
+    }
+
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("((a: Int) => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
@@ -1379,6 +1406,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs_defaultParamValues() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("((a: Int = 4) => a + 1)(a: 1)", PrimitiveTypes.INTEGER),
@@ -1400,7 +1428,9 @@ class TypeCheckerTest {
             .collect(toList());
     }
 
+
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs_defaultParamValues_errors() {
         List<Pair<String, TypeCheckerError>> testCases = Lists.newArrayList(
             Pair.of("((a: Int = 4) => a + 1)(a: 1, b: 4)", new FunctionInvalidNamedArgumentError("b", Position.at(1, 31))),
@@ -1425,6 +1455,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    @Disabled("Eventually, convert these to tests for non-arrow function invocation")
     List<DynamicTest> testTypecheckCallExpression_arrowFunctionInvocation_namedArgs_errors() {
         List<Triple<String, List<TypeCheckerError>, MegaType>> testCases = Lists.newArrayList(
             Triple.of(

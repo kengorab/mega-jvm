@@ -65,6 +65,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
@@ -644,23 +645,29 @@ public class TypeChecker {
             Parameter parameter = expr.parameters.get(i);
             MegaType expectedParamType = expectedParamTypes.get(i);
 
+            if (parameter.hasDefaultValue()) {
+                this.errors.add(new UnsupportedFeatureError("Arrow functions cannot have default-valued parameters", parameter.ident.token.position));
+            }
+
             MegaType paramType;
             if (parameter.ident.typeAnnotation == null) {
-                if (parameter.hasDefaultValue()) {
-                    assert parameter.defaultValue != null; // hasDefaultValue check whether defaultValue is null
-                    paramType = typecheckNode(parameter.defaultValue, env);
-                } else if (expectedParamType != null) {
+//                if (parameter.hasDefaultValue()) {
+//                    assert parameter.defaultValue != null; // hasDefaultValue check whether defaultValue is null
+//                    paramType = typecheckNode(parameter.defaultValue, env);
+//                } else
+                if (expectedParamType != null) {
                     paramType = expectedParamType;
                 } else {
                     paramType = notInferredType;
                 }
             } else {
                 MegaType annotatedType = this.resolveType(parameter.ident.typeAnnotation, env);
-                if (parameter.hasDefaultValue()) {
-                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
-                } else {
-                    paramType = annotatedType;
-                }
+//                if (parameter.hasDefaultValue()) {
+//                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
+//                } else {
+
+                paramType = annotatedType;
+//                }
             }
             childEnv.addBindingWithType(parameter.ident.value, paramType, true);
             parameter.ident.setType(paramType);
@@ -744,6 +751,12 @@ public class TypeChecker {
         }
         FunctionType funcType = (FunctionType) targetType;
         assert funcType.parameters != null;
+
+        if (funcType.kind != Kind.METHOD) {
+            this.errors.add(new UnsupportedFeatureError("Named argument invocation of arrow functions", expr.token.position));
+            expr.setType(funcType.returnType);
+            return funcType.returnType;
+        }
 
         // The following 3 blocks act as an alternative to checking the arity:
         // 1. Verify that the named arguments in the expr match the names/types in the function declaration

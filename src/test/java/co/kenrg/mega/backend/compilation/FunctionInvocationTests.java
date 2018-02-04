@@ -36,10 +36,7 @@ class FunctionInvocationTests {
                     "val helloWorld = shout(shout(addSpace('Hello') + 'world'))",
                 "helloWorld",
                 "Hello world!!"
-            ),
-
-            // With named parameters
-            Triple.of("val shout = (str: String) => str + '!'; val loudNoises = shout(str: 'shouting')", "loudNoises", "shouting!")
+            )
         );
 
         return testCases.stream()
@@ -169,14 +166,6 @@ class FunctionInvocationTests {
             Triple.of("" +
                     "func returnFn() { (a: Int) => a + 1 };" +
                     "val two = returnFn()(1);",
-                "two",
-                2
-            ),
-
-            // With named parameters
-            Triple.of("" +
-                    "func returnFn() { (a: Int) => a + 1 };" +
-                    "val two = returnFn()(a: 1);",
                 "two",
                 2
             )
