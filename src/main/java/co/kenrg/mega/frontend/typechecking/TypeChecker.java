@@ -309,10 +309,10 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(0, statement.parameters, declaredReturnType, Kind.METHOD), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType, Kind.METHOD), true);
             }
         } else {
-            env.addBindingWithType(statement.name.value, new FunctionType(0, statement.parameters, returnType, Kind.METHOD), true);
+            env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType, Kind.METHOD), true);
         }
     }
 

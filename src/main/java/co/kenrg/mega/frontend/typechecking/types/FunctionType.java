@@ -12,7 +12,6 @@ import java.util.Map.Entry;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import mega.lang.functions.Function0;
@@ -52,12 +51,7 @@ public class FunctionType extends MegaType {
         this(params.stream().map(p -> p.ident.getType()).collect(toList()), params, returnType, capturedBindings, false, kind);
     }
 
-    public FunctionType(List<Identifier> params, @Nullable MegaType returnType, Kind kind) {
-        this(params.stream().map(Identifier::getType).collect(toList()), params.stream().map(Parameter::new).collect(toList()), returnType, Maps.newHashMap(), false, kind);
-    }
-
-    @VisibleForTesting
-    public FunctionType(int _unused, List<Parameter> params, @Nullable MegaType returnType, Kind kind) {
+    public FunctionType(List<Parameter> params, @Nullable MegaType returnType, Kind kind) {
         this(params, returnType, Maps.newHashMap(), kind);
     }
 

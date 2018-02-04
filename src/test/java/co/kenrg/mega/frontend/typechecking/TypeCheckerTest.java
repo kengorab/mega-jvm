@@ -149,7 +149,6 @@ class TypeCheckerTest {
             Triple.of("val b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("val arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
             Triple.of("val sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -182,7 +181,6 @@ class TypeCheckerTest {
             Triple.of("var b: Bool = false", "b", PrimitiveTypes.BOOLEAN),
             Triple.of("var arr: Array[Int] = [1, 2, 3]", "arr", arrayOf.apply(PrimitiveTypes.INTEGER)),
             Triple.of("var sum: (Int, Int) => Int = (a: Int, b: Int) => a + b", "sum", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -387,7 +385,6 @@ class TypeCheckerTest {
     List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -402,7 +399,6 @@ class TypeCheckerTest {
                 Kind.METHOD
             )),
             Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -747,7 +743,6 @@ class TypeCheckerTest {
             Pair.of("(1 + 1)", PrimitiveTypes.INTEGER),
             Pair.of("('abc' * 3)", PrimitiveTypes.STRING),
             Pair.of("((i: Int) => i + 1)", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -1157,7 +1152,6 @@ class TypeCheckerTest {
     List<DynamicTest> testTypecheckArrowFunction() {
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
             Pair.of("(a: Int) => a + 1", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -1187,7 +1181,6 @@ class TypeCheckerTest {
 //                Kind.ARROW_FN
 //            )),
             Pair.of("(a: Int, b: String) => a + b", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -1235,7 +1228,6 @@ class TypeCheckerTest {
 //            )),
             Pair.of("() => 24",
                 new FunctionType(
-                    0,
                     Lists.newArrayList(),
                     PrimitiveTypes.INTEGER,
                     Kind.ARROW_FN
@@ -1805,7 +1797,6 @@ class TypeCheckerTest {
                 new TypeMismatchError(
                     PrimitiveTypes.INTEGER,
                     new FunctionType(
-                        0,
                         Lists.newArrayList(
                             new Parameter(
                                 new Identifier(

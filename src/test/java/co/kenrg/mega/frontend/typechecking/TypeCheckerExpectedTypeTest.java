@@ -295,7 +295,6 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -327,7 +326,6 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -359,7 +357,6 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -391,7 +388,6 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -420,7 +416,6 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_paramsHaveTypeAnnotations_typeMatchesExpected_returnsType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -452,7 +447,6 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_paramsHaveMissingTypeAnnotations_typeMatchesExpected_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -487,7 +481,6 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, expectedFuncType);
 
             FunctionType actualFuncType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -520,7 +513,6 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_paramsHaveNoTypeAnnotations_returnsResolvedType() {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -555,7 +547,6 @@ class TypeCheckerExpectedTypeTest {
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
             FunctionType actual = new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -909,7 +900,6 @@ class TypeCheckerExpectedTypeTest {
                 Lists.newArrayList(new TypeMismatchError(
                     FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
                     new FunctionType(
-                        0,
                         Lists.newArrayList(
                             new Parameter(
                                 new Identifier(
