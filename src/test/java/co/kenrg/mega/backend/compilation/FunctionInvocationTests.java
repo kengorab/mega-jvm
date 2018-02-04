@@ -63,8 +63,8 @@ class FunctionInvocationTests {
     List<DynamicTest> testInvocationOfStaticArrowFunctions_defaultParamValues() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of(
-                "val arr = [(i: Int = 1) => i];" +
-                    "val abc = arr[0]();" +
+//                "val arr = [(i: Int = 1) => i];" +
+//                    "val abc = arr[0]();" +
                     "val returnsInt = (i: Int = 3) => i;" +
                     "val four = returnsInt() + returnsInt(1)",
                 "four",
