@@ -55,6 +55,7 @@ import co.kenrg.mega.frontend.typechecking.errors.FunctionInvalidNamedArgumentEr
 import co.kenrg.mega.frontend.typechecking.errors.FunctionMissingNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionWithDefaultParamValuesArityError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.MissingParameterTypeAnnotationError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
@@ -284,16 +285,17 @@ public class TypeChecker {
 
         for (Parameter parameter : statement.parameters) {
             if (parameter.ident.typeAnnotation == null) {
-                this.errors.add(new TypeCheckerError(parameter.ident.token.position) {
-                    @Override
-                    public String message() {
-                        return String.format("Missing type annotation on parameter: %s", parameter.ident.value);
-                    }
-                });
+                this.errors.add(new MissingParameterTypeAnnotationError(parameter.ident.value, parameter.ident.token.position));
             } else {
-                MegaType type = this.resolveType(parameter.ident.typeAnnotation, env);
-                childEnv.addBindingWithType(parameter.ident.value, type, true);
-                parameter.ident.setType(type);
+                MegaType annotatedType = this.resolveType(parameter.ident.typeAnnotation, env);
+                MegaType paramType;
+                if (parameter.hasDefaultValue()) {
+                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
+                } else {
+                    paramType = annotatedType;
+                }
+                childEnv.addBindingWithType(parameter.ident.value, paramType, true);
+                parameter.ident.setType(paramType);
             }
         }
 
