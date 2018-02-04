@@ -39,6 +39,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
@@ -167,7 +168,8 @@ class TypeCheckerTest {
                         )
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.ARROW_FN
             )),
 
             Triple.of("var s = \"asdf\"", "s", PrimitiveTypes.STRING),
@@ -199,7 +201,8 @@ class TypeCheckerTest {
                         )
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.ARROW_FN
             ))
         );
 
@@ -392,7 +395,8 @@ class TypeCheckerTest {
                         PrimitiveTypes.INTEGER
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.METHOD
             )),
             Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(
                 Lists.newArrayList(
@@ -403,7 +407,8 @@ class TypeCheckerTest {
                         PrimitiveTypes.INTEGER
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.METHOD
             ))
         );
 
@@ -437,7 +442,7 @@ class TypeCheckerTest {
 
         assertTrue(result.hasErrors());
         assertEquals(
-            new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 31)),
+            new TypeMismatchError(PrimitiveTypes.INTEGER, PrimitiveTypes.STRING, Position.at(1, 33)),
             result.errors.get(0)
         );
     }
@@ -747,7 +752,8 @@ class TypeCheckerTest {
                         )
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.ARROW_FN
             )),
             Pair.of("([true, false])", arrayOf.apply(PrimitiveTypes.BOOLEAN))
         );
@@ -1155,7 +1161,8 @@ class TypeCheckerTest {
                             PrimitiveTypes.INTEGER
                         ))
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.ARROW_FN
             )),
             Pair.of("(a: Int = 1) => a + 1", new FunctionType(
                 0,
@@ -1170,7 +1177,8 @@ class TypeCheckerTest {
                         new IntegerLiteral(Token._int("1", Position.at(1, 11)), 1, PrimitiveTypes.INTEGER)
                     )
                 ),
-                PrimitiveTypes.INTEGER
+                PrimitiveTypes.INTEGER,
+                Kind.ARROW_FN
             )),
             Pair.of("(a: Int, b: String) => a + b", new FunctionType(
                 0,
@@ -1192,7 +1200,8 @@ class TypeCheckerTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             )),
             Pair.of("(a: Int, b: String = 'asdf') => a + b", new FunctionType(
                 0,
@@ -1215,9 +1224,17 @@ class TypeCheckerTest {
                         new StringLiteral(Token.string("asdf", Position.at(1, 22)), "asdf", PrimitiveTypes.STRING)
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             )),
-            Pair.of("() => 24", FunctionType.ofSignature(0, Lists.newArrayList(), PrimitiveTypes.INTEGER))
+            Pair.of("() => 24",
+                new FunctionType(
+                    0,
+                    Lists.newArrayList(),
+                    PrimitiveTypes.INTEGER,
+                    Kind.ARROW_FN
+                )
+            )
         );
 
         return testCases.stream()
@@ -1271,7 +1288,6 @@ class TypeCheckerTest {
             Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(\"asdf\", 1, \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")(\"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(\"asdf\")", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -1283,7 +1299,8 @@ class TypeCheckerTest {
                     )
                 ),
                 PrimitiveTypes.STRING,
-                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null))
+                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null)),
+                Kind.ARROW_FN
             ))
         );
 
@@ -1331,7 +1348,6 @@ class TypeCheckerTest {
             Pair.of("((s1: String, a: Int, s2: String) => { (s1 + s2) * a })(s1: \"asdf\", a: 1, s2: \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")(b: \"qwer\")", PrimitiveTypes.STRING),
             Pair.of("((a: String) => (b: String) => a + b)(a: \"asdf\")", new FunctionType(
-                0,
                 Lists.newArrayList(
                     new Parameter(
                         new Identifier(
@@ -1343,7 +1359,8 @@ class TypeCheckerTest {
                     )
                 ),
                 PrimitiveTypes.STRING,
-                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null))
+                ImmutableMap.of("a", new Binding(PrimitiveTypes.STRING, true, null)),
+                Kind.ARROW_FN
             ))
         );
 
@@ -1763,7 +1780,8 @@ class TypeCheckerTest {
                                 )
                             )
                         ),
-                        PrimitiveTypes.INTEGER
+                        PrimitiveTypes.INTEGER,
+                        Kind.ARROW_FN
                     ),
                     Position.at(1, 2)
                 )

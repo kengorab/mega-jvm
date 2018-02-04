@@ -40,6 +40,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -313,7 +314,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -344,7 +346,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -375,7 +378,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                TypeChecker.unknownType
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -406,7 +410,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                TypeChecker.unknownType
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -434,7 +439,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -465,7 +471,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -499,7 +506,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(expectedFuncType, actualFuncType, Position.at(1, 1))),
@@ -531,7 +539,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                PrimitiveTypes.STRING
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -565,7 +574,8 @@ class TypeCheckerExpectedTypeTest {
                         )
                     )
                 ),
-                TypeChecker.unknownType
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(
                 Lists.newArrayList(
@@ -910,7 +920,8 @@ class TypeCheckerExpectedTypeTest {
                                 )
                             )
                         ),
-                        PrimitiveTypes.STRING
+                        PrimitiveTypes.STRING,
+                        Kind.ARROW_FN
                     ),
                     Position.at(1, 6)
                 )),

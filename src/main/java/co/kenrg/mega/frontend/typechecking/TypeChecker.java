@@ -67,6 +67,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
@@ -295,22 +296,23 @@ public class TypeChecker {
             }
         }
 
-        //TODO: Pass expected type here when function declarations' typeAnnotation is actually a TypeExpression
-        MegaType returnType = typecheckNode(statement.body, childEnv);
+        MegaType declaredReturnType = statement.typeAnnotation != null
+            ? env.getTypeByName(statement.typeAnnotation)
+            : null;
+        MegaType returnType = typecheckNode(statement.body, childEnv, declaredReturnType);
 
         if (statement.typeAnnotation != null) {
-            MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);
             if (declaredReturnType == null) {
                 this.errors.add(new UnknownTypeError(statement.typeAnnotation, statement.token.position));
             } else {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType, Kind.METHOD), true);
             }
+        } else {
+            env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType, Kind.METHOD), true);
         }
-
-        env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -665,7 +667,7 @@ public class TypeChecker {
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(0, expr.parameters, returnType, capturedBindings);
+        FunctionType functionType = new FunctionType(expr.parameters, returnType, capturedBindings, Kind.ARROW_FN);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
@@ -777,7 +779,7 @@ public class TypeChecker {
                     return new Parameter(arg.getLeft());
                 })
                 .collect(toList());
-            FunctionType expectedFuncType = new FunctionType(0, namedParamArguments, expectedType, funcType.capturedBindings);
+            FunctionType expectedFuncType = new FunctionType(namedParamArguments, expectedType, funcType.capturedBindings, funcType.kind);
             funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
             assert funcType.parameters != null;
         } else {
