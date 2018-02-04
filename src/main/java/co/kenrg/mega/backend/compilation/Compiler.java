@@ -19,7 +19,6 @@ import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferen
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static co.kenrg.mega.backend.compilation.subcompilers.TypeDeclarationStatementCompiler.compileTypeDeclaration;
-import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
@@ -68,7 +67,6 @@ import static org.objectweb.asm.Opcodes.V1_6;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.Scope.Binding;
 import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
@@ -169,10 +167,10 @@ public class Compiler {
     }
 
     public <T extends Node> void compileNode(T node) {
+        this.scope.context.pushContext(node, "");
 
         // Statements
         if (node instanceof Module) {
-            this.scope.context.pushContext(this.className);
             this.compileStatements(((Module) node).statements);
         } else if (node instanceof ExpressionStatement) {
             this.compileNode(((ExpressionStatement) node).expression);
@@ -222,6 +220,8 @@ public class Compiler {
         } else if (node instanceof CallExpression) {
             this.compileCallExpression((CallExpression) node);
         }
+
+        this.scope.context.popContext();
     }
 
     private void compileStatements(List<Statement> statements) {
@@ -252,9 +252,7 @@ public class Compiler {
                 access = access | ACC_FINAL;
             }
             cw.visitField(access, bindingName, jvmDescriptor, null, null);
-            this.scope.context.pushContext(bindingName);
             onCompileNode.run();
-            this.scope.context.popContext();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
             this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable);
@@ -262,9 +260,7 @@ public class Compiler {
         }
 
         int index = this.scope.nextLocalVariableIndex();
-        this.scope.context.pushContext(bindingName);
         onCompileNode.run();
-        this.scope.context.popContext();
         if (bindingType == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
         } else if (bindingType == PrimitiveTypes.BOOLEAN) {
@@ -346,9 +342,7 @@ public class Compiler {
         }
         methodWriter.visitCode();
 
-        this.scope.context.pushContext(methodName);
         compileBlockExpression(node.body);
-        this.scope.context.popContext();
         if (fnType.returnType == PrimitiveTypes.INTEGER) {
             methodWriter.visitInsn(IRETURN);
         } else if (fnType.returnType == PrimitiveTypes.BOOLEAN) {
@@ -655,10 +649,8 @@ public class Compiler {
     }
 
     private void compileArrowFunctionExpression(ArrowFunctionExpression node) {
-        String lambdaName = this.scope.context.subcontexts.subList(1, this.scope.context.subcontexts.size()).stream()
-            .flatMap(s -> Stream.of(s.getLeft(), s.getRight().toString()))
-            .collect(joining("$"));
-        this.scope.context.incLambdaCount();
+        String lambdaName = this.scope.context.getLambdaName();
+        this.scope.context.incLambdaCountOfPreviousContext();
 
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
@@ -677,9 +669,8 @@ public class Compiler {
             if (fnType.containsParamsWithDefaultValues()) {
                 String lambdaProxyName = lambdaName + PROXY_SUFFIX;
                 String innerProxyClassName = this.className + "$" + lambdaProxyName;
-                String bindingName = lambdaProxyName.replaceFirst("\\$\\d*", ""); // TODO: Fix this incredibly brittle assumption
                 FunctionType arrowFnProxyType = getArrowFnProxyType(fnType);
-                compileBinding(bindingName, arrowFnProxyType, false, () -> {
+                compileBinding(lambdaProxyName, arrowFnProxyType, false, () -> {
                     this.cw.visitInnerClass(innerProxyClassName, this.className, lambdaProxyName, ACC_FINAL | ACC_STATIC);
                     generatedClasses.addAll(compileArrowFunctionProxy(this.className, lambdaProxyName, innerProxyClassName, node, this.typeEnv, this.scope.context));
                     this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerProxyClassName, "INSTANCE", "L" + innerProxyClassName + ";");

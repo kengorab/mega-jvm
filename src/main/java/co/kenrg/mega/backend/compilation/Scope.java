@@ -2,16 +2,26 @@ package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
+import static java.util.stream.Collectors.joining;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
+import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
+import co.kenrg.mega.frontend.ast.expression.IfExpression;
+import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.iface.Node;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.Opcodes;
 
 public class Scope {
@@ -38,7 +48,19 @@ public class Scope {
     }
 
     public static class Context implements Cloneable {
-        public List<Pair<String, Integer>> subcontexts = Lists.newArrayList();
+        class ContextFrame {
+            Node node;
+            String name;
+            Integer numLambdas;
+
+            public ContextFrame(Node node, String name, Integer numLambdas) {
+                this.node = node;
+                this.name = name;
+                this.numLambdas = numLambdas;
+            }
+        }
+
+        public List<ContextFrame> subcontexts = Lists.newArrayList();
 
         public Context() {
         }
@@ -57,19 +79,49 @@ public class Scope {
             return c;
         }
 
-        public void pushContext(String name) {
-            this.subcontexts.add(Pair.of(name, 0));
+        public void pushContext(Node node, String name) {
+            this.subcontexts.add(new ContextFrame(node, name, 0));
         }
 
-        public void incLambdaCount() {
-            int index = this.subcontexts.size() - 1;
-            Pair<String, Integer> topOfStack = this.subcontexts.get(index);
-            this.subcontexts.add(index, Pair.of(topOfStack.getLeft(), topOfStack.getRight() + 1));
-            this.subcontexts.remove(index + 1);
+        public void incLambdaCountOfPreviousContext() {
+            int index = this.subcontexts.size() - 2;
+            ContextFrame previousFrame = this.subcontexts.get(index);
+            previousFrame.numLambdas++;
         }
 
         public void popContext() {
             this.subcontexts.remove(this.subcontexts.size() - 1);
+        }
+
+        public String getLambdaName() {
+            return this.subcontexts.stream()
+                .map(frame -> {
+                    Node node = frame.node;
+
+                    if (node instanceof ValStatement) {
+                        return ((ValStatement) node).name.value;
+                    } else if (node instanceof VarStatement) {
+                        return ((VarStatement) node).name.value;
+                    } else if (node instanceof FunctionDeclarationStatement) {
+                        return ((FunctionDeclarationStatement) node).name.value;
+                    }
+
+                    if (node instanceof ArrayLiteral) {
+                        return frame.numLambdas.toString();
+                    } else if (node instanceof ObjectLiteral) {
+                        return frame.numLambdas.toString();
+                    } else if (node instanceof IfExpression) {
+                        return frame.numLambdas.toString();
+                    } else if (node instanceof AssignmentExpression) {
+                        return ((AssignmentExpression) node).name.value;
+                    } else if (node instanceof CallExpression) {
+                        return frame.numLambdas.toString();
+                    } else {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(joining("$"));
         }
     }
 

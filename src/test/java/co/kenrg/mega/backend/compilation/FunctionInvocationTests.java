@@ -13,14 +13,14 @@ import java.util.List;
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
 
-//    @BeforeAll
-    @AfterAll
+    @BeforeAll
+//    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -63,7 +63,9 @@ class FunctionInvocationTests {
     List<DynamicTest> testInvocationOfStaticArrowFunctions_defaultParamValues() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of(
-                "val returnsInt = (i: Int = 3) => i;" +
+                "val arr = [(i: Int = 1) => i];" +
+                    "val abc = arr[0]();" +
+                    "val returnsInt = (i: Int = 3) => i;" +
                     "val four = returnsInt() + returnsInt(1)",
                 "four",
                 4
@@ -100,35 +102,35 @@ class FunctionInvocationTests {
     @TestFactory
     List<DynamicTest> testInvocationOfNestedArrowFunctions() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
-            Triple.of("" +
-                    "val a = if 4 > 3 {" +
-                    "  val fn = (i: Int) => i + 1;" +
-                    "  fn(1)" +
-                    "} else { 4 }",
-                "a",
-                2
-            ),
-            Triple.of("" +
-                    "val apply = (fn: Int => Int, a: Int) => fn(a);" +
-                    "val inc = (i: Int) => i + 1;" +
-                    "val a = apply(inc, 3)",
-                "a",
-                4
-            ),
+//            Triple.of("" +
+//                    "val a = if 4 > 3 {" +
+//                    "  val fn = (i: Int) => i + 1;" +
+//                    "  fn(1)" +
+//                    "} else { 4 }",
+//                "a",
+//                2
+//            ),
+//            Triple.of("" +
+//                    "val apply = (fn: Int => Int, a: Int) => fn(a);" +
+//                    "val inc = (i: Int) => i + 1;" +
+//                    "val a = apply(inc, 3)",
+//                "a",
+//                4
+//            ),
             Triple.of("" +
                     "val apply = (fn: Int => Int, a: Int) => fn(a);" +
                     "val a = apply(i => i + 1, 3)",
                 "a",
                 4
-            ),
-            Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
-            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
-            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true),
-
-            // With named parameters
-            Triple.of("val a = ((i: Int) => i + 1)(i: 2)", "a", 3),
-            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(i: 3)(s: 'abc')", "b", "abc"),
-            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(i: 3)(s: 'abc')(x: true)", "b", true)
+            )
+//            Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
+//            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
+//            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true),
+//
+//            // With named parameters
+//            Triple.of("val a = ((i: Int) => i + 1)(i: 2)", "a", 3),
+//            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(i: 3)(s: 'abc')", "b", "abc"),
+//            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(i: 3)(s: 'abc')(x: true)", "b", true)
         );
 
         return testCases.stream()
