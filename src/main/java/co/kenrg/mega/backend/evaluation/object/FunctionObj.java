@@ -5,21 +5,21 @@ import static java.util.stream.Collectors.joining;
 
 import java.util.List;
 
-import co.kenrg.mega.frontend.ast.expression.BlockExpression;
-import co.kenrg.mega.frontend.ast.expression.Identifier;
-import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
 import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
+import co.kenrg.mega.frontend.ast.iface.Expression;
 
 public class FunctionObj extends Obj implements InvokeableObj {
     public final String name;
-    public final List<Identifier> params;
+    public final List<Parameter> params;
     public final BlockExpression body;
     public final Environment env;
 
-    public FunctionObj(String name, List<Identifier> params, BlockExpression body, Environment env) {
+    public FunctionObj(String name, List<Parameter> params, BlockExpression body, Environment env) {
         this.name = name;
         this.params = params;
         this.body = body;
@@ -27,7 +27,7 @@ public class FunctionObj extends Obj implements InvokeableObj {
     }
 
     @Override
-    public List<Identifier> getParams() {
+    public List<Parameter> getParams() {
         return this.params;
     }
 

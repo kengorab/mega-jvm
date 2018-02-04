@@ -42,6 +42,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -549,7 +550,7 @@ public class Evaluator {
             args.add(arg);
         }
 
-        List<Identifier> funcParams = func.getParams();
+        List<Parameter> funcParams = func.getParams();
 
         if (args.size() != funcParams.size()) {
             return functionArityError(funcParams.size(), args.size());
@@ -558,7 +559,7 @@ public class Evaluator {
         Environment fnEnv = func.getEnvironment().createChildEnvironment();
         for (int i = 0; i < args.size(); i++) {
             Obj arg = args.get(i);
-            Identifier param = funcParams.get(i);
+            Identifier param = funcParams.get(i).ident;
             fnEnv.add(param.value, arg, true);
         }
 

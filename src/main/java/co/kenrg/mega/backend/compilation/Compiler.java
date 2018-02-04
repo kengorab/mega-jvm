@@ -84,6 +84,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -337,8 +338,8 @@ public class Compiler {
 
         Scope origScope = this.scope;
         this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
-        for (Identifier param : node.parameters) {
-            this.scope.addBinding(param.value, param.getType(), BindingTypes.LOCAL, false);
+        for (Parameter param : node.parameters) {
+            this.scope.addBinding(param.ident.value, param.ident.getType(), BindingTypes.LOCAL, false);
         }
         methodWriter.visitCode();
 

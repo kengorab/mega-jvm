@@ -387,24 +387,30 @@ class TypeCheckerTest {
     List<DynamicTest> testTypecheckFunctionDeclarationStatement() {
         List<Triple<String, String, MegaType>> testCases = Lists.newArrayList(
             Triple.of("func addOne(a: Int): Int { a + 1 }", "addOne", new FunctionType(
+                0,
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 13)),
-                        "a",
-                        new BasicTypeExpression("Int", Position.at(1, 16)),
-                        PrimitiveTypes.INTEGER
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 13)),
+                            "a",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
                     )
                 ),
                 PrimitiveTypes.INTEGER,
                 Kind.METHOD
             )),
             Triple.of("func addOne(a: Int) { a + 1 }", "addOne", new FunctionType(
+                0,
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 13)),
-                        "a",
-                        new BasicTypeExpression("Int", Position.at(1, 16)),
-                        PrimitiveTypes.INTEGER
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 13)),
+                            "a",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
                     )
                 ),
                 PrimitiveTypes.INTEGER,
@@ -1427,7 +1433,6 @@ class TypeCheckerTest {
             })
             .collect(toList());
     }
-
 
     @TestFactory
     @Disabled("Eventually, convert these to tests for non-arrow function invocation")

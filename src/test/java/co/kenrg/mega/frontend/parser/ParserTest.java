@@ -105,7 +105,7 @@ class ParserTest {
 
         Function<Statement, Identifier> getValStmtIdent = s -> ((ValStatement) s).name;
         Function<Statement, Identifier> getVarStmtIdent = s -> ((VarStatement) s).name;
-        Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i);
+        Function<Integer, Function<Statement, Identifier>> getFuncStmtParamIdent = i -> s -> ((FunctionDeclarationStatement) s).parameters.get(i).ident;
         Function<Integer, Function<Statement, Identifier>> getArrowFuncExprParamIdent = i -> s -> ((ArrowFunctionExpression) ((ExpressionStatement) s).expression).parameters.get(i).ident;
         List<TestCase> tests = Lists.newArrayList(
             new TestCase(
@@ -368,33 +368,72 @@ class ParserTest {
         Parser parser = new Parser(new Lexer(input));
         Module module = parser.parseModule();
         assertEquals(0, parser.errors.size());
-        FunctionDeclarationStatement statement = (FunctionDeclarationStatement) module.statements.get(0);
-
-        assertEquals("add", statement.name.value);
-        assertEquals(
-            Lists.newArrayList("a", "b"),
-            statement.parameters.stream()
-                .map(param -> param.value)
-                .collect(toList())
-        );
-
-        BlockExpression body = statement.body;
-        assertEquals(1, body.statements.size());
-
-        assertEquals(
+        FunctionDeclarationStatement actual = (FunctionDeclarationStatement) module.statements.get(0);
+        FunctionDeclarationStatement expected = new FunctionDeclarationStatement(
+            Token.function(Position.at(1, 1)),
+            new Identifier(Token.ident("add", Position.at(1, 6)), "add"),
             Lists.newArrayList(
-                new ExpressionStatement(
-                    Token.ident("a", Position.at(1, 18)),
-                    new InfixExpression(
-                        Token.plus(Position.at(1, 20)),
-                        "+",
-                        new Identifier(Token.ident("a", Position.at(1, 18)), "a"),
-                        new Identifier(Token.ident("b", Position.at(1, 22)), "b")
+                new Parameter(new Identifier(Token.ident("a", Position.at(1, 10)), "a")),
+                new Parameter(new Identifier(Token.ident("b", Position.at(1, 13)), "b"))
+            ),
+            new BlockExpression(
+                Token.lbrace(Position.at(1, 16)),
+                Lists.newArrayList(
+                    new ExpressionStatement(
+                        Token.ident("a", Position.at(1, 18)),
+                        new InfixExpression(
+                            Token.plus(Position.at(1, 20)),
+                            "+",
+                            new Identifier(Token.ident("a", Position.at(1, 18)), "a"),
+                            new Identifier(Token.ident("b", Position.at(1, 22)), "b")
+                        )
                     )
                 )
-            ),
-            body.statements
+            )
         );
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void testFunctionDeclarationStatement_typedAndDefaultValuedParams() {
+        String input = "func add(a, b = 4, c: Int = 12) { a + b }";
+        Parser parser = new Parser(new Lexer(input));
+        Module module = parser.parseModule();
+        assertEquals(0, parser.errors.size());
+        FunctionDeclarationStatement actual = (FunctionDeclarationStatement) module.statements.get(0);
+
+        FunctionDeclarationStatement expected = new FunctionDeclarationStatement(
+            Token.function(Position.at(1, 1)),
+            new Identifier(Token.ident("add", Position.at(1, 6)), "add"),
+            Lists.newArrayList(
+                new Parameter(
+                    new Identifier(Token.ident("a", Position.at(1, 10)), "a")
+                ),
+                new Parameter(
+                    new Identifier(Token.ident("b", Position.at(1, 13)), "b"),
+                    new IntegerLiteral(Token._int("4", Position.at(1, 17)), 4)
+                ),
+                new Parameter(
+                    new Identifier(Token.ident("c", Position.at(1, 20)), "c", new BasicTypeExpression("Int", Position.at(1, 23))),
+                    new IntegerLiteral(Token._int("12", Position.at(1, 29)), 12)
+                )
+            ),
+            new BlockExpression(
+                Token.lbrace(Position.at(1, 33)),
+                Lists.newArrayList(
+                    new ExpressionStatement(
+                        Token.ident("a", Position.at(1, 35)),
+                        new InfixExpression(
+                            Token.plus(Position.at(1, 37)),
+                            "+",
+                            new Identifier(Token.ident("a", Position.at(1, 35)), "a"),
+                            new Identifier(Token.ident("b", Position.at(1, 39)), "b")
+                        )
+                    )
+                )
+            )
+        );
+        assertEquals(expected, actual);
     }
 
     @Test
@@ -804,7 +843,7 @@ class ParserTest {
         assertEquals(condition.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
         assertEquals(condition.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
-        BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
+        BlockExpression thenBlock = ifExpression.thenExpr;
         Identifier ident = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
         assertEquals(ident, new Identifier(Token.ident("x", Position.at(1, 12)), "x"));
 
@@ -823,11 +862,11 @@ class ParserTest {
         assertEquals(condition.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
         assertEquals(condition.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
-        BlockExpression thenBlock = (BlockExpression) ifExpression.thenExpr;
+        BlockExpression thenBlock = ifExpression.thenExpr;
         Identifier thenExpr = (Identifier) ((ExpressionStatement) thenBlock.statements.get(0)).expression;
         assertEquals(thenExpr, new Identifier(Token.ident("x", Position.at(1, 12)), "x"));
 
-        BlockExpression elseBlock = (BlockExpression) ifExpression.elseExpr;
+        BlockExpression elseBlock = ifExpression.elseExpr;
         Identifier elseExpr = (Identifier) ((ExpressionStatement) elseBlock.statements.get(0)).expression;
         assertEquals(elseExpr, new Identifier(Token.ident("y", Position.at(1, 23)), "y"));
     }
@@ -851,7 +890,7 @@ class ParserTest {
         assertEquals(condition1.left, new Identifier(Token.ident("x", Position.at(1, 4)), "x"));
         assertEquals(condition1.right, new Identifier(Token.ident("y", Position.at(1, 8)), "y"));
 
-        BlockExpression thenBlock1 = (BlockExpression) ifExpression.thenExpr;
+        BlockExpression thenBlock1 = ifExpression.thenExpr;
         IfExpression nestedIfExpr = (IfExpression) ((ExpressionStatement) thenBlock1.statements.get(0)).expression;
         assertNull(ifExpression.elseExpr);
 

@@ -1,7 +1,6 @@
 package co.kenrg.mega.backend.evaluation.object;
 
 import static co.kenrg.mega.backend.evaluation.object.iface.ObjectType.FUNCTION;
-import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 
@@ -10,7 +9,7 @@ import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
 import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
-import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 
 public class ArrowFunctionObj extends Obj implements InvokeableObj {
@@ -23,8 +22,8 @@ public class ArrowFunctionObj extends Obj implements InvokeableObj {
     }
 
     @Override
-    public List<Identifier> getParams() {
-        return this.function.parameters.stream().map(p -> p.ident).collect(toList()); // TODO: Readdress this
+    public List<Parameter> getParams() {
+        return this.function.parameters;
     }
 
     @Override

@@ -282,18 +282,18 @@ public class TypeChecker {
         // TODO: Only allow function declarations at top-level; typechecking should fail if env.parent != null
         TypeEnvironment childEnv = env.createChildEnvironment();
 
-        for (Identifier parameter : statement.parameters) {
-            if (parameter.typeAnnotation == null) {
-                this.errors.add(new TypeCheckerError(parameter.token.position) {
+        for (Parameter parameter : statement.parameters) {
+            if (parameter.ident.typeAnnotation == null) {
+                this.errors.add(new TypeCheckerError(parameter.ident.token.position) {
                     @Override
                     public String message() {
-                        return String.format("Missing type annotation on parameter: %s", parameter.value);
+                        return String.format("Missing type annotation on parameter: %s", parameter.ident.value);
                     }
                 });
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation, env);
-                childEnv.addBindingWithType(parameter.value, type, true);
-                parameter.setType(type);
+                MegaType type = this.resolveType(parameter.ident.typeAnnotation, env);
+                childEnv.addBindingWithType(parameter.ident.value, type, true);
+                parameter.ident.setType(type);
             }
         }
 
@@ -309,10 +309,10 @@ public class TypeChecker {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType, Kind.METHOD), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(0, statement.parameters, declaredReturnType, Kind.METHOD), true);
             }
         } else {
-            env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType, Kind.METHOD), true);
+            env.addBindingWithType(statement.name.value, new FunctionType(0, statement.parameters, returnType, Kind.METHOD), true);
         }
     }
 

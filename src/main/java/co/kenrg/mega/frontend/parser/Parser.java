@@ -388,7 +388,7 @@ public class Parser {
 
         // The parseFunctionParameters method assumes that the leading '(' token has already been consumed
         this.nextToken();
-        List<Identifier> params = this.parseFunctionParameters();
+        List<Parameter> params = this.parseFunctionParameters();
 
         String typeAnnotation = null;
         if (this.peekTokenIs(TokenType.COLON)) {
@@ -718,7 +718,7 @@ public class Parser {
         // The '(' token was consumed prior to entering this method, in order to simplify the parsing of parenthesized
         // and arrow function expressions.
         Token t = this.prevTok;
-        List<Parameter> parameters = this.parseFunctionParameters2();
+        List<Parameter> parameters = this.parseFunctionParameters();
 
         if (!this.expectPeek(TokenType.ARROW)) {
             return null;
@@ -746,34 +746,8 @@ public class Parser {
         return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(new Parameter(param)), body);
     }
 
-    // ([<param> [, <param>]*])
-    private List<Identifier> parseFunctionParameters() {
-        List<Identifier> params = Lists.newArrayList();
-        // This method assumes that the leading '(' has already been consumed. This is a consequence of how parenthesized
-        // expressions and arrow function expressions are parsed.
-        if (this.curTokenIs(TokenType.RPAREN)) {
-            return params;
-        }
-
-        Identifier param1 = this.parsePossiblyTypeAnnotatedIdentifier();
-        params.add(param1);
-
-        while (this.peekTokenIs(TokenType.COMMA)) {
-            this.nextToken();   // Consume ','
-            this.nextToken();
-
-            Identifier param = this.parsePossiblyTypeAnnotatedIdentifier();
-            params.add(param);
-        }
-
-        if (!this.expectPeek(TokenType.RPAREN)) {
-            return null;
-        }
-        return params;
-    }
-
     // ([<param>[: <type_ident>] [= <expr>] [, <param>[: <type_ident>] [= <expr>]]*])
-    private List<Parameter> parseFunctionParameters2() {
+    private List<Parameter> parseFunctionParameters() {
         List<Parameter> params = Lists.newArrayList();
         // This method assumes that the leading '(' has already been consumed. This is a consequence of how parenthesized
         // expressions and arrow function expressions are parsed.
