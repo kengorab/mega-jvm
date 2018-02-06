@@ -50,12 +50,10 @@ public class Scope {
     public static class Context implements Cloneable {
         class ContextFrame {
             Node node;
-            String name;
             Integer numLambdas;
 
-            public ContextFrame(Node node, String name, Integer numLambdas) {
+            public ContextFrame(Node node, Integer numLambdas) {
                 this.node = node;
-                this.name = name;
                 this.numLambdas = numLambdas;
             }
         }
@@ -79,8 +77,8 @@ public class Scope {
             return c;
         }
 
-        public void pushContext(Node node, String name) {
-            this.subcontexts.add(new ContextFrame(node, name, 0));
+        public void pushContext(Node node) {
+            this.subcontexts.add(new ContextFrame(node, 0));
         }
 
         public void incLambdaCountOfPreviousContext() {

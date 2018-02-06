@@ -169,7 +169,7 @@ public class Compiler {
     }
 
     public <T extends Node> void compileNode(T node) {
-        this.scope.context.pushContext(node, "");
+        this.scope.context.pushContext(node);
 
         // Statements
         if (node instanceof Module) {
