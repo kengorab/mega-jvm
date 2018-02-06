@@ -16,11 +16,9 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
-import static org.objectweb.asm.Opcodes.FRETURN;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
-import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
@@ -28,9 +26,10 @@ import static org.objectweb.asm.Opcodes.RETURN;
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.Compiler;
-import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.Context;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
@@ -167,16 +166,7 @@ public class ArrowFunctionExpressionCompiler {
         }
 
         compiler.compileNode(node.body);
-
-        if (arrowFnType.returnType == PrimitiveTypes.INTEGER) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (arrowFnType.returnType == PrimitiveTypes.BOOLEAN) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (arrowFnType.returnType == PrimitiveTypes.FLOAT) {
-            invokeMethodWriter.visitInsn(FRETURN);
-        } else {
-            invokeMethodWriter.visitInsn(ARETURN);
-        }
+        invokeMethodWriter.visitInsn(OpcodeUtils.returnInsn(arrowFnType.returnType));
 
         invokeMethodWriter.visitMaxs(2, 2);
         invokeMethodWriter.visitEnd();

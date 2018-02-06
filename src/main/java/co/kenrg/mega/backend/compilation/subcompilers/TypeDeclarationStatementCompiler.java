@@ -3,6 +3,7 @@ package co.kenrg.mega.backend.compilation.subcompilers;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
 import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
@@ -15,8 +16,6 @@ import static org.objectweb.asm.Opcodes.BIPUSH;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.FCMPL;
-import static org.objectweb.asm.Opcodes.FLOAD;
-import static org.objectweb.asm.Opcodes.FRETURN;
 import static org.objectweb.asm.Opcodes.GETFIELD;
 import static org.objectweb.asm.Opcodes.IADD;
 import static org.objectweb.asm.Opcodes.ICONST_0;
@@ -40,6 +39,7 @@ import static org.objectweb.asm.Opcodes.RETURN;
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.Compiler;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
@@ -111,15 +111,7 @@ public class TypeDeclarationStatementCompiler {
             MegaType propType = prop.getValue();
 
             initWriter.visitVarInsn(ALOAD, 0);
-            if (propType == PrimitiveTypes.INTEGER) {
-                initWriter.visitVarInsn(ILOAD, index);
-            } else if (propType == PrimitiveTypes.BOOLEAN) {
-                initWriter.visitVarInsn(ILOAD, index);
-            } else if (propType == PrimitiveTypes.FLOAT) {
-                initWriter.visitVarInsn(FLOAD, index);
-            } else {
-                initWriter.visitVarInsn(ALOAD, index);
-            }
+            initWriter.visitVarInsn(loadInsn(propType), index);
             initWriter.visitFieldInsn(PUTFIELD, innerClassName, propName, jvmDescriptor(propType, false));
             index++;
         }
@@ -141,15 +133,7 @@ public class TypeDeclarationStatementCompiler {
             getterWriter.visitVarInsn(ALOAD, 0);
             getterWriter.visitFieldInsn(GETFIELD, innerClassName, propName, propDesc);
 
-            if (propType == PrimitiveTypes.INTEGER) {
-                getterWriter.visitInsn(IRETURN);
-            } else if (propType == PrimitiveTypes.BOOLEAN) {
-                getterWriter.visitInsn(IRETURN);
-            } else if (propType == PrimitiveTypes.FLOAT) {
-                getterWriter.visitInsn(FRETURN);
-            } else {
-                getterWriter.visitInsn(ARETURN);
-            }
+            getterWriter.visitInsn(OpcodeUtils.returnInsn(propType));
             getterWriter.visitMaxs(1, 1);
             getterWriter.visitEnd();
         }

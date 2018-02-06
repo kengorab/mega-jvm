@@ -4,22 +4,16 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.getCompiler;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.getInvokeMethodDesc;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.writeIfaceInvokeMethod;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.ASTORE;
-import static org.objectweb.asm.Opcodes.FLOAD;
-import static org.objectweb.asm.Opcodes.FRETURN;
-import static org.objectweb.asm.Opcodes.FSTORE;
 import static org.objectweb.asm.Opcodes.GETFIELD;
 import static org.objectweb.asm.Opcodes.ICONST_0;
-import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
 
@@ -27,9 +21,10 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import co.kenrg.mega.backend.compilation.Compiler;
-import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.Context;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
@@ -96,15 +91,7 @@ public class ArrowFunctionExpressionWithClosureCompiler {
             initWriter.visitVarInsn(ALOAD, 0);
 
             Binding binding = capturedBinding.getValue();
-            if (binding.type == PrimitiveTypes.INTEGER) {
-                initWriter.visitVarInsn(ILOAD, index);
-            } else if (binding.type == PrimitiveTypes.BOOLEAN) {
-                initWriter.visitVarInsn(ILOAD, index);
-            } else if (binding.type == PrimitiveTypes.FLOAT) {
-                initWriter.visitVarInsn(FLOAD, index);
-            } else {
-                initWriter.visitVarInsn(ALOAD, index);
-            }
+            initWriter.visitVarInsn(loadInsn(binding.type), index);
             index++;
             String fieldName = "$" + capturedBinding.getKey();
             String fieldDesc = jvmDescriptor(binding.type, false);
@@ -144,29 +131,12 @@ public class ArrowFunctionExpressionWithClosureCompiler {
             invokeMethodWriter.visitFieldInsn(GETFIELD, innerClassName, fieldName, fieldDesc);
 
             int index = compiler.scope.nextLocalVariableIndex();
-            if (binding.type == PrimitiveTypes.INTEGER) {
-                invokeMethodWriter.visitVarInsn(ISTORE, index);
-            } else if (binding.type == PrimitiveTypes.BOOLEAN) {
-                invokeMethodWriter.visitVarInsn(ISTORE, index);
-            } else if (binding.type == PrimitiveTypes.FLOAT) {
-                invokeMethodWriter.visitVarInsn(FSTORE, index);
-            } else {
-                invokeMethodWriter.visitVarInsn(ASTORE, index);
-            }
+            invokeMethodWriter.visitVarInsn(storeInsn(binding.type), index);
             compiler.scope.addBinding(capturedBinding.getKey(), binding.type, BindingTypes.LOCAL, binding.isImmutable);
         }
 
         compiler.compileNode(node.body);
-
-        if (arrowFnType.returnType == PrimitiveTypes.INTEGER) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (arrowFnType.returnType == PrimitiveTypes.BOOLEAN) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (arrowFnType.returnType == PrimitiveTypes.FLOAT) {
-            invokeMethodWriter.visitInsn(FRETURN);
-        } else {
-            invokeMethodWriter.visitInsn(ARETURN);
-        }
+        invokeMethodWriter.visitInsn(OpcodeUtils.returnInsn(arrowFnType.returnType));
 
         invokeMethodWriter.visitMaxs(2, 2);
         invokeMethodWriter.visitEnd();

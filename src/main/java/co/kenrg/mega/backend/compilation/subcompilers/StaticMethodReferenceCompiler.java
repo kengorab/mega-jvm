@@ -6,24 +6,20 @@ import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpres
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.writeClinitMethod;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.writeIfaceInvokeMethod;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.writeInitMethod;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.FLOAD;
-import static org.objectweb.asm.Opcodes.FRETURN;
-import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.IRETURN;
 
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.Compiler;
-import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.Context;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -70,30 +66,12 @@ public class StaticMethodReferenceCompiler {
             compiler.scope.addBinding(paramName, paramType, BindingTypes.LOCAL, false);
             Binding binding = compiler.scope.getBinding(paramName);
             assert binding != null; // It was just added above, I don't think there's a way for it to be null...
-
-            if (binding.type == PrimitiveTypes.INTEGER) {
-                invokeMethodWriter.visitVarInsn(ILOAD, binding.index);
-            } else if (binding.type == PrimitiveTypes.BOOLEAN) {
-                invokeMethodWriter.visitVarInsn(ILOAD, binding.index);
-            } else if (binding.type == PrimitiveTypes.FLOAT) {
-                invokeMethodWriter.visitVarInsn(FLOAD, binding.index);
-            } else {
-                invokeMethodWriter.visitVarInsn(ALOAD, binding.index);
-            }
+            invokeMethodWriter.visitVarInsn(loadInsn(binding.type), binding.index);
         }
 
         String methodDesc = jvmMethodDescriptor(methodType, false);
         invokeMethodWriter.visitMethodInsn(INVOKESTATIC, outerClassName, name, methodDesc, false);
-
-        if (methodType.returnType == PrimitiveTypes.INTEGER) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (methodType.returnType == PrimitiveTypes.BOOLEAN) {
-            invokeMethodWriter.visitInsn(IRETURN);
-        } else if (methodType.returnType == PrimitiveTypes.FLOAT) {
-            invokeMethodWriter.visitInsn(FRETURN);
-        } else {
-            invokeMethodWriter.visitInsn(ARETURN);
-        }
+        invokeMethodWriter.visitInsn(OpcodeUtils.returnInsn(methodType.returnType));
 
         invokeMethodWriter.visitMaxs(2, 2);
         invokeMethodWriter.visitEnd();

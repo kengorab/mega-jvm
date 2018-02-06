@@ -17,6 +17,8 @@ import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferen
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static co.kenrg.mega.backend.compilation.subcompilers.TypeDeclarationStatementCompiler.compileTypeDeclaration;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
@@ -24,17 +26,13 @@ import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
-import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ARRAYLENGTH;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.FADD;
 import static org.objectweb.asm.Opcodes.FDIV;
-import static org.objectweb.asm.Opcodes.FLOAD;
 import static org.objectweb.asm.Opcodes.FMUL;
 import static org.objectweb.asm.Opcodes.FNEG;
-import static org.objectweb.asm.Opcodes.FRETURN;
-import static org.objectweb.asm.Opcodes.FSTORE;
 import static org.objectweb.asm.Opcodes.FSUB;
 import static org.objectweb.asm.Opcodes.F_CHOP;
 import static org.objectweb.asm.Opcodes.F_FULL;
@@ -54,7 +52,6 @@ import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.NEW;
@@ -70,6 +67,7 @@ import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
@@ -262,15 +260,7 @@ public class Compiler {
 
         int index = this.scope.nextLocalVariableIndex();
         onCompileNode.run();
-        if (bindingType == PrimitiveTypes.INTEGER) {
-            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (bindingType == PrimitiveTypes.BOOLEAN) {
-            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (bindingType == PrimitiveTypes.FLOAT) {
-            this.scope.focusedMethod.writer.visitVarInsn(FSTORE, index);
-        } else {
-            this.scope.focusedMethod.writer.visitVarInsn(ASTORE, index);
-        }
+        this.scope.focusedMethod.writer.visitVarInsn(storeInsn(bindingType), index);
         this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable);
     }
 
@@ -344,15 +334,7 @@ public class Compiler {
         methodWriter.visitCode();
 
         compileBlockExpression(node.body);
-        if (fnType.returnType == PrimitiveTypes.INTEGER) {
-            methodWriter.visitInsn(IRETURN);
-        } else if (fnType.returnType == PrimitiveTypes.BOOLEAN) {
-            methodWriter.visitInsn(IRETURN);
-        } else if (fnType.returnType == PrimitiveTypes.FLOAT) {
-            methodWriter.visitInsn(FRETURN);
-        } else {
-            methodWriter.visitInsn(ARETURN);
-        }
+        methodWriter.visitInsn(OpcodeUtils.returnInsn(fnType.returnType));
 
         methodWriter.visitMaxs(-1, -1);
         methodWriter.visitEnd();
@@ -614,15 +596,7 @@ public class Compiler {
             return;
         }
 
-        if (type == PrimitiveTypes.INTEGER) {
-            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
-        } else if (type == PrimitiveTypes.BOOLEAN) {
-            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
-        } else if (type == PrimitiveTypes.FLOAT) {
-            this.scope.focusedMethod.writer.visitVarInsn(FLOAD, binding.index);
-        } else {
-            this.scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
-        }
+        this.scope.focusedMethod.writer.visitVarInsn(loadInsn(type), binding.index);
     }
 
     private void compileAssignmentExpression(AssignmentExpression node) {
@@ -641,15 +615,7 @@ public class Compiler {
 
         MegaType type = binding.type;
         assert type != null; // Should be filled in by the typechecking pass
-        if (type == PrimitiveTypes.INTEGER) {
-            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, binding.index);
-        } else if (type == PrimitiveTypes.BOOLEAN) {
-            this.scope.focusedMethod.writer.visitVarInsn(ISTORE, binding.index);
-        } else if (type == PrimitiveTypes.FLOAT) {
-            this.scope.focusedMethod.writer.visitVarInsn(FSTORE, binding.index);
-        } else {
-            this.scope.focusedMethod.writer.visitVarInsn(ASTORE, binding.index);
-        }
+        this.scope.focusedMethod.writer.visitVarInsn(storeInsn(type), binding.index);
     }
 
     private void compileRangeExpression(RangeExpression node) {
