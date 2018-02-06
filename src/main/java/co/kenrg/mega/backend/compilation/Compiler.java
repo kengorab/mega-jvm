@@ -13,6 +13,7 @@ import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpress
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.CallExpressionCompiler.compileInvocation;
+import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.compileFuncProxy;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
@@ -359,6 +360,15 @@ public class Compiler {
         this.scope = origScope;
 
         this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false);
+
+        if (fnType.containsParamsWithDefaultValues()) {
+            compileFuncProxy(this.className, this.cw, fnType, methodName, scope, (n, scope) -> {
+                Scope s = this.scope; // Preserve original scope
+                this.scope = scope;
+                compileNode(n);
+                this.scope = s;
+            });
+        }
     }
 
     private void compileTypeDeclarationStatement(TypeDeclarationStatement node) {

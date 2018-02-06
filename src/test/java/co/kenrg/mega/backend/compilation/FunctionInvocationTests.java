@@ -57,77 +57,32 @@ class FunctionInvocationTests {
     }
 
     @TestFactory
-    List<DynamicTest> testInvocationOfStaticArrowFunctions_defaultParamValues() {
-        List<Triple<String, String, Object>> testCases = Lists.newArrayList(
-            Triple.of(
-//                "val arr = [(i: Int = 1) => i];" +
-//                    "val abc = arr[0]();" +
-                    "val returnsInt = (i: Int = 3) => i;" +
-                    "val four = returnsInt() + returnsInt(1)",
-                "four",
-                4
-            ),
-            Triple.of(
-                "val returnsSum = (i1: Int = 1, i2: Int = 2, i3: Int = 3) => i1 + i2 + i3;" +
-                    "val a = returnsSum();" +
-                    "val b = returnsSum(10);" +
-                    "val c = returnsSum(10, 20);" +
-                    "val d = returnsSum(10, 20, 30);" +
-                    "val sum = a + b + c + d;",
-                "sum",
-                114
-            )
-        );
-
-        return testCases.stream()
-            .map(testCase -> {
-                String input = testCase.getLeft();
-                String bindingName = testCase.getMiddle();
-                Object val = testCase.getRight();
-
-                String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
-                return dynamicTest(name, () -> {
-                    TestCompilationResult result = parseTypecheckAndCompileInput(input);
-                    String className = result.className;
-
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
-                });
-            })
-            .collect(toList());
-    }
-
-    @TestFactory
     List<DynamicTest> testInvocationOfNestedArrowFunctions() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
-//            Triple.of("" +
-//                    "val a = if 4 > 3 {" +
-//                    "  val fn = (i: Int) => i + 1;" +
-//                    "  fn(1)" +
-//                    "} else { 4 }",
-//                "a",
-//                2
-//            ),
-//            Triple.of("" +
-//                    "val apply = (fn: Int => Int, a: Int) => fn(a);" +
-//                    "val inc = (i: Int) => i + 1;" +
-//                    "val a = apply(inc, 3)",
-//                "a",
-//                4
-//            ),
+            Triple.of("" +
+                    "val a = if 4 > 3 {" +
+                    "  val fn = (i: Int) => i + 1;" +
+                    "  fn(1)" +
+                    "} else { 4 }",
+                "a",
+                2
+            ),
+            Triple.of("" +
+                    "val apply = (fn: Int => Int, a: Int) => fn(a);" +
+                    "val inc = (i: Int) => i + 1;" +
+                    "val a = apply(inc, 3)",
+                "a",
+                4
+            ),
             Triple.of("" +
                     "val apply = (fn: Int => Int, a: Int) => fn(a);" +
                     "val a = apply(i => i + 1, 3)",
                 "a",
                 4
-            )
-//            Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
-//            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
-//            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true),
-//
-//            // With named parameters
-//            Triple.of("val a = ((i: Int) => i + 1)(i: 2)", "a", 3),
-//            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(i: 3)(s: 'abc')", "b", "abc"),
-//            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(i: 3)(s: 'abc')(x: true)", "b", true)
+            ),
+            Triple.of("val a = ((i: Int) => i + 1)(2)", "a", 3),
+            Triple.of("val a = (i: Int) => (s: String) => s; val b = a(3)('abc')", "b", "abc"),
+            Triple.of("val a = (i: Int) => (s: String) => (x: Bool) => x; val b = a(3)('abc')(true)", "b", true)
         );
 
         return testCases.stream()
@@ -151,23 +106,75 @@ class FunctionInvocationTests {
     List<DynamicTest> testInvocationOfStaticMethods() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of("" +
-                    "func returnOne() { 1 };" +
-                    "val one = returnOne();",
+                    "func returnOne() { 1 }" +
+                    "val one = returnOne()",
                 "one",
                 1
             ),
             Triple.of("" +
-                    "func returnOne() { 1 };" +
-                    "func addOne(a: Int) { a + returnOne() };" +
-                    "val two = addOne(1);",
+                    "func returnOne() { 1 }" +
+                    "func addOne(a: Int) { a + returnOne() }" +
+                    "val two = addOne(1)",
                 "two",
                 2
             ),
             Triple.of("" +
-                    "func returnFn() { (a: Int) => a + 1 };" +
-                    "val two = returnFn()(1);",
+                    "func returnFn() { (a: Int) => a + 1 }" +
+                    "val two = returnFn()(1)",
                 "two",
                 2
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String bindingName = testCase.getMiddle();
+                Object val = testCase.getRight();
+
+                String name = "Compiling `" + input + "` should result in the static variable `" + bindingName + "` = " + val;
+                return dynamicTest(name, () -> {
+                    TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                    String className = result.className;
+
+                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testInvocationOfStaticMethods_defaultValuedParameters() {
+        List<Triple<String, String, Object>> testCases = Lists.newArrayList(
+            Triple.of("" +
+                    "func shout(s: String = '', punc: String = '!') { s + punc }" +
+                    "val helloWorld = shout('Hello', ' ') + shout('world')",
+                "helloWorld",
+                "Hello world!"
+            ),
+            Triple.of(
+                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }" +
+                    "val a = returnsSum()" +
+                    "val b = returnsSum(10)" +
+                    "val c = returnsSum(10, 20)" +
+                    "val d = returnsSum(10, 20, 30)" +
+                    "val sum = a + b + c + d;",
+                "sum",
+                114
+            ),
+            Triple.of(
+                "func returnsOne() { 1 }" +
+                    "func returnsInt(i: () => Int = () => 1) { i() }" +
+                    "val three = returnsInt() + returnsInt(() => 2);",
+                "three",
+                3
+            ),
+            Triple.of(
+                "func returnsOne() { 1 }" +
+                    "func returnsInt(i: () => Int = returnsOne) { i() }" +
+                    "val three = returnsInt() + returnsInt(() => 2);",
+                "three",
+                3
             )
         );
 
@@ -192,41 +199,41 @@ class FunctionInvocationTests {
     List<DynamicTest> testInvocationOfStaticMethodReferences() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of("" +
-                    "func invoke(fn: () => Int) { fn() };" +
-                    "func returnTwentyFour() { 24 };" +
-                    "val twentyFour = invoke(returnTwentyFour);",
+                    "func invoke(fn: () => Int) { fn() }" +
+                    "func returnTwentyFour() { 24 }" +
+                    "val twentyFour = invoke(returnTwentyFour)",
                 "twentyFour",
                 24
             ),
             Triple.of("" +
-                    "func apply(fn: Int => Int, a: Int) { fn(a) };" +
-                    "func addOne(a: Int) { a + 1 };" +
-                    "val two = apply(addOne, 1);",
+                    "func apply(fn: Int => Int, a: Int) { fn(a) }" +
+                    "func addOne(a: Int) { a + 1 }" +
+                    "val two = apply(addOne, 1)",
                 "two",
                 2
             ),
             Triple.of("" +
-                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
-                    "func repeat(num: Int, str: String) { num * str };" +
-                    "val str = apply(repeat, 5, 'abc');",
+                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) }" +
+                    "func repeat(num: Int, str: String) { num * str }" +
+                    "val str = apply(repeat, 5, 'abc')",
                 "str",
                 "abcabcabcabcabc"
             ),
             Triple.of("" +
-                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
-                    "func repeat(num: Int, str: String) { num * str };" +
-                    "val str1 = apply(repeat, 5, 'abc');" +
-                    "val str2 = apply(repeat, 4, 'aaa');",
+                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) }" +
+                    "func repeat(num: Int, str: String) { num * str }" +
+                    "val str1 = apply(repeat, 5, 'abc')" +
+                    "val str2 = apply(repeat, 4, 'aaa')",
                 "str1",
                 "abcabcabcabcabc"
             ),
 
             // With named parameters
             Triple.of("" +
-                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) };" +
-                    "func repeat(num: Int, str: String) { num * str };" +
-                    "val str1 = apply(fn: repeat, a: 5, b: 'abc');" +
-                    "val str2 = apply(fn: repeat, a: 4, b: 'aaa');",
+                    "func apply(fn: (Int, String) => String, a: Int, b: String) { fn(a, b) }" +
+                    "func repeat(num: Int, str: String) { num * str }" +
+                    "val str1 = apply(fn: repeat, a: 5, b: 'abc')" +
+                    "val str2 = apply(fn: repeat, a: 4, b: 'aaa')",
                 "str1",
                 "abcabcabcabcabc"
             )
@@ -254,16 +261,16 @@ class FunctionInvocationTests {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of("val a = (i: Int) => (s: String) => s * i; val b = a(3)('abc')", "b", "abcabcabc"),
             Triple.of("" +
-                    "func createAdder(a: Int) { (i: Int) => a + i };" + // createAdder closes over a
-                    "val adder = createAdder(5);" +
+                    "func createAdder(a: Int) { (i: Int) => a + i }" + // createAdder closes over a
+                    "val adder = createAdder(5)" +
                     "val two = adder(-3)",
                 "two",
                 2
             ),
             Triple.of("" +
-                    "func inc(a: Int) { a + 1 };" +
-                    "func apply(fn: Int => Int, a: Int) { fn(a) };" +
-                    "func applyInc(i: Int) { apply(inc, i) };" +
+                    "func inc(a: Int) { a + 1 }" +
+                    "func apply(fn: Int => Int, a: Int) { fn(a) }" +
+                    "func applyInc(i: Int) { apply(inc, i) }" +
                     "val two = applyInc(1)",
                 "two",
                 2
@@ -271,9 +278,9 @@ class FunctionInvocationTests {
 
             // With named parameters
             Triple.of("" +
-                    "func inc(a: Int) { a + 1 };" +
-                    "func apply(fn: Int => Int, a: Int) { fn(a) };" +
-                    "func applyInc(i: Int) { apply(fn: inc, a: i) };" +
+                    "func inc(a: Int) { a + 1 }" +
+                    "func apply(fn: Int => Int, a: Int) { fn(a) }" +
+                    "func applyInc(i: Int) { apply(fn: inc, a: i) }" +
                     "val two = applyInc(i: 1)",
                 "two",
                 2

@@ -6,6 +6,7 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.PROXY_SUFFIX;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.getArrowFnProxyType;
+import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.getMethodProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static java.util.stream.Collectors.toList;
@@ -14,7 +15,9 @@ import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
+import static org.objectweb.asm.Opcodes.FCONST_0;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
+import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
@@ -101,11 +104,14 @@ public class CallExpressionCompiler {
             assert proxyBinding != null; // If proxyBinding is null, then typechecking must have failed (probably)
 
             if (binding.bindingType == BindingTypes.METHOD) {
-//                pushArguments(arguments, scope, compileNode, false);
-//
-//                String jvmDesc = jvmMethodDescriptor(fnType, false);
-//                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, name, jvmDesc, false); // TODO: Don't assume all methods are static
-//                return;
+                FunctionType funcProxyType = getMethodProxyType(fnType);
+                pushArgumentsForProxiedCall(funcProxyType, arguments, scope, compileNode, false);
+                int argBitmask = getArgumentBitmask(arguments);
+                scope.focusedMethod.writer.visitLdcInsn(argBitmask);
+
+                String jvmDesc = jvmMethodDescriptor(funcProxyType, false);
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, proxyName, jvmDesc, false); // TODO: Don't assume all methods are static
+                return;
             } else {
                 String proxyJvmDesc = jvmDescriptor(arrowFnProxyType, true);
                 if (proxyBinding.bindingType == BindingTypes.STATIC) {
@@ -117,7 +123,7 @@ public class CallExpressionCompiler {
 
             scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, getInternalName(arrowFnProxyType.typeClass()));
 
-            pushArgumentsForProxiedCall(arguments, scope, compileNode, true);
+            pushArgumentsForProxiedCall(arrowFnProxyType, arguments, scope, compileNode, true);
 
             String jvmDesc = jvmDescriptor(fnType, true);
             if (proxyBinding.bindingType == BindingTypes.STATIC) {
@@ -126,13 +132,7 @@ public class CallExpressionCompiler {
                 scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
             }
 
-            int argBitmask = 0;
-            for (int i = 0; i < arguments.size(); i++) {
-                Expression arg = arguments.get(i);
-                if (arg == null) {
-                    argBitmask = argBitmask | (int) Math.pow(2, i);
-                }
-            }
+            int argBitmask = getArgumentBitmask(arguments);
             scope.focusedMethod.writer.visitLdcInsn(argBitmask);
             compileBoxPrimitiveType(PrimitiveTypes.INTEGER, scope.focusedMethod.writer);
 
@@ -145,6 +145,17 @@ public class CallExpressionCompiler {
                 compileUnboxPrimitiveType(fnType.returnType, scope.focusedMethod.writer);
             }
         }
+    }
+
+    private static int getArgumentBitmask(List<Expression> arguments) {
+        int argBitmask = 0;
+        for (int i = 0; i < arguments.size(); i++) {
+            Expression arg = arguments.get(i);
+            if (arg == null) {
+                argBitmask = argBitmask | (int) Math.pow(2, i);
+            }
+        }
+        return argBitmask;
     }
 
     public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
@@ -212,10 +223,20 @@ public class CallExpressionCompiler {
         }
     }
 
-    private static void pushArgumentsForProxiedCall(Collection<Expression> arguments, Scope scope, Consumer<Node> compileNode, boolean shouldBox) {
-        for (Expression arg : arguments) {
+    private static void pushArgumentsForProxiedCall(FunctionType arrowFnProxyType, List<Expression> arguments, Scope scope, Consumer<Node> compileNode, boolean shouldBox) {
+        for (int i = 0; i < arguments.size(); i++) {
+            Expression arg = arguments.get(i);
             if (arg == null) {
-                scope.focusedMethod.writer.visitInsn(ACONST_NULL);
+                MegaType paramType = arrowFnProxyType.paramTypes.get(i);
+                if (paramType == PrimitiveTypes.INTEGER) {
+                    scope.focusedMethod.writer.visitInsn(ICONST_0);
+                } else if (paramType == PrimitiveTypes.BOOLEAN) {
+                    scope.focusedMethod.writer.visitInsn(ICONST_0);
+                } else if (paramType == PrimitiveTypes.FLOAT) {
+                    scope.focusedMethod.writer.visitInsn(FCONST_0);
+                } else {
+                    scope.focusedMethod.writer.visitInsn(ACONST_NULL);
+                }
                 continue;
             }
 
