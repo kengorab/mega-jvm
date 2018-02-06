@@ -48,51 +48,34 @@ public class Scope {
     }
 
     public static class Context implements Cloneable {
-        class ContextFrame {
+        private class ContextFrame {
             Node node;
             Integer numLambdas;
 
-            public ContextFrame(Node node, Integer numLambdas) {
+            ContextFrame(Node node, Integer numLambdas) {
                 this.node = node;
                 this.numLambdas = numLambdas;
             }
         }
 
-        public List<ContextFrame> subcontexts = Lists.newArrayList();
-
-        public Context() {
-        }
-
-        // TODO: Remove this and have child scopes append/pop to/from their parent context (it's not like concurrency matters)
-        @Override
-        public Context clone() {
-            try {
-                super.clone();
-            } catch (CloneNotSupportedException e) {
-                e.printStackTrace();
-            }
-
-            Context c = new Context();
-            c.subcontexts = Lists.newArrayList(this.subcontexts);
-            return c;
-        }
+        private List<ContextFrame> contextFrames = Lists.newArrayList();
 
         public void pushContext(Node node) {
-            this.subcontexts.add(new ContextFrame(node, 0));
+            this.contextFrames.add(new ContextFrame(node, 0));
         }
 
         public void incLambdaCountOfPreviousContext() {
-            int index = this.subcontexts.size() - 2;
-            ContextFrame previousFrame = this.subcontexts.get(index);
+            int index = this.contextFrames.size() - 2;
+            ContextFrame previousFrame = this.contextFrames.get(index);
             previousFrame.numLambdas++;
         }
 
         public void popContext() {
-            this.subcontexts.remove(this.subcontexts.size() - 1);
+            this.contextFrames.remove(this.contextFrames.size() - 1);
         }
 
         public String getLambdaName() {
-            return this.subcontexts.stream()
+            return this.contextFrames.stream()
                 .map(frame -> {
                     Node node = frame.node;
 
@@ -154,7 +137,7 @@ public class Scope {
     }
 
     public Scope createChild(FocusedMethod focusedMethod) {
-        return new Scope(this, focusedMethod, this.context.clone());
+        return new Scope(this, focusedMethod, this.context);
     }
 
     public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {
