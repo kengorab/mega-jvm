@@ -21,6 +21,10 @@ public class CallExpression extends Expression {
         throw new NotImplementedException("This method should never be invoked on the CallExpression superclass; defer to un/named args subclasses");
     }
 
+    public Expression getTarget() {
+        throw new NotImplementedException("This method should never be invoked on the CallExpression superclass; defer to un/named args subclasses");
+    }
+
     public static class UnnamedArgs extends CallExpression {
         public final Token token;
         public final Expression target; // The invokee
@@ -30,6 +34,11 @@ public class CallExpression extends Expression {
             this.token = token;
             this.target = target;
             this.arguments = arguments;
+        }
+
+        @Override
+        public Expression getTarget() {
+            return this.target;
         }
 
         @Override
@@ -61,6 +70,11 @@ public class CallExpression extends Expression {
             this.target = target;
             this.namedParamArguments = namedParamArguments;
             this.hasNamedArguments = true;
+        }
+
+        @Override
+        public Expression getTarget() {
+            return this.target;
         }
 
         @Override

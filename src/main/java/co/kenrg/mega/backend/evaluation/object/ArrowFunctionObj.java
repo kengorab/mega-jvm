@@ -4,13 +4,13 @@ import static co.kenrg.mega.backend.evaluation.object.iface.ObjectType.FUNCTION;
 
 import java.util.List;
 
-import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
-import co.kenrg.mega.frontend.ast.expression.Identifier;
-import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
 import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
+import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
+import co.kenrg.mega.frontend.ast.iface.Expression;
 
 public class ArrowFunctionObj extends Obj implements InvokeableObj {
     public final ArrowFunctionExpression function;
@@ -22,7 +22,7 @@ public class ArrowFunctionObj extends Obj implements InvokeableObj {
     }
 
     @Override
-    public List<Identifier> getParams() {
+    public List<Parameter> getParams() {
         return this.function.parameters;
     }
 

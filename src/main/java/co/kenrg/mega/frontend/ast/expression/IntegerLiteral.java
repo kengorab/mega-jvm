@@ -2,6 +2,8 @@ package co.kenrg.mega.frontend.ast.expression;
 
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import com.google.common.annotations.VisibleForTesting;
 
 public class IntegerLiteral extends Expression {
     public final Token token;
@@ -10,6 +12,13 @@ public class IntegerLiteral extends Expression {
     public IntegerLiteral(Token token, int value) {
         this.token = token;
         this.value = value;
+    }
+
+    @VisibleForTesting
+    public IntegerLiteral(Token token, int value, MegaType type) {
+        this.token = token;
+        this.value = value;
+        this.setType(type);
     }
 
     @Override

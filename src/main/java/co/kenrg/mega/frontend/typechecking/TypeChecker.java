@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
@@ -23,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -51,7 +53,9 @@ import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionDuplicateNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionInvalidNamedArgumentError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionMissingNamedArgumentError;
+import co.kenrg.mega.frontend.typechecking.errors.FunctionWithDefaultParamValuesArityError;
 import co.kenrg.mega.frontend.typechecking.errors.IllegalOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.MissingParameterTypeAnnotationError;
 import co.kenrg.mega.frontend.typechecking.errors.MutabilityError;
 import co.kenrg.mega.frontend.typechecking.errors.ParametrizableTypeArityError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
@@ -62,8 +66,10 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
@@ -277,37 +283,39 @@ public class TypeChecker {
         // TODO: Only allow function declarations at top-level; typechecking should fail if env.parent != null
         TypeEnvironment childEnv = env.createChildEnvironment();
 
-        for (Identifier parameter : statement.parameters) {
-            if (parameter.typeAnnotation == null) {
-                this.errors.add(new TypeCheckerError(parameter.token.position) {
-                    @Override
-                    public String message() {
-                        return String.format("Missing type annotation on parameter: %s", parameter.value);
-                    }
-                });
+        for (Parameter parameter : statement.parameters) {
+            if (parameter.ident.typeAnnotation == null) {
+                this.errors.add(new MissingParameterTypeAnnotationError(parameter.ident.value, parameter.ident.token.position));
             } else {
-                MegaType type = this.resolveType(parameter.typeAnnotation, env);
-                childEnv.addBindingWithType(parameter.value, type, true);
-                parameter.setType(type);
+                MegaType annotatedType = this.resolveType(parameter.ident.typeAnnotation, env);
+                MegaType paramType;
+                if (parameter.hasDefaultValue()) {
+                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
+                } else {
+                    paramType = annotatedType;
+                }
+                childEnv.addBindingWithType(parameter.ident.value, paramType, true);
+                parameter.ident.setType(paramType);
             }
         }
 
-        //TODO: Pass expected type here when function declarations' typeAnnotation is actually a TypeExpression
-        MegaType returnType = typecheckNode(statement.body, childEnv);
+        MegaType declaredReturnType = statement.typeAnnotation != null
+            ? env.getTypeByName(statement.typeAnnotation)
+            : null;
+        MegaType returnType = typecheckNode(statement.body, childEnv, declaredReturnType);
 
         if (statement.typeAnnotation != null) {
-            MegaType declaredReturnType = env.getTypeByName(statement.typeAnnotation);
             if (declaredReturnType == null) {
                 this.errors.add(new UnknownTypeError(statement.typeAnnotation, statement.token.position));
             } else {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
                     this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
                 }
-                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType), true);
+                env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType, Kind.METHOD), true);
             }
+        } else {
+            env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType, Kind.METHOD), true);
         }
-
-        env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, returnType), true);
     }
 
     private void typecheckForLoopStatement(ForLoopStatement statement, TypeEnvironment env) {
@@ -636,25 +644,29 @@ public class TypeChecker {
             : Collections.nCopies(numParams, null);
 
         for (int i = 0; i < numParams; i++) {
-            Identifier parameter = expr.parameters.get(i);
+            Parameter parameter = expr.parameters.get(i);
             MegaType expectedParamType = expectedParamTypes.get(i);
 
+            if (parameter.hasDefaultValue()) {
+                this.errors.add(new UnsupportedFeatureError("Arrow functions cannot have default-valued parameters", parameter.ident.token.position));
+            }
+
             MegaType paramType;
-            if (parameter.typeAnnotation == null) {
+            if (parameter.ident.typeAnnotation == null) {
                 if (expectedParamType != null) {
                     paramType = expectedParamType;
                 } else {
                     paramType = notInferredType;
                 }
             } else {
-                paramType = this.resolveType(parameter.typeAnnotation, env);
+                paramType = this.resolveType(parameter.ident.typeAnnotation, env);
             }
-            childEnv.addBindingWithType(parameter.value, paramType, true);
-            parameter.setType(paramType);
+            childEnv.addBindingWithType(parameter.ident.value, paramType, true);
+            parameter.ident.setType(paramType);
         }
 
         MegaType returnType = typecheckNode(expr.body, childEnv);
-        FunctionType functionType = new FunctionType(expr.parameters, returnType, capturedBindings);
+        FunctionType functionType = new FunctionType(expr.parameters, returnType, capturedBindings, Kind.ARROW_FN);
         if (expectedType != null && !expectedType.isEquivalentTo(functionType)) {
             this.errors.add(new TypeMismatchError(expectedType, functionType, expr.token.position));
         }
@@ -681,7 +693,14 @@ public class TypeChecker {
             return unknownType;
         }
         FunctionType funcType = (FunctionType) targetType;
-        if (funcType.paramTypes.size() != expr.arguments.size()) {
+        if (funcType.containsParamsWithDefaultValues()) {
+            int minNumParams = (int) funcType.parameters.stream().filter(param -> !param.hasDefaultValue()).count();
+            if (expr.arguments.size() < minNumParams) {
+                this.errors.add(new FunctionWithDefaultParamValuesArityError(minNumParams, expr.arguments.size(), expr.token.position));
+                expr.setType(funcType.returnType);
+                return funcType.returnType;
+            }
+        } else if (funcType.paramTypes.size() != expr.arguments.size()) {
             this.errors.add(new FunctionArityError(funcType.paramTypes.size(), expr.arguments.size(), expr.token.position));
             expr.setType(funcType.returnType);
             return funcType.returnType;
@@ -723,12 +742,18 @@ public class TypeChecker {
             return unknownType;
         }
         FunctionType funcType = (FunctionType) targetType;
-        assert funcType.params != null;
+        assert funcType.parameters != null;
+
+        if (funcType.kind != Kind.METHOD) {
+            this.errors.add(new UnsupportedFeatureError("Named argument invocation of arrow functions", expr.token.position));
+            expr.setType(funcType.returnType);
+            return funcType.returnType;
+        }
 
         // The following 3 blocks act as an alternative to checking the arity:
         // 1. Verify that the named arguments in the expr match the names/types in the function declaration
-        Map<String, MegaType> expectedParams = funcType.params.stream()
-            .collect(toMap(ident -> ident.value, Expression::getType));
+        Map<String, Parameter> expectedParams = funcType.parameters.stream()
+            .collect(toMap(param -> param.ident.value, Function.identity()));
         Map<String, Identifier> encounteredNamedArgs = Maps.newHashMap();
         for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
             Identifier argIdent = argument.getKey();
@@ -752,21 +777,21 @@ public class TypeChecker {
         // re-typecheck the expression target, now that the types of the parameters are provided by the Call.
         if (this.containsInferences(funcType)) {
             // If the target contains inferences, make two typechecking passes over it, since we know the param types...
-            List<Identifier> namedParamArguments = expr.namedParamArguments.stream()
+            List<Parameter> namedParamArguments = expr.namedParamArguments.stream()
                 .map(arg -> {
                     MegaType argExprType = typecheckNode(arg.getValue(), env);
                     arg.getLeft().setType(argExprType);
-                    return arg.getLeft();
+                    return new Parameter(arg.getLeft());
                 })
                 .collect(toList());
-            FunctionType expectedFuncType = new FunctionType(namedParamArguments, expectedType, funcType.capturedBindings);
+            FunctionType expectedFuncType = new FunctionType(namedParamArguments, expectedType, funcType.capturedBindings, funcType.kind);
             funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
-            assert funcType.params != null;
+            assert funcType.parameters != null;
         } else {
             // Otherwise, typecheck the passed params with expected param types from non-inferred function type
             for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
                 String argName = argument.getKey().value;
-                MegaType expectedArgType = expectedParams.get(argName);
+                MegaType expectedArgType = expectedParams.get(argName).getType();
                 typecheckNode(argument.getValue(), env, expectedArgType);
             }
         }
@@ -774,9 +799,9 @@ public class TypeChecker {
         // 3. Verify that the named arguments in the function declaration are all present in the expr
         Map<String, Expression> actualParams = expr.namedParamArguments.stream()
             .collect(toMap(arg -> arg.getKey().value, Pair::getValue));
-        for (Identifier argument : funcType.params) {
-            String argName = argument.value;
-            if (!actualParams.containsKey(argName)) {
+        for (Parameter parameter : funcType.parameters) {
+            String argName = parameter.ident.value;
+            if (!actualParams.containsKey(argName) && !parameter.hasDefaultValue()) {
                 this.errors.add(new FunctionMissingNamedArgumentError(argName, expr.token.position));
                 expr.setType(funcType.returnType);
                 return funcType.returnType;

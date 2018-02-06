@@ -24,6 +24,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -387,7 +388,7 @@ public class Parser {
 
         // The parseFunctionParameters method assumes that the leading '(' token has already been consumed
         this.nextToken();
-        List<Identifier> params = this.parseFunctionParameters();
+        List<Parameter> params = this.parseFunctionParameters();
 
         String typeAnnotation = null;
         if (this.peekTokenIs(TokenType.COLON)) {
@@ -641,10 +642,12 @@ public class Parser {
         //   - Next 2 tokens are ')' and '=>'               Arrow fn w/ no-args
         //   - Next 2 tokens are <ident> and ','            Arrow fn w/ multiple, type-annotation-free args
         //   - Next 2 tokens are <ident> and ':'            Arrow fn w/ at least 1 type-annotated arg
+        //   - Next 2 tokens are <ident> and '='            Arrow fn w/ at least 1 arg, which has a default value
         //   - Next 3 tokens are <ident>, ')', and '=>'     Arrow fn with single arg
         if (this.curTokenIs(TokenType.RPAREN) && this.peekTokenIs(TokenType.ARROW) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COMMA) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.COLON) ||
+            this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.ASSIGN) ||
             this.curTokenIs(TokenType.IDENT) && this.peekTokenIs(TokenType.RPAREN) && this.peekAheadTokenIs(TokenType.ARROW)) {
             return this.parseArrowFunctionExpression();
         }
@@ -715,7 +718,7 @@ public class Parser {
         // The '(' token was consumed prior to entering this method, in order to simplify the parsing of parenthesized
         // and arrow function expressions.
         Token t = this.prevTok;
-        List<Identifier> parameters = this.parseFunctionParameters();
+        List<Parameter> parameters = this.parseFunctionParameters();
 
         if (!this.expectPeek(TokenType.ARROW)) {
             return null;
@@ -733,31 +736,61 @@ public class Parser {
             return null;
         }
         Identifier param = (Identifier) leftExpr;
+        if (this.peekTokenIs(TokenType.ASSIGN)) {
+            return null;
+        }
 
         this.nextToken();   // Skip '=>'
 
         Expression body = this.parseBlockOrSingleExpression();
-        return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(param), body);
+        return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(new Parameter(param)), body);
     }
 
-    // ([<param> [, <param>]*])
-    private List<Identifier> parseFunctionParameters() {
-        List<Identifier> params = Lists.newArrayList();
+    // ([<param>[: <type_ident>] [= <expr>] [, <param>[: <type_ident>] [= <expr>]]*])
+    private List<Parameter> parseFunctionParameters() {
+        List<Parameter> params = Lists.newArrayList();
         // This method assumes that the leading '(' has already been consumed. This is a consequence of how parenthesized
         // expressions and arrow function expressions are parsed.
         if (this.curTokenIs(TokenType.RPAREN)) {
             return params;
         }
 
+        boolean hasDefaultParamValues = false;
+
         Identifier param1 = this.parsePossiblyTypeAnnotatedIdentifier();
-        params.add(param1);
+        if (this.peekTokenIs(TokenType.ASSIGN)) {
+            hasDefaultParamValues = true;
+            this.nextToken();
+            this.nextToken();
+            Expression defaultValueExpr = this.parseExpression(LOWEST);
+            params.add(new Parameter(param1, defaultValueExpr));
+        } else {
+            params.add(new Parameter(param1));
+        }
 
         while (this.peekTokenIs(TokenType.COMMA)) {
             this.nextToken();   // Consume ','
             this.nextToken();
 
             Identifier param = this.parsePossiblyTypeAnnotatedIdentifier();
-            params.add(param);
+            if (hasDefaultParamValues) { // Once a param in a list has a default value, subsequent ones need to as well
+                if (!this.expectPeek(TokenType.ASSIGN)) {
+                    return null;
+                }
+                this.nextToken();
+                Expression defaultValueExpr = this.parseExpression(LOWEST);
+                params.add(new Parameter(param, defaultValueExpr));
+            } else {
+                if (this.peekTokenIs(TokenType.ASSIGN)) {
+                    hasDefaultParamValues = true;
+                    this.nextToken();
+                    this.nextToken();
+                    Expression defaultValueExpr = this.parseExpression(LOWEST);
+                    params.add(new Parameter(param, defaultValueExpr));
+                } else {
+                    params.add(new Parameter(param));
+                }
+            }
         }
 
         if (!this.expectPeek(TokenType.RPAREN)) {

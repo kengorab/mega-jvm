@@ -1,4 +1,4 @@
-package co.kenrg.mega.backend.compilation;
+package co.kenrg.mega.backend.compilation.scope;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
@@ -11,68 +11,9 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.Opcodes;
 
 public class Scope {
-    public enum BindingTypes {
-        STATIC,
-        LOCAL,
-        METHOD // Currently, METHOD implies STATIC, since there are no non-static methods
-    }
-
-    public class Binding {
-        public final BindingTypes bindingType;
-        public final String name;
-        public final boolean isMutable;
-        public final MegaType type;
-        public final int index;
-
-        private Binding(BindingTypes bindingType, String name, boolean isMutable, MegaType type, int index) {
-            this.bindingType = bindingType;
-            this.name = name;
-            this.isMutable = isMutable;
-            this.type = type;
-            this.index = index;
-        }
-    }
-
-    public static class Context implements Cloneable {
-        public List<Pair<String, Integer>> subcontexts = Lists.newArrayList();
-
-        public Context() {
-        }
-
-        // TODO: Remove this and have child scopes append/pop to/from their parent context (it's not like concurrency matters)
-        @Override
-        public Context clone() {
-            try {
-                super.clone();
-            } catch (CloneNotSupportedException e) {
-                e.printStackTrace();
-            }
-
-            Context c = new Context();
-            c.subcontexts = Lists.newArrayList(this.subcontexts);
-            return c;
-        }
-
-        public void pushContext(String name) {
-            this.subcontexts.add(Pair.of(name, 0));
-        }
-
-        public void incLambdaCount() {
-            int index = this.subcontexts.size() - 1;
-            Pair<String, Integer> topOfStack = this.subcontexts.get(index);
-            this.subcontexts.add(index, Pair.of(topOfStack.getLeft(), topOfStack.getRight() + 1));
-            this.subcontexts.remove(index + 1);
-        }
-
-        public void popContext() {
-            this.subcontexts.remove(this.subcontexts.size() - 1);
-        }
-    }
-
     public final Scope parent;
     public final FocusedMethod focusedMethod;
     public final Map<String, Binding> bindings;
@@ -104,7 +45,7 @@ public class Scope {
     }
 
     public Scope createChild(FocusedMethod focusedMethod) {
-        return new Scope(this, focusedMethod, this.context.clone());
+        return new Scope(this, focusedMethod, this.context);
     }
 
     public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {

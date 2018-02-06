@@ -14,10 +14,13 @@ import java.util.Arrays;
 import java.util.List;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.parser.Parser;
+import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeChecker;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
+import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -45,14 +48,31 @@ class CompilerTestUtils {
         }
     }
 
+    static boolean requireNoParseOrTypecheckErrors = false;
     static TestCompilationResult parseTypecheckAndCompileInput(String input) {
         Lexer l = new Lexer(input);
         Parser p = new Parser(l);
         Module module = p.parseModule();
 
+        if (requireNoParseOrTypecheckErrors && !p.errors.isEmpty()) {
+            System.out.println("Encountered parser errors: ");
+            for (SyntaxError error : p.errors) {
+                System.out.printf("  %s", error.message);
+            }
+            throw new TestFailureException("Test failed due to parser errors");
+        }
+
         TypeChecker typeChecker = new TypeChecker();
         TypeEnvironment typeEnv = new TypeEnvironment();
-        typeChecker.typecheck(module, typeEnv);
+        TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
+
+        if (requireNoParseOrTypecheckErrors &&!typecheckResult.errors.isEmpty()) {
+            System.out.println("Encountered typechecking errors: ");
+            for (TypeCheckerError error : typecheckResult.errors) {
+                System.out.printf("  %s", error.message());
+            }
+            throw new TestFailureException("Test failed due to typechecking errors");
+        }
 
         String className = RandomStringUtils.randomAlphabetic(16);
         Compiler compiler = new Compiler(className, typeEnv);

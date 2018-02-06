@@ -7,17 +7,18 @@ import java.util.List;
 
 import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.token.Token;
 
 public class FunctionDeclarationStatement extends Statement {
     public final Token token;
     public final Identifier name;
-    public final List<Identifier> parameters;
+    public final List<Parameter> parameters;
     public final BlockExpression body;
     public final @Nullable String typeAnnotation;
 
-    public FunctionDeclarationStatement(Token token, Identifier name, List<Identifier> parameters, BlockExpression body) {
+    public FunctionDeclarationStatement(Token token, Identifier name, List<Parameter> parameters, BlockExpression body) {
         this.token = token;
         this.name = name;
         this.parameters = parameters;
@@ -25,7 +26,7 @@ public class FunctionDeclarationStatement extends Statement {
         this.typeAnnotation = null;
     }
 
-    public FunctionDeclarationStatement(Token token, Identifier name, List<Identifier> parameters, BlockExpression body, String typeAnnotation) {
+    public FunctionDeclarationStatement(Token token, Identifier name, List<Parameter> parameters, BlockExpression body, String typeAnnotation) {
         this.token = token;
         this.name = name;
         this.parameters = parameters;

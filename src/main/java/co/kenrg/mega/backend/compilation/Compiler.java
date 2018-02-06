@@ -10,13 +10,13 @@ import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpress
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.CallExpressionCompiler.compileInvocation;
+import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.compileFuncProxy;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.StaticMethodReferenceCompiler.compileMethodReference;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringConcatenation;
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static co.kenrg.mega.backend.compilation.subcompilers.TypeDeclarationStatementCompiler.compileTypeDeclaration;
-import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
@@ -65,10 +65,11 @@ import static org.objectweb.asm.Opcodes.V1_6;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Stream;
 
-import co.kenrg.mega.backend.compilation.Scope.Binding;
-import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.Binding;
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
@@ -83,6 +84,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -166,10 +168,10 @@ public class Compiler {
     }
 
     public <T extends Node> void compileNode(T node) {
+        this.scope.context.pushContext(node);
 
         // Statements
         if (node instanceof Module) {
-            this.scope.context.pushContext(this.className);
             this.compileStatements(((Module) node).statements);
         } else if (node instanceof ExpressionStatement) {
             this.compileNode(((ExpressionStatement) node).expression);
@@ -219,6 +221,8 @@ public class Compiler {
         } else if (node instanceof CallExpression) {
             this.compileCallExpression((CallExpression) node);
         }
+
+        this.scope.context.popContext();
     }
 
     private void compileStatements(List<Statement> statements) {
@@ -232,17 +236,16 @@ public class Compiler {
     //***************************************************************
 
     private void compileValStatement(ValStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value, false);
+        compileBinding(stmt.name.value, stmt.value.getType(), false, () -> compileNode(stmt.value));
     }
 
     private void compileVarStatement(VarStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value, true);
+        compileBinding(stmt.name.value, stmt.value.getType(), true, () -> compileNode(stmt.value));
     }
 
-    private void compileBinding(String bindingName, Expression bindingExpr, boolean isMutable) {
-        MegaType type = bindingExpr.getType();
-        assert type != null; // Should have been set during typechecking pass
-        String jvmDescriptor = jvmDescriptor(type, false);
+    private void compileBinding(String bindingName, MegaType bindingType, boolean isMutable, Runnable onCompileNode) {
+        assert bindingType != null; // Should have been set during typechecking pass
+        String jvmDescriptor = jvmDescriptor(bindingType, false);
 
         if (this.scope.isRoot()) {
             int access = ACC_PUBLIC | ACC_STATIC; // At root scope, declare binding as static in the class
@@ -250,29 +253,25 @@ public class Compiler {
                 access = access | ACC_FINAL;
             }
             cw.visitField(access, bindingName, jvmDescriptor, null, null);
-            this.scope.context.pushContext(bindingName);
-            compileNode(bindingExpr);
-            this.scope.context.popContext();
+            onCompileNode.run();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-            this.scope.addBinding(bindingName, bindingExpr.getType(), BindingTypes.STATIC, isMutable);
+            this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable);
             return;
         }
 
         int index = this.scope.nextLocalVariableIndex();
-        this.scope.context.pushContext(bindingName);
-        compileNode(bindingExpr);
-        this.scope.context.popContext();
-        if (type == PrimitiveTypes.INTEGER) {
+        onCompileNode.run();
+        if (bindingType == PrimitiveTypes.INTEGER) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (type == PrimitiveTypes.BOOLEAN) {
+        } else if (bindingType == PrimitiveTypes.BOOLEAN) {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, index);
-        } else if (type == PrimitiveTypes.FLOAT) {
+        } else if (bindingType == PrimitiveTypes.FLOAT) {
             this.scope.focusedMethod.writer.visitVarInsn(FSTORE, index);
         } else {
             this.scope.focusedMethod.writer.visitVarInsn(ASTORE, index);
         }
-        this.scope.addBinding(bindingName, bindingExpr.getType(), BindingTypes.LOCAL, isMutable);
+        this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable);
     }
 
     private void compileForLoopStatement(ForLoopStatement node) {
@@ -339,14 +338,12 @@ public class Compiler {
 
         Scope origScope = this.scope;
         this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
-        for (Identifier param : node.parameters) {
-            this.scope.addBinding(param.value, param.getType(), BindingTypes.LOCAL, false);
+        for (Parameter param : node.parameters) {
+            this.scope.addBinding(param.ident.value, param.getType(), BindingTypes.LOCAL, false);
         }
         methodWriter.visitCode();
 
-        this.scope.context.pushContext(methodName);
         compileBlockExpression(node.body);
-        this.scope.context.popContext();
         if (fnType.returnType == PrimitiveTypes.INTEGER) {
             methodWriter.visitInsn(IRETURN);
         } else if (fnType.returnType == PrimitiveTypes.BOOLEAN) {
@@ -362,6 +359,15 @@ public class Compiler {
         this.scope = origScope;
 
         this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false);
+
+        if (fnType.containsParamsWithDefaultValues()) {
+            compileFuncProxy(this.className, this.cw, fnType, methodName, scope, (n, scope) -> {
+                Scope s = this.scope; // Preserve original scope
+                this.scope = scope;
+                compileNode(n);
+                this.scope = s;
+            });
+        }
     }
 
     private void compileTypeDeclarationStatement(TypeDeclarationStatement node) {
@@ -653,10 +659,8 @@ public class Compiler {
     }
 
     private void compileArrowFunctionExpression(ArrowFunctionExpression node) {
-        String lambdaName = this.scope.context.subcontexts.subList(1, this.scope.context.subcontexts.size()).stream()
-            .flatMap(s -> Stream.of(s.getLeft(), s.getRight().toString()))
-            .collect(joining("$"));
-        this.scope.context.incLambdaCount();
+        String lambdaName = this.scope.context.getLambdaName();
+        this.scope.context.incLambdaCountOfPreviousContext();
 
         String innerClassName = this.className + "$" + lambdaName;
         this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
@@ -667,12 +671,9 @@ public class Compiler {
         List<Entry<String, TypeEnvironment.Binding>> capturedBindings = fnType.getCapturedBindings();
         boolean closesOverBindings = !capturedBindings.isEmpty();
 
-        List<Pair<String, byte[]>> generatedClasses;
-        if (closesOverBindings) {
-            generatedClasses = compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
-        } else {
-            generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
-        }
+        List<Pair<String, byte[]>> generatedClasses = closesOverBindings
+            ? compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context)
+            : compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
         innerClasses.addAll(generatedClasses);
 
         if (closesOverBindings) {

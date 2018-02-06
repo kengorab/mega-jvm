@@ -16,6 +16,7 @@ import co.kenrg.mega.frontend.ast.expression.IndexExpression;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.ObjectLiteral;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
@@ -39,6 +40,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -294,19 +296,25 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("String", Position.at(1, 5)),
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("String", Position.at(1, 5)),
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 13)),
-                        "b",
-                        new BasicTypeExpression("Int", Position.at(1, 16)),
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 13)),
+                            "b",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -319,19 +327,25 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("String", Position.at(1, 5)),
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("String", Position.at(1, 5)),
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 13)),
-                        "b",
-                        new BasicTypeExpression("Int", Position.at(1, 16)),
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 13)),
+                            "b",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -344,19 +358,25 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("Int", Position.at(1, 5)),
-                        PrimitiveTypes.INTEGER
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("Int", Position.at(1, 5)),
+                            PrimitiveTypes.INTEGER
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 10)),
-                        "b",
-                        null,
-                        TypeChecker.notInferredType
-                    )),
-                TypeChecker.unknownType
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 10)),
+                            "b",
+                            null,
+                            TypeChecker.notInferredType
+                        )
+                    )
+                ),
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -369,19 +389,25 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             FunctionType expectedType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        null,
-                        TypeChecker.notInferredType
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            null,
+                            TypeChecker.notInferredType
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 5)),
-                        "b",
-                        null,
-                        TypeChecker.notInferredType
-                    )),
-                TypeChecker.unknownType
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 5)),
+                            "b",
+                            null,
+                            TypeChecker.notInferredType
+                        )
+                    )
+                ),
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(expectedType, arrowFuncType);
         }
@@ -391,19 +417,25 @@ class TypeCheckerExpectedTypeTest {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b: Int) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("String", Position.at(1, 5)),
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("String", Position.at(1, 5)),
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 13)),
-                        "b",
-                        new BasicTypeExpression("Int", Position.at(1, 16)),
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 13)),
+                            "b",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -416,19 +448,25 @@ class TypeCheckerExpectedTypeTest {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a: String, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("String", Position.at(1, 5)),
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("String", Position.at(1, 5)),
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 13)),
-                        "b",
-                        null,
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 13)),
+                            "b",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -444,19 +482,25 @@ class TypeCheckerExpectedTypeTest {
 
             FunctionType actualFuncType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        new BasicTypeExpression("String", Position.at(1, 5)),
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            new BasicTypeExpression("String", Position.at(1, 5)),
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 13)),
-                        "b",
-                        null,
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 13)),
+                            "b",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(expectedFuncType, actualFuncType, Position.at(1, 1))),
@@ -470,19 +514,25 @@ class TypeCheckerExpectedTypeTest {
             ArrowFunctionExpression arrowFuncExpr = parseExpression("(a, b) => a + b", ArrowFunctionExpression.class);
             FunctionType funcType = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        null,
-                        PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            null,
+                            PrimitiveTypes.STRING
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 5)),
-                        "b",
-                        null,
-                        PrimitiveTypes.INTEGER
-                    )),
-                PrimitiveTypes.STRING
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 5)),
+                            "b",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.ARROW_FN
             );
             MegaType arrowFuncType = typeChecker.typecheckArrowFunctionExpression(arrowFuncExpr, env, funcType);
 
@@ -498,19 +548,25 @@ class TypeCheckerExpectedTypeTest {
 
             FunctionType actual = new FunctionType(
                 Lists.newArrayList(
-                    new Identifier(
-                        Token.ident("a", Position.at(1, 2)),
-                        "a",
-                        null,
-                        PrimitiveTypes.FLOAT
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 2)),
+                            "a",
+                            null,
+                            PrimitiveTypes.FLOAT
+                        )
                     ),
-                    new Identifier(
-                        Token.ident("b", Position.at(1, 5)),
-                        "b",
-                        null,
-                        PrimitiveTypes.STRING
-                    )),
-                TypeChecker.unknownType
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 5)),
+                            "b",
+                            null,
+                            PrimitiveTypes.STRING
+                        )
+                    )
+                ),
+                TypeChecker.unknownType,
+                Kind.ARROW_FN
             );
             assertEquals(
                 Lists.newArrayList(
@@ -845,13 +901,17 @@ class TypeCheckerExpectedTypeTest {
                     FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER),
                     new FunctionType(
                         Lists.newArrayList(
-                            new Identifier(
-                                Token.ident("a", Position.at(1, 6)),
-                                "a",
-                                null,
-                                PrimitiveTypes.INTEGER
-                            )),
-                        PrimitiveTypes.STRING
+                            new Parameter(
+                                new Identifier(
+                                    Token.ident("a", Position.at(1, 6)),
+                                    "a",
+                                    null,
+                                    PrimitiveTypes.INTEGER
+                                )
+                            )
+                        ),
+                        PrimitiveTypes.STRING,
+                        Kind.ARROW_FN
                     ),
                     Position.at(1, 6)
                 )),
