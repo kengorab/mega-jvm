@@ -653,23 +653,13 @@ public class TypeChecker {
 
             MegaType paramType;
             if (parameter.ident.typeAnnotation == null) {
-//                if (parameter.hasDefaultValue()) {
-//                    assert parameter.defaultValue != null; // hasDefaultValue check whether defaultValue is null
-//                    paramType = typecheckNode(parameter.defaultValue, env);
-//                } else
                 if (expectedParamType != null) {
                     paramType = expectedParamType;
                 } else {
                     paramType = notInferredType;
                 }
             } else {
-                MegaType annotatedType = this.resolveType(parameter.ident.typeAnnotation, env);
-//                if (parameter.hasDefaultValue()) {
-//                    paramType = this.typecheckNode(parameter.defaultValue, env, annotatedType);
-//                } else {
-
-                paramType = annotatedType;
-//                }
+                paramType = this.resolveType(parameter.ident.typeAnnotation, env);
             }
             childEnv.addBindingWithType(parameter.ident.value, paramType, true);
             parameter.ident.setType(paramType);

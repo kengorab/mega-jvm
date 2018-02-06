@@ -4,8 +4,7 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalNa
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
-import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.PROXY_SUFFIX;
-import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.getArrowFnProxyType;
+import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.PROXY_SUFFIX;
 import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.getMethodProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
@@ -79,80 +78,7 @@ public class CallExpressionCompiler {
         }
     }
 
-    private static void compileProxyInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
-        FunctionType fnType = (FunctionType) target.getType();
-        assert fnType != null; // Should be populated in typechecking pass
-        FunctionType arrowFnProxyType = getArrowFnProxyType(fnType);
-
-        if (target instanceof Identifier) {
-            if (fnType.isConstructor) {
-                throw new IllegalStateException("Cannot (yet) invoke constructors with default params");
-            }
-
-            String name = ((Identifier) target).value;
-            Binding binding = scope.getBinding(name);
-            assert binding != null; // If binding is null, then typechecking must have failed (probably)
-
-            String proxyName = name + PROXY_SUFFIX;
-            Binding proxyBinding = scope.getBinding(proxyName);
-            assert proxyBinding != null; // If proxyBinding is null, then typechecking must have failed (probably)
-
-            if (binding.bindingType == BindingTypes.METHOD) {
-                FunctionType funcProxyType = getMethodProxyType(fnType);
-                pushArgumentsForProxiedCall(funcProxyType, arguments, scope, compileNode, false);
-                int argBitmask = getArgumentBitmask(arguments);
-                scope.focusedMethod.writer.visitLdcInsn(argBitmask);
-
-                String jvmDesc = jvmMethodDescriptor(funcProxyType, false);
-                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, proxyName, jvmDesc, false); // TODO: Don't assume all methods are static
-                return;
-            } else {
-                String proxyJvmDesc = jvmDescriptor(arrowFnProxyType, true);
-                if (proxyBinding.bindingType == BindingTypes.STATIC) {
-                    scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, className, proxyName, proxyJvmDesc);
-                } else {
-                    scope.focusedMethod.writer.visitVarInsn(ALOAD, proxyBinding.index);
-                }
-            }
-
-            scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, getInternalName(arrowFnProxyType.typeClass()));
-
-            pushArgumentsForProxiedCall(arrowFnProxyType, arguments, scope, compileNode, true);
-
-            String jvmDesc = jvmDescriptor(fnType, true);
-            if (proxyBinding.bindingType == BindingTypes.STATIC) {
-                scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, className, name, jvmDesc);
-            } else {
-                scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
-            }
-
-            int argBitmask = getArgumentBitmask(arguments);
-            scope.focusedMethod.writer.visitLdcInsn(argBitmask);
-            compileBoxPrimitiveType(PrimitiveTypes.INTEGER, scope.focusedMethod.writer);
-
-            String invokeDesc = String.format("(%s)Ljava/lang/Object;", Strings.repeat("Ljava/lang/Object;", arrowFnProxyType.arity()));
-            scope.focusedMethod.writer.visitMethodInsn(INVOKEINTERFACE, getInternalName(arrowFnProxyType.typeClass()), "invoke", invokeDesc, true);
-
-            assert fnType.returnType != null;
-            scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, jvmDescriptor(fnType.returnType, true));
-            if (isPrimitive(fnType.returnType)) {
-                compileUnboxPrimitiveType(fnType.returnType, scope.focusedMethod.writer);
-            }
-        }
-    }
-
-    private static int getArgumentBitmask(List<Expression> arguments) {
-        int argBitmask = 0;
-        for (int i = 0; i < arguments.size(); i++) {
-            Expression arg = arguments.get(i);
-            if (arg == null) {
-                argBitmask = argBitmask | (int) Math.pow(2, i);
-            }
-        }
-        return argBitmask;
-    }
-
-    public static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
+    private static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null; // Should be populated in typechecking pass
 
@@ -217,7 +143,49 @@ public class CallExpressionCompiler {
         }
     }
 
-    private static void pushArgumentsForProxiedCall(FunctionType arrowFnProxyType, List<Expression> arguments, Scope scope, Consumer<Node> compileNode, boolean shouldBox) {
+    private static void compileProxyInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
+        FunctionType fnType = (FunctionType) target.getType();
+        assert fnType != null; // Should be populated in typechecking pass
+
+        if (target instanceof Identifier) {
+            if (fnType.isConstructor) {
+                throw new IllegalStateException("Cannot (yet) invoke constructors with default params");
+            }
+
+            String name = ((Identifier) target).value;
+            Binding binding = scope.getBinding(name);
+            assert binding != null; // If binding is null, then typechecking must have failed (probably)
+
+            String proxyName = name + PROXY_SUFFIX;
+            Binding proxyBinding = scope.getBinding(proxyName);
+            assert proxyBinding != null; // If proxyBinding is null, then typechecking must have failed (probably)
+
+            if (binding.bindingType == BindingTypes.METHOD) {
+                FunctionType funcProxyType = getMethodProxyType(fnType);
+                pushArgumentsForProxiedCall(funcProxyType, arguments, scope, compileNode);
+                int argBitmask = getArgumentBitmask(arguments);
+                scope.focusedMethod.writer.visitLdcInsn(argBitmask);
+
+                String jvmDesc = jvmMethodDescriptor(funcProxyType, false);
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, proxyName, jvmDesc, false); // TODO: Don't assume all methods are static
+            } else {
+                throw new IllegalStateException("Cannot invoke arrow functions with default params");
+            }
+        }
+    }
+
+    private static int getArgumentBitmask(List<Expression> arguments) {
+        int argBitmask = 0;
+        for (int i = 0; i < arguments.size(); i++) {
+            Expression arg = arguments.get(i);
+            if (arg == null) {
+                argBitmask = argBitmask | (int) Math.pow(2, i);
+            }
+        }
+        return argBitmask;
+    }
+
+    private static void pushArgumentsForProxiedCall(FunctionType arrowFnProxyType, List<Expression> arguments, Scope scope, Consumer<Node> compileNode) {
         for (int i = 0; i < arguments.size(); i++) {
             Expression arg = arguments.get(i);
             if (arg == null) {
@@ -238,9 +206,6 @@ public class CallExpressionCompiler {
             assert argType != null; // Should be populated in typechecking pass
 
             compileNode.accept(arg);
-            if (shouldBox && isPrimitive(argType)) {
-                compileBoxPrimitiveType(argType, scope.focusedMethod.writer);
-            }
         }
     }
 }

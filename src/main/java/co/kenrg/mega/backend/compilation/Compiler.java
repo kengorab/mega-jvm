@@ -6,9 +6,6 @@ import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDesc
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionCompiler.compileArrowFunction;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.compileArrowFunctionWithClosure;
 import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpressionWithClosureCompiler.getInitMethodDesc;
-import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.PROXY_SUFFIX;
-import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.compileArrowFunctionProxy;
-import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyCompiler.getArrowFnProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileComparisonExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalAndExpression;
 import static co.kenrg.mega.backend.compilation.subcompilers.BooleanInfixExpressionCompiler.compileConditionalOrExpression;
@@ -69,10 +66,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
-import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
@@ -674,22 +671,9 @@ public class Compiler {
         List<Entry<String, TypeEnvironment.Binding>> capturedBindings = fnType.getCapturedBindings();
         boolean closesOverBindings = !capturedBindings.isEmpty();
 
-        List<Pair<String, byte[]>> generatedClasses;
-        if (closesOverBindings) {
-            generatedClasses = compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
-        } else {
-            generatedClasses = compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
-            if (fnType.containsParamsWithDefaultValues()) {
-                String lambdaProxyName = lambdaName + PROXY_SUFFIX;
-                String innerProxyClassName = this.className + "$" + lambdaProxyName;
-                FunctionType arrowFnProxyType = getArrowFnProxyType(fnType);
-                compileBinding(lambdaProxyName, arrowFnProxyType, false, () -> {
-                    this.cw.visitInnerClass(innerProxyClassName, this.className, lambdaProxyName, ACC_FINAL | ACC_STATIC);
-                    generatedClasses.addAll(compileArrowFunctionProxy(this.className, lambdaProxyName, innerProxyClassName, node, this.typeEnv, this.scope.context));
-                    this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerProxyClassName, "INSTANCE", "L" + innerProxyClassName + ";");
-                });
-            }
-        }
+        List<Pair<String, byte[]>> generatedClasses = closesOverBindings
+            ? compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context)
+            : compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
         innerClasses.addAll(generatedClasses);
 
         if (closesOverBindings) {

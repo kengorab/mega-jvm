@@ -37,7 +37,7 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class MethodProxyCompiler {
-    private static final String PROXY_SUFFIX = "$proxy";
+    static final String PROXY_SUFFIX = "$proxy";
 
     public static void compileFuncProxy(
         String className,
@@ -48,7 +48,7 @@ public class MethodProxyCompiler {
         BiConsumer<Node, Scope> compileNode
     ) {
         FunctionType funcProxyType = getMethodProxyType(fnType);
-        String methodProxyName = methodName + MethodProxyCompiler.PROXY_SUFFIX;
+        String methodProxyName = methodName + PROXY_SUFFIX;
         String funcProxyDesc = jvmMethodDescriptor(funcProxyType, false);
 
         MethodVisitor proxyWriter = cw.visitMethod(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, methodProxyName, funcProxyDesc, null, null);
