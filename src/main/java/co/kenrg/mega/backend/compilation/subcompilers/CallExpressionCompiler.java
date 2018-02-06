@@ -9,6 +9,7 @@ import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyC
 import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.getMethodProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
@@ -25,7 +26,9 @@ import static org.objectweb.asm.Opcodes.NEW;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 import co.kenrg.mega.backend.compilation.Scope;
 import co.kenrg.mega.backend.compilation.Scope.Binding;
@@ -34,14 +37,12 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.NamedArgs;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
-import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class CallExpressionCompiler {
@@ -53,47 +54,29 @@ public class CallExpressionCompiler {
         List<Expression> arguments;
         if (node instanceof CallExpression.UnnamedArgs) {
             UnnamedArgs callExpr = (UnnamedArgs) node;
-
-            arguments = Lists.newArrayList();
-
-            boolean shouldInvokeProxy = false;
-            for (int i = 0; i < fnType.paramTypes.size(); i++) {
-                if (callExpr.arguments.size() > i) {
-                    arguments.add(callExpr.arguments.get(i));
-                } else {
-                    arguments.add(null);
-                    shouldInvokeProxy = true;
-                }
-            }
-            if (shouldInvokeProxy) {
-                compileProxyInvocation(target, arguments, scope, className, compileNode);
-                return;
-            }
+            arguments = IntStream.range(0, fnType.arity())
+                .mapToObj(i -> callExpr.arguments.size() > i ? callExpr.arguments.get(i) : null)
+                .collect(toList());
         } else if (node instanceof CallExpression.NamedArgs) {
             NamedArgs callExpr = (NamedArgs) node;
 
             Map<String, Expression> namedArgs = callExpr.namedParamArguments.stream()
                 .collect(toMap(param -> param.getKey().value, Pair::getValue));
 
-            arguments = Lists.newArrayList();
-            boolean shouldInvokeProxy = false;
-            for (Parameter parameter : fnType.parameters) {
-                if (namedArgs.containsKey(parameter.ident.value)) {
-                    arguments.add(namedArgs.get(parameter.ident.value));
-                } else {
-                    shouldInvokeProxy = true;
-                    arguments.add(null);
-                }
-            }
-            if (shouldInvokeProxy) {
-                compileProxyInvocation(target, arguments, scope, className, compileNode);
-                return;
-            }
+            arguments = fnType.parameters.stream()
+                .map(param -> param.ident.value)
+                .map(namedArgs::get)
+                .collect(toList());
         } else {
             throw new IllegalStateException("No other possible subclass of CallExpression: " + node.getClass());
         }
 
-        compileInvocation(target, arguments, scope, className, compileNode);
+        boolean shouldInvokeProxy = arguments.stream().anyMatch(Objects::isNull);
+        if (shouldInvokeProxy) {
+            compileProxyInvocation(target, arguments, scope, className, compileNode);
+        } else {
+            compileInvocation(target, arguments, scope, className, compileNode);
+        }
     }
 
     private static void compileProxyInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
