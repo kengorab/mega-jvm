@@ -175,6 +175,38 @@ class FunctionInvocationTests {
                     "val three = returnsInt() + returnsInt(() => 2);",
                 "three",
                 3
+            ),
+
+            // With named parameters
+            Triple.of("" +
+                    "func shout(s: String = '', punc: String = '!') { s + punc }" +
+                    "val helloWorld = shout(s: 'Hello', punc: ' ') + shout(s: 'world')",
+                "helloWorld",
+                "Hello world!"
+            ),
+            Triple.of(
+                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }" +
+                    "val a = returnsSum()" +
+                    "val b = returnsSum(i1: 10)" +
+                    "val c = returnsSum(i2: 20, i1: 10)" +
+                    "val d = returnsSum(i2: 20, i3: 30, i1: 10)" +
+                    "val sum = a + b + c + d;",
+                "sum",
+                114
+            ),
+            Triple.of(
+                "func returnsOne() { 1 }" +
+                    "func returnsInt(fn: () => Int = () => 1) { fn() }" +
+                    "val three = returnsInt() + returnsInt(fn: () => 2);",
+                "three",
+                3
+            ),
+            Triple.of(
+                "func returnsOne() { 1 }" +
+                    "func returnsInt(fn: () => Int = returnsOne) { fn() }" +
+                    "val three = returnsInt() + returnsInt(fn: () => 2);",
+                "three",
+                3
             )
         );
 

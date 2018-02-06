@@ -9,7 +9,6 @@ import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionProxyC
 import static co.kenrg.mega.backend.compilation.subcompilers.MethodProxyCompiler.getMethodProxyType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileBoxPrimitiveType;
 import static co.kenrg.mega.backend.compilation.subcompilers.PrimitiveBoxingUnboxingCompiler.compileUnboxPrimitiveType;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
@@ -35,6 +34,7 @@ import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.NamedArgs;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -74,10 +74,21 @@ public class CallExpressionCompiler {
 
             Map<String, Expression> namedArgs = callExpr.namedParamArguments.stream()
                 .collect(toMap(param -> param.getKey().value, Pair::getValue));
-            arguments = fnType.parameters.stream()
-                .map(param -> param.ident.value)
-                .map(namedArgs::get)
-                .collect(toList());
+
+            arguments = Lists.newArrayList();
+            boolean shouldInvokeProxy = false;
+            for (Parameter parameter : fnType.parameters) {
+                if (namedArgs.containsKey(parameter.ident.value)) {
+                    arguments.add(namedArgs.get(parameter.ident.value));
+                } else {
+                    shouldInvokeProxy = true;
+                    arguments.add(null);
+                }
+            }
+            if (shouldInvokeProxy) {
+                compileProxyInvocation(target, arguments, scope, className, compileNode);
+                return;
+            }
         } else {
             throw new IllegalStateException("No other possible subclass of CallExpression: " + node.getClass());
         }
