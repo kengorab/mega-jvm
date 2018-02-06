@@ -69,8 +69,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import co.kenrg.mega.backend.compilation.Scope.Binding;
-import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.backend.compilation.scope.Binding;
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;

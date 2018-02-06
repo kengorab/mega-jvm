@@ -9,7 +9,7 @@ import static org.objectweb.asm.Opcodes.NEW;
 
 import java.util.function.Consumer;
 
-import co.kenrg.mega.backend.compilation.Scope;
+import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.backend.compilation.StdLib;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.iface.Expression;

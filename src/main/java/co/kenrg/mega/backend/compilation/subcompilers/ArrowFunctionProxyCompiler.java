@@ -24,9 +24,9 @@ import static org.objectweb.asm.Opcodes.ISTORE;
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.Compiler;
-import co.kenrg.mega.backend.compilation.FocusedMethod;
-import co.kenrg.mega.backend.compilation.Scope;
-import co.kenrg.mega.backend.compilation.Scope.Context;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.backend.compilation.scope.Context;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;

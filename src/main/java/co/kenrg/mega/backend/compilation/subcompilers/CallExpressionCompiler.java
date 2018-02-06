@@ -30,9 +30,9 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
-import co.kenrg.mega.backend.compilation.Scope;
-import co.kenrg.mega.backend.compilation.Scope.Binding;
-import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.backend.compilation.scope.Binding;
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.NamedArgs;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;

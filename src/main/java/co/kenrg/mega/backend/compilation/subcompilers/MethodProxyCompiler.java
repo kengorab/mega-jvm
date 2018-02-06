@@ -23,9 +23,9 @@ import static org.objectweb.asm.Opcodes.ISTORE;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-import co.kenrg.mega.backend.compilation.FocusedMethod;
-import co.kenrg.mega.backend.compilation.Scope;
-import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;

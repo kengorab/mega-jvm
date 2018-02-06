@@ -20,10 +20,10 @@ import static org.objectweb.asm.Opcodes.IRETURN;
 import java.util.List;
 
 import co.kenrg.mega.backend.compilation.Compiler;
-import co.kenrg.mega.backend.compilation.FocusedMethod;
-import co.kenrg.mega.backend.compilation.Scope.Binding;
-import co.kenrg.mega.backend.compilation.Scope.BindingTypes;
-import co.kenrg.mega.backend.compilation.Scope.Context;
+import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
+import co.kenrg.mega.backend.compilation.scope.Binding;
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.Context;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;

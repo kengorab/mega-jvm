@@ -24,7 +24,7 @@ import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 
 import java.util.function.Consumer;
 
-import co.kenrg.mega.backend.compilation.Scope;
+import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.frontend.ast.expression.InfixExpression;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
