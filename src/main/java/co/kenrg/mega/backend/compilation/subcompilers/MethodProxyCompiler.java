@@ -2,30 +2,25 @@ package co.kenrg.mega.backend.compilation.subcompilers;
 
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
-import static org.objectweb.asm.Opcodes.FLOAD;
-import static org.objectweb.asm.Opcodes.FRETURN;
-import static org.objectweb.asm.Opcodes.FSTORE;
 import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.IAND;
 import static org.objectweb.asm.Opcodes.IFEQ;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISTORE;
 
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.Scope;
-import co.kenrg.mega.backend.compilation.scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
@@ -76,15 +71,7 @@ public class MethodProxyCompiler {
 
             MegaType paramType = parameter.getType();
             assert paramType != null;
-            if (paramType == PrimitiveTypes.INTEGER) {
-                proxyWriter.visitVarInsn(ISTORE, i);
-            } else if (paramType == PrimitiveTypes.BOOLEAN) {
-                proxyWriter.visitVarInsn(ISTORE, i);
-            } else if (paramType == PrimitiveTypes.FLOAT) {
-                proxyWriter.visitVarInsn(FSTORE, i);
-            } else {
-                proxyWriter.visitVarInsn(ASTORE, i);
-            }
+            proxyWriter.visitVarInsn(storeInsn(paramType), i);
             proxyWriter.visitLabel(l0);
             proxyWriter.visitFrame(F_SAME, 0, null, 0, null);
         }
@@ -93,30 +80,14 @@ public class MethodProxyCompiler {
             Parameter parameter = fnType.parameters.get(i);
             MegaType paramType = parameter.getType();
             assert paramType != null;
-            if (paramType == PrimitiveTypes.INTEGER) {
-                proxyWriter.visitVarInsn(ILOAD, i);
-            } else if (paramType == PrimitiveTypes.BOOLEAN) {
-                proxyWriter.visitVarInsn(ILOAD, i);
-            } else if (paramType == PrimitiveTypes.FLOAT) {
-                proxyWriter.visitVarInsn(FLOAD, i);
-            } else {
-                proxyWriter.visitVarInsn(ALOAD, i);
-            }
+            proxyWriter.visitVarInsn(loadInsn(paramType), i);
         }
 
         String fnDesc = jvmMethodDescriptor(fnType, false);
         proxyWriter.visitMethodInsn(INVOKESTATIC, className, methodName, fnDesc, false);
 
         MegaType returnType = fnType.returnType;
-        if (returnType == PrimitiveTypes.INTEGER) {
-            proxyWriter.visitInsn(IRETURN);
-        } else if (returnType == PrimitiveTypes.BOOLEAN) {
-            proxyWriter.visitInsn(IRETURN);
-        } else if (returnType == PrimitiveTypes.FLOAT) {
-            proxyWriter.visitInsn(FRETURN);
-        } else {
-            proxyWriter.visitInsn(ARETURN);
-        }
+        proxyWriter.visitInsn(OpcodeUtils.returnInsn(returnType));
 
         proxyWriter.visitMaxs(-1, -1);
         proxyWriter.visitEnd();
