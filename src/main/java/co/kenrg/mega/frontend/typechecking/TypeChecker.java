@@ -791,7 +791,7 @@ public class TypeChecker {
             // Otherwise, typecheck the passed params with expected param types from non-inferred function type
             for (Pair<Identifier, Expression> argument : expr.namedParamArguments) {
                 String argName = argument.getKey().value;
-                MegaType expectedArgType = expectedParams.get(argName).ident.getType();
+                MegaType expectedArgType = expectedParams.get(argName).getType();
                 typecheckNode(argument.getValue(), env, expectedArgType);
             }
         }

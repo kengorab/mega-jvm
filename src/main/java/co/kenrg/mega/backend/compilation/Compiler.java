@@ -339,7 +339,7 @@ public class Compiler {
         Scope origScope = this.scope;
         this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
         for (Parameter param : node.parameters) {
-            this.scope.addBinding(param.ident.value, param.ident.getType(), BindingTypes.LOCAL, false);
+            this.scope.addBinding(param.ident.value, param.getType(), BindingTypes.LOCAL, false);
         }
         methodWriter.visitCode();
 

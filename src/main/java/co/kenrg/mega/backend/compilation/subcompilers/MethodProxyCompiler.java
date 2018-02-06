@@ -71,10 +71,10 @@ public class MethodProxyCompiler {
 
             compileNode.accept(parameter.defaultValue, scope.createChild(new FocusedMethod(proxyWriter, null, null)));
             if (parameter.ident.getType() instanceof FunctionType) {
-                proxyWriter.visitTypeInsn(CHECKCAST, getInternalName(parameter.ident.getType().typeClass()));
+                proxyWriter.visitTypeInsn(CHECKCAST, getInternalName(parameter.getType().typeClass()));
             }
 
-            MegaType paramType = parameter.ident.getType();
+            MegaType paramType = parameter.getType();
             assert paramType != null;
             if (paramType == PrimitiveTypes.INTEGER) {
                 proxyWriter.visitVarInsn(ISTORE, i);
@@ -91,7 +91,7 @@ public class MethodProxyCompiler {
 
         for (int i = 0; i < fnType.arity(); i++) {
             Parameter parameter = fnType.parameters.get(i);
-            MegaType paramType = parameter.ident.getType();
+            MegaType paramType = parameter.getType();
             assert paramType != null;
             if (paramType == PrimitiveTypes.INTEGER) {
                 proxyWriter.visitVarInsn(ILOAD, i);

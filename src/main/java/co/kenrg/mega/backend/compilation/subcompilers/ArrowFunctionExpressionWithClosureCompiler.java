@@ -133,7 +133,7 @@ public class ArrowFunctionExpressionWithClosureCompiler {
         compiler.scope.addBinding("this", PrimitiveTypes.ANY, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
 
         for (Parameter parameter : node.parameters) {
-            compiler.scope.addBinding(parameter.ident.value, parameter.ident.getType(), BindingTypes.LOCAL, false);
+            compiler.scope.addBinding(parameter.ident.value, parameter.getType(), BindingTypes.LOCAL, false);
         }
 
         for (Entry<String, Binding> capturedBinding : capturedBindings) {
