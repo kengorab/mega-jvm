@@ -1,11 +1,14 @@
 // person.meg
 
-type Person = {
-  name: String,
+export type Person = {
+  firstName: String,
+  lastName: String,
   age: Int
 }
 
-func greet(p: Person, greeting: String = 'Hello') { greeting + ' ' + p.name }
+export func greet(p: Person, greeting: String = 'Hello') { greeting + ' ' + p.name }
+
+func privateGreet(p: Person, greeting: String = 'Hello') { greeting + ' ' + p.name }
 
 // module1.meg
 
