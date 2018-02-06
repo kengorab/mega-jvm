@@ -597,15 +597,6 @@ public class Compiler {
         }
 
         this.scope.focusedMethod.writer.visitVarInsn(loadInsn(type), binding.index);
-//        if (type == PrimitiveTypes.INTEGER) {
-//            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
-//        } else if (type == PrimitiveTypes.BOOLEAN) {
-//            this.scope.focusedMethod.writer.visitVarInsn(ILOAD, binding.index);
-//        } else if (type == PrimitiveTypes.FLOAT) {
-//            this.scope.focusedMethod.writer.visitVarInsn(FLOAD, binding.index);
-//        } else {
-//            this.scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
-//        }
     }
 
     private void compileAssignmentExpression(AssignmentExpression node) {
