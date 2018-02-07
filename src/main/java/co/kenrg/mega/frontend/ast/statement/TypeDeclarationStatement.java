@@ -37,4 +37,9 @@ public class TypeDeclarationStatement extends Statement implements Exportable {
     public boolean isExported() {
         return this.isExported;
     }
+
+    @Override
+    public String exportName() {
+        return this.typeName.value;
+    }
 }

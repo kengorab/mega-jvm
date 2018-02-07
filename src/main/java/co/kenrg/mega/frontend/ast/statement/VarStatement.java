@@ -46,4 +46,9 @@ public class VarStatement extends Statement implements Exportable {
     public boolean isExported() {
         return this.isExported;
     }
+
+    @Override
+    public String exportName() {
+        return this.name.value;
+    }
 }

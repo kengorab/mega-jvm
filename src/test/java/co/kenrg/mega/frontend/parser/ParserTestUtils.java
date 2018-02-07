@@ -19,6 +19,12 @@ public class ParserTestUtils {
         return (ExpressionStatement) statement;
     }
 
+    public static Module parseModule(String input) {
+        Lexer l = new Lexer(input);
+        Parser p = new Parser(l);
+        return p.parseModule();
+    }
+
     public static Statement parseStatement(String input) {
         Lexer l = new Lexer(input);
         Parser p = new Parser(l);

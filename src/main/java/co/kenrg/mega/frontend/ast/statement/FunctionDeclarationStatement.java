@@ -65,4 +65,9 @@ public class FunctionDeclarationStatement extends Statement implements Exportabl
     public boolean isExported() {
         return this.isExported;
     }
+
+    @Override
+    public String exportName() {
+        return this.name.value;
+    }
 }

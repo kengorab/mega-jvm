@@ -1,10 +1,12 @@
 package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseModule;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
@@ -22,6 +24,23 @@ public class TypeCheckerTestUtils {
         assertTrue(typeCheckResult.errors.isEmpty(), "There should be no typechecking errors");
         assertEquals(typeCheckResult.type, typeCheckResult.node.getType(), "The result type should be set on the node");
         return typeCheckResult.type;
+    }
+
+    public static TypeCheckResult testTypecheckModuleAndGetResult(String input) {
+        TypeEnvironment env = new TypeEnvironment();
+        return testTypecheckModuleAndGetResult(input, env);
+    }
+
+    public static TypeCheckResult testTypecheckModuleAndGetResult(String input, TypeEnvironment env) {
+        Module module = parseModule(input);
+        TypeChecker typeChecker = new TypeChecker();
+        TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, env);
+
+        if (typecheckResult.hasErrors()) {
+            System.out.println("Typechecker errors:");
+            typecheckResult.errors.forEach(e -> System.out.println("  " + e.message()));
+        }
+        return typecheckResult;
     }
 
     public static TypeCheckResult testTypecheckExpressionAndGetResult(String input) {

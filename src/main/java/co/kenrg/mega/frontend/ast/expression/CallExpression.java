@@ -6,6 +6,8 @@ import java.util.List;
 
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -34,6 +36,12 @@ public class CallExpression extends Expression {
             this.token = token;
             this.target = target;
             this.arguments = arguments;
+        }
+
+        @VisibleForTesting
+        public UnnamedArgs(Token token, Expression target, List<Expression> arguments, MegaType type) {
+            this(token, target, arguments);
+            this.setType(type);
         }
 
         @Override
