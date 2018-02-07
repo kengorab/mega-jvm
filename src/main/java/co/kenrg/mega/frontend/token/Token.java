@@ -203,6 +203,10 @@ public class Token {
         return new Token(TokenType.TYPE, "type", position);
     }
 
+    public static Token export(Position position) {
+        return new Token(TokenType.EXPORT, "export", position);
+    }
+
     @Override
     public boolean equals(Object o) {
         return EqualsBuilder.reflectionEquals(this, o);

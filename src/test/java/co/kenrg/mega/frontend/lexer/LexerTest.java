@@ -21,7 +21,7 @@ import org.junit.jupiter.api.TestFactory;
 class LexerTest {
 
     @Test
-    public void testNextToken_singleCharSymbols() {
+    void testNextToken_singleCharSymbols() {
         String input = "( ) { } [ ] , ; : . \n" +
             "+ - / * = ! < >";
 
@@ -50,7 +50,7 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_multiCharSymbols() {
+    void testNextToken_multiCharSymbols() {
         String input = "== != <= >= => .. && ||";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -68,7 +68,7 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_integers() {
+    void testNextToken_integers() {
         String input = "1 55 155 1.";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -82,7 +82,7 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_floats() {
+    void testNextToken_floats() {
         String input = "1.0 5.5 0.155 0.003";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -96,7 +96,7 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_booleans() {
+    void testNextToken_booleans() {
         String input = "true false";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -108,7 +108,7 @@ class LexerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testNextToken_strings() {
+    List<DynamicTest> testNextToken_strings() {
         List<String> manualTestCases = Lists.newArrayList(
             "hello world",
             "123",
@@ -136,7 +136,7 @@ class LexerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testNextToken_stringsWithEscapes() {
+    List<DynamicTest> testNextToken_stringsWithEscapes() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("\\\"", "\""),
             Pair.of("\\$", "$"),
@@ -166,7 +166,7 @@ class LexerTest {
     }
 
     @TestFactory
-    public List<DynamicTest> testNextToken_stringsWithSyntaxErrors() {
+    List<DynamicTest> testNextToken_stringsWithSyntaxErrors() {
         List<Pair<String, String>> testCases = Lists.newArrayList(
             Pair.of("\"hello world", "Expected \", saw EOF"),
             Pair.of("\"\\u378\"", "Invalid unicode value"),
@@ -189,7 +189,7 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_identifiers() {
+    void testNextToken_identifiers() {
         String input = "someVar foo bar fooBar ab1";
 
         List<Token> expectedTokens = Lists.newArrayList(
@@ -204,8 +204,8 @@ class LexerTest {
     }
 
     @Test
-    public void testNextToken_keywords() {
-        String input = "val var func if else for in";
+    void testNextToken_keywords() {
+        String input = "val var func if else for in type export";
 
         List<Token> expectedTokens = Lists.newArrayList(
             Token.val(Position.at(1, 1)),
@@ -214,13 +214,15 @@ class LexerTest {
             Token._if(Position.at(1, 14)),
             Token._else(Position.at(1, 17)),
             Token._for(Position.at(1, 22)),
-            Token.in(Position.at(1, 26))
+            Token.in(Position.at(1, 26)),
+            Token.type(Position.at(1, 29)),
+            Token.export(Position.at(1, 34))
         );
         assertTokensForInput(expectedTokens, input);
     }
 
     @Test
-    public void testNextToken_skipsWhitespaceAndNewlines() {
+    void testNextToken_skipsWhitespaceAndNewlines() {
         String input = "val five = 5\n" +
             "val ten = 10";
         List<Token> expectedTokens = Lists.newArrayList(

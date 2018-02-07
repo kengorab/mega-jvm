@@ -53,7 +53,8 @@ public enum TokenType {
     VAR("VAR"),
     FOR("FOR"),
     IN("IN"),
-    TYPE("TYPE");
+    TYPE("TYPE"),
+    EXPORT("EXPORT");
 
     public final String literal;
 
@@ -72,6 +73,7 @@ public enum TokenType {
         .put("for", FOR)
         .put("in", IN)
         .put("type", TYPE)
+        .put("export", EXPORT)
         .build();
 
     public static TokenType lookupIdent(String ident) {

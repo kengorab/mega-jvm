@@ -36,6 +36,7 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.Exportable;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -1369,6 +1370,62 @@ class ParserTest {
 
                     assertEquals(typeName, typeDecl.typeName.value);
                     assertEquals(typeExpr, typeDecl.typeExpr);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testExportKeyword() {
+        List<String> tests = Lists.newArrayList(
+            "export func abc() { 1 + 1 }",
+            "export val a = 'asdf'",
+            "export var b = abc() + def()",
+            "export type Person = { name: String }"
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String name = String.format("'%s', should be parsed to a Statement, with exported = true", testCase);
+                return dynamicTest(name, () -> {
+                    Exportable stmt = (Exportable) parseStatement(testCase);
+                    assertTrue(stmt.isExported());
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testExportKeyword_errors() {
+        List<String> tests = Lists.newArrayList(
+            "export for x in [1..2] { x }",
+            "export 1",
+            "export 1.0",
+            "export true",
+            "export false",
+            "export 'asdf'",
+            "export !false",
+            "export -12",
+            "export ('asdf')",
+            "export if 1 < 2 { 'a' } else { 'b' }",
+            "export [1, 2, 3, 4]",
+            "export { a: 1, b: 'asdf' }",
+            "export 1 + 1",
+            "export a => a + 1",
+            "export abcd(1)",
+            "export arr[1]",
+            "export person = { name: 'Sam' }",
+            "export 12..24"
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String name = String.format("'%s', should be parsed to a Statement, with exported = true", testCase);
+                return dynamicTest(name, () -> {
+                    Parser p = new Parser(new Lexer(testCase));
+                    p.parseModule();
+                    assertEquals(1, p.errors.size(), "There should be one error message");
+                    assertTrue(p.errors.get(0).message.contains("Expected one of [VAL, VAR, FUNCTION, TYPE], saw"));
                 });
             })
             .collect(toList());
