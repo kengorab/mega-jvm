@@ -2,23 +2,26 @@ package co.kenrg.mega.backend.compilation;
 
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.getInnerClass;
-import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadPrivateStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -29,6 +32,34 @@ class TypeDeclarationTests {
     @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
+    }
+
+    @TestFactory
+    List<DynamicTest> testCustomTypeVisibility() {
+        String typeName = "Person";
+        List<Pair<String, Boolean>> testCases = Lists.newArrayList(
+            Pair.of("type Person = { name: String }", false),
+            Pair.of("export type Person = { name: String }", true)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format(
+                    "The type defined by `%s` should be %s",
+                    testCase.getLeft(), testCase.getRight() ? "public" : "private"
+                );
+                return dynamicTest(name, () -> {
+                    TestCompilationResult result = parseTypecheckAndCompileInput(testCase.getLeft());
+                    Class innerClass = getInnerClass(result.className, typeName);
+
+                    if (testCase.getRight()) {
+                        assertTrue(Modifier.isPublic(innerClass.getModifiers()), "The type " + typeName + " should be public");
+                    } else {
+                        assertTrue(Modifier.isPrivate(innerClass.getModifiers()), "The type " + typeName + " should be private");
+                    }
+                });
+            })
+            .collect(toList());
     }
 
     @TestFactory
@@ -204,7 +235,7 @@ class TypeDeclarationTests {
 
                 return dynamicTest(name, () -> {
                     TestCompilationResult result = parseTypecheckAndCompileInput(testCase.input);
-                    Object val = loadStaticValueFromClass(result.className, testCase.valName);
+                    Object val = loadPrivateStaticValueFromClass(result.className, testCase.valName);
 
                     assertEquals(testCase.expectedToString, val.toString());
                 });

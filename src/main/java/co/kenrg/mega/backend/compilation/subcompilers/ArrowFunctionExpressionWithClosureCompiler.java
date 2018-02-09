@@ -8,7 +8,6 @@ import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
 import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.GETFIELD;
@@ -41,14 +40,15 @@ public class ArrowFunctionExpressionWithClosureCompiler {
         String innerClassName,
         ArrowFunctionExpression node,
         TypeEnvironment typeEnv,
-        Context context
+        Context context,
+        int access
     ) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
         List<Entry<String, Binding>> capturedBindings = arrowFnType.getCapturedBindings();
 
         Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv, context);
-        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
+        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, access);
 
         writeClinitMethod(compiler, capturedBindings);
         writeInitMethod(compiler, arrowFnType, innerClassName, capturedBindings);

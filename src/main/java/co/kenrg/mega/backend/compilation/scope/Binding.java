@@ -8,12 +8,14 @@ public class Binding {
     public final boolean isMutable;
     public final MegaType type;
     public final int index;
+    public final boolean isExported;
 
-    Binding(BindingTypes bindingType, String name, boolean isMutable, MegaType type, int index) {
+    Binding(BindingTypes bindingType, String name, boolean isMutable, MegaType type, int index, boolean isExported) {
         this.bindingType = bindingType;
         this.name = name;
         this.isMutable = isMutable;
         this.type = type;
         this.index = index;
+        this.isExported = isExported;
     }
 }

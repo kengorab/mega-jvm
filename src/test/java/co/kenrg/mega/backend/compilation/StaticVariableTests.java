@@ -1,11 +1,11 @@
 package co.kenrg.mega.backend.compilation;
 
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertPrivateStaticBindingOnClassEquals;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
-import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadPrivateStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticVariableFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.TestFactory;
 
 class StaticVariableTests {
 
-//    @BeforeAll
+    //    @BeforeAll
     @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
@@ -54,6 +54,32 @@ class StaticVariableTests {
                     String className = result.className;
 
                     assertFinalityOnStaticBinding(className, bindingName, isImmutable);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testExportedVsNonExportedValAndVarDeclarations() {
+        List<Triple<String, String, Boolean>> testCases = Lists.newArrayList(
+            Triple.of("export val someInt1 = 123", "someInt1", true),
+            Triple.of("val someInt2 = 123", "someInt2", false),
+            Triple.of("export var someInt3 = 123", "someInt3", true),
+            Triple.of("var someInt4 = 123", "someInt4", false)
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                String bindingName = testCase.getMiddle();
+                boolean isExported = testCase.getRight();
+
+                String name = String.format("Compiling `%s` should result in the static %s variable `%s`", input, isExported ? "public" : "private", bindingName);
+                return dynamicTest(name, () -> {
+                    TestCompilationResult result = parseTypecheckAndCompileInput(input);
+                    String className = result.className;
+
+                    assertVisibilityOnStaticBinding(className, bindingName, isExported);
                 });
             })
             .collect(toList());
@@ -85,13 +111,13 @@ class StaticVariableTests {
                         TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
                         String className = result.className;
 
-                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                     }),
                     dynamicTest(varName, () -> {
                         TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
                         String className = result.className;
 
-                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                     })
                 );
             })
@@ -129,13 +155,13 @@ class StaticVariableTests {
                         TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
                         String className = result.className;
 
-                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                     }),
                     dynamicTest(varName, () -> {
                         TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
                         String className = result.className;
 
-                        assertStaticBindingOnClassEquals(className, bindingName, val);
+                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                     })
                 );
             })
@@ -166,7 +192,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -192,7 +218,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -328,7 +354,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -360,7 +386,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -384,7 +410,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -427,7 +453,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
+                    assertPrivateStaticBindingOnClassIsLambdaAndEvaluatesTo(className, bindingName, args, res);
                 });
             })
             .collect(toList());
@@ -442,28 +468,18 @@ class StaticVariableTests {
         }
     }
 
-    private void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
-        if (value instanceof Integer) {
-            int variable = (int) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Float) {
-            float variable = (float) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Boolean) {
-            boolean variable = (boolean) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof String) {
-            String variable = (String) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Object[]) {
-            Object[] variable = (Object[]) loadStaticValueFromClass(className, staticFieldName);
-            assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");
+    private void assertVisibilityOnStaticBinding(String className, String fieldName, boolean expectedVisible) {
+        Field field = loadStaticVariableFromClass(className, fieldName);
+        if (expectedVisible) {
+            assertTrue(Modifier.isPublic(field.getModifiers()), "Field " + fieldName + " is exported and should be public");
+        } else {
+            assertTrue(Modifier.isPrivate(field.getModifiers()), "Field " + fieldName + " is not exported and should be private");
         }
     }
 
-    private void assertStaticBindingOnClassIsLambdaAndEvaluatesTo(String className, String staticFieldName, Object[] args, Object res) {
+    private void assertPrivateStaticBindingOnClassIsLambdaAndEvaluatesTo(String className, String staticFieldName, Object[] args, Object res) {
         try {
-            Object variable = loadStaticValueFromClass(className, staticFieldName);
+            Object variable = loadPrivateStaticValueFromClass(className, staticFieldName);
             Method invokeMethod = Arrays.stream(variable.getClass().getMethods())
                 .filter(method -> method.getName().equals("invoke"))
                 .collect(toList())

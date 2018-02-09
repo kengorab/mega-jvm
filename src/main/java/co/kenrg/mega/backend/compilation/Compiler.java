@@ -18,12 +18,15 @@ import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressi
 import static co.kenrg.mega.backend.compilation.subcompilers.StringInfixExpressionCompiler.compileStringRepetition;
 import static co.kenrg.mega.backend.compilation.subcompilers.TypeDeclarationStatementCompiler.compileTypeDeclaration;
 import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
+import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.returnInsn;
 import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
+import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.ARRAYLENGTH;
@@ -67,7 +70,6 @@ import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.Scope;
-import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
@@ -234,34 +236,39 @@ public class Compiler {
     //***************************************************************
 
     private void compileValStatement(ValStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value.getType(), false, () -> compileNode(stmt.value));
+        compileBinding(stmt.name.value, stmt.value.getType(), stmt.isExported, false, () -> compileNode(stmt.value));
     }
 
     private void compileVarStatement(VarStatement stmt) {
-        compileBinding(stmt.name.value, stmt.value.getType(), true, () -> compileNode(stmt.value));
+        compileBinding(stmt.name.value, stmt.value.getType(), stmt.isExported, true, () -> compileNode(stmt.value));
     }
 
-    private void compileBinding(String bindingName, MegaType bindingType, boolean isMutable, Runnable onCompileNode) {
+    private void compileBinding(String bindingName, MegaType bindingType, boolean isExported, boolean isMutable, Runnable onCompileNode) {
         assert bindingType != null; // Should have been set during typechecking pass
         String jvmDescriptor = jvmDescriptor(bindingType, false);
 
         if (this.scope.isRoot()) {
-            int access = ACC_PUBLIC | ACC_STATIC; // At root scope, declare binding as static in the class
+            int access = ACC_STATIC; // At root scope, declare binding as static in the class
             if (!isMutable) {
                 access = access | ACC_FINAL;
+            }
+            if (isExported) {
+                access = access | ACC_PUBLIC;
+            } else {
+                access = access | ACC_PRIVATE;
             }
             cw.visitField(access, bindingName, jvmDescriptor, null, null);
             onCompileNode.run();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-            this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable);
+            this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable, isExported);
             return;
         }
 
         int index = this.scope.nextLocalVariableIndex();
         onCompileNode.run();
         this.scope.focusedMethod.writer.visitVarInsn(storeInsn(bindingType), index);
-        this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable);
+        this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable, isExported);
     }
 
     private void compileForLoopStatement(ForLoopStatement node) {
@@ -324,7 +331,13 @@ public class Compiler {
         FunctionType fnType = (FunctionType) methodBinding.type;
         String funcDesc = jvmMethodDescriptor(fnType, false);
 
-        MethodVisitor methodWriter = this.cw.visitMethod(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, methodName, funcDesc, null, null);
+        int access = ACC_STATIC | ACC_FINAL;
+        if (node.isExported) {
+            access = access | ACC_PUBLIC;
+        } else {
+            access = access | ACC_PRIVATE;
+        }
+        MethodVisitor methodWriter = this.cw.visitMethod(access, methodName, funcDesc, null, null);
 
         Scope origScope = this.scope;
         this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
@@ -334,16 +347,35 @@ public class Compiler {
         methodWriter.visitCode();
 
         compileBlockExpression(node.body);
-        methodWriter.visitInsn(OpcodeUtils.returnInsn(fnType.returnType));
+        methodWriter.visitInsn(returnInsn(fnType.returnType));
 
         methodWriter.visitMaxs(-1, -1);
         methodWriter.visitEnd();
         this.scope = origScope;
 
-        this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false);
+        this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false, node.isExported);
+
+        String methodAccessProxyName = methodName + "$access";
+
+        if (!node.isExported) {
+            int proxyAccess = ACC_PUBLIC | ACC_STATIC | ACC_SYNTHETIC;
+            MethodVisitor methodAccessProxyWriter = this.cw.visitMethod(proxyAccess, methodAccessProxyName, funcDesc, null, null);
+            methodAccessProxyWriter.visitCode();
+
+            for (int i = 0; i < fnType.paramTypes.size(); i++) {
+                MegaType paramType = fnType.paramTypes.get(i);
+
+                methodAccessProxyWriter.visitVarInsn(loadInsn(paramType), i);
+            }
+            methodAccessProxyWriter.visitMethodInsn(INVOKESTATIC, this.className, methodName, funcDesc, false);
+            methodAccessProxyWriter.visitInsn(returnInsn(fnType.returnType));
+            methodAccessProxyWriter.visitMaxs(fnType.arity(), 0);
+            methodAccessProxyWriter.visitEnd();
+        }
 
         if (fnType.containsParamsWithDefaultValues()) {
-            compileFuncProxy(this.className, this.cw, fnType, methodName, scope, (n, scope) -> {
+            String proxiedMethodName = node.isExported ? methodName : methodAccessProxyName;
+            compileFuncProxy(this.className, this.cw, fnType, methodName, proxiedMethodName, scope, (n, scope) -> {
                 Scope s = this.scope; // Preserve original scope
                 this.scope = scope;
                 compileNode(n);
@@ -354,8 +386,15 @@ public class Compiler {
 
     private void compileTypeDeclarationStatement(TypeDeclarationStatement node) {
         String innerClassName = this.className + "$" + node.typeName.value;
-        this.cw.visitInnerClass(innerClassName, this.className, node.typeName.value, ACC_PUBLIC | ACC_FINAL | ACC_STATIC);
-        List<Pair<String, byte[]>> generatedClasses = compileTypeDeclaration(this.className, innerClassName, node, this.typeEnv);
+
+        int access = ACC_STATIC | ACC_FINAL;
+        if (node.isExported) {
+            access = access | ACC_PUBLIC;
+        } else {
+            access = access | ACC_PRIVATE;
+        }
+        this.cw.visitInnerClass(innerClassName, this.className, node.typeName.value, access);
+        List<Pair<String, byte[]>> generatedClasses = compileTypeDeclaration(this.className, innerClassName, node, this.typeEnv, access);
         innerClasses.addAll(generatedClasses);
     }
 
@@ -575,13 +614,19 @@ public class Compiler {
 
     private void loadIdentifier(String identName, Binding binding) {
         if (binding.bindingType == BindingTypes.METHOD) {
-            String lambdaName = "$ref_" + identName;
+            String lambdaName = identName + "$ref";
             String innerClassName = this.className + "$" + lambdaName;
             // Don't recreate the inner class twice
             if (this.innerClasses.stream().noneMatch(innerClass -> innerClass.getLeft().equals(innerClassName))) {
-                this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
+                int access = ACC_FINAL | ACC_STATIC | ACC_SYNTHETIC;
+                if (binding.isExported) {
+                    access = access | ACC_PUBLIC;
+                } else {
+                    access = access | ACC_PRIVATE;
+                }
+                this.cw.visitInnerClass(innerClassName, this.className, lambdaName, access);
                 // TODO: This will only work for static method references at the moment; make this work for non-static method references
-                List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context);
+                List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context, access);
                 this.innerClasses.addAll(generatedClasses);
             }
 
@@ -629,7 +674,8 @@ public class Compiler {
         this.scope.context.incLambdaCountOfPreviousContext();
 
         String innerClassName = this.className + "$" + lambdaName;
-        this.cw.visitInnerClass(innerClassName, this.className, lambdaName, ACC_FINAL | ACC_STATIC);
+        int access = ACC_FINAL | ACC_STATIC | ACC_SYNTHETIC;
+        this.cw.visitInnerClass(innerClassName, this.className, lambdaName, access);
 
         FunctionType fnType = (FunctionType) node.getType();
         assert fnType != null; // Should be populated by typechecking pass
@@ -638,8 +684,8 @@ public class Compiler {
         boolean closesOverBindings = !capturedBindings.isEmpty();
 
         List<Pair<String, byte[]>> generatedClasses = closesOverBindings
-            ? compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context)
-            : compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context);
+            ? compileArrowFunctionWithClosure(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context, access)
+            : compileArrowFunction(this.className, lambdaName, innerClassName, node, this.typeEnv, this.scope.context, access);
         innerClasses.addAll(generatedClasses);
 
         if (closesOverBindings) {

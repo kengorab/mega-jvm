@@ -9,7 +9,6 @@ import static co.kenrg.mega.backend.compilation.subcompilers.ArrowFunctionExpres
 import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.loadInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 
 import java.util.List;
@@ -34,24 +33,27 @@ public class StaticMethodReferenceCompiler {
         String innerClassName,
         Binding binding,
         TypeEnvironment typeEnv,
-        Context context
+        Context context,
+        int access
     ) {
         FunctionType methodType = (FunctionType) binding.type;
         assert methodType != null; // Should be populated in typechecking pass
 
         Compiler compiler = getCompiler(innerClassName, methodType, typeEnv, context);
-        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
+        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, access);
 
         writeClinitMethod(compiler, innerClassName);
         writeInitMethod(compiler, methodType.arity());
         writeIfaceInvokeMethod(compiler, innerClassName, methodType);
-        writeActualInvokeMethod(compiler, methodType, outerClassName, binding.name);
+
+        String methodName = binding.isExported ? binding.name : binding.name + "$access";
+        writeActualInvokeMethod(compiler, methodType, outerClassName, methodName);
 
         compiler.cw.visitEnd();
         return compiler.results();
     }
 
-    private static void writeActualInvokeMethod(Compiler compiler, FunctionType methodType, String outerClassName, String name) {
+    private static void writeActualInvokeMethod(Compiler compiler, FunctionType methodType, String outerClassName, String methodName) {
         MethodVisitor invokeMethodWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_FINAL, "invoke", getInvokeMethodDesc(methodType), null, null);
         invokeMethodWriter.visitCode();
 
@@ -70,7 +72,7 @@ public class StaticMethodReferenceCompiler {
         }
 
         String methodDesc = jvmMethodDescriptor(methodType, false);
-        invokeMethodWriter.visitMethodInsn(INVOKESTATIC, outerClassName, name, methodDesc, false);
+        invokeMethodWriter.visitMethodInsn(INVOKESTATIC, outerClassName, methodName, methodDesc, false);
         invokeMethodWriter.visitInsn(OpcodeUtils.returnInsn(methodType.returnType));
 
         invokeMethodWriter.visitMaxs(2, 2);
