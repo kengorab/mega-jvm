@@ -207,6 +207,14 @@ public class Token {
         return new Token(TokenType.EXPORT, "export", position);
     }
 
+    public static Token _import(Position position) {
+        return new Token(TokenType.IMPORT, "import", position);
+    }
+
+    public static Token from(Position position) {
+        return new Token(TokenType.FROM, "from", position);
+    }
+
     @Override
     public boolean equals(Object o) {
         return EqualsBuilder.reflectionEquals(this, o);

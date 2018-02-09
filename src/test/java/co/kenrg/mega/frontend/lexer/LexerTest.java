@@ -205,7 +205,7 @@ class LexerTest {
 
     @Test
     void testNextToken_keywords() {
-        String input = "val var func if else for in type export";
+        String input = "val var func if else for in type export import from";
 
         List<Token> expectedTokens = Lists.newArrayList(
             Token.val(Position.at(1, 1)),
@@ -216,7 +216,9 @@ class LexerTest {
             Token._for(Position.at(1, 22)),
             Token.in(Position.at(1, 26)),
             Token.type(Position.at(1, 29)),
-            Token.export(Position.at(1, 34))
+            Token.export(Position.at(1, 34)),
+            Token._import(Position.at(1, 41)),
+            Token.from(Position.at(1, 48))
         );
         assertTokensForInput(expectedTokens, input);
     }
