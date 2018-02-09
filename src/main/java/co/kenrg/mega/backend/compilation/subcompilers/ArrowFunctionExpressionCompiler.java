@@ -48,13 +48,14 @@ public class ArrowFunctionExpressionCompiler {
         String innerClassName,
         ArrowFunctionExpression node,
         TypeEnvironment typeEnv,
-        Context context
+        Context context,
+        int access
     ) {
         FunctionType arrowFnType = (FunctionType) node.getType();
         assert arrowFnType != null; // Should be populated in typechecking pass
 
         Compiler compiler = getCompiler(innerClassName, arrowFnType, typeEnv, context);
-        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, ACC_FINAL | ACC_STATIC);
+        compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, access);
 
         writeClinitMethod(compiler, innerClassName);
         writeInitMethod(compiler, arrowFnType.arity());

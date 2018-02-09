@@ -2,10 +2,12 @@ package co.kenrg.mega.frontend.typechecking;
 
 import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckExpression;
 import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckExpressionAndGetResult;
+import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckModuleAndGetResult;
 import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckStatement;
 import static co.kenrg.mega.frontend.typechecking.TypeCheckerTestUtils.testTypecheckStatementAndGetResult;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -14,13 +16,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.BlockExpression;
+import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.IntegerLiteral;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
+import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
+import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ValStatement;
+import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
+import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpressions;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
+import co.kenrg.mega.frontend.typechecking.errors.DuplicateExportError;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionDuplicateNamedArgumentError;
@@ -62,6 +77,118 @@ import org.junit.jupiter.api.TestFactory;
  */
 class TypeCheckerTest {
     private final Function<MegaType, ArrayType> arrayOf = ArrayType::new;
+
+    @Test
+    void testTypecheckModuleExports() {
+        String input = "" +
+            "export func abc() { 1 }\n" +
+            "func def() { 1 }\n" +
+
+            "export val a = 'asdf'\n" +
+            "val b = 'asdf'\n" +
+
+            "export var c = abc()\n" +
+            "var d = def()\n" +
+
+            "export type Person = { name: String }\n" +
+            "type Person2 = { name: String, age: Int }";
+
+        TypeCheckResult result = testTypecheckModuleAndGetResult(input);
+        Module module = (Module) result.node;
+        assertFalse(result.hasErrors());
+
+        Map<String, Statement> expectedExports = ImmutableMap.of(
+            "abc", new FunctionDeclarationStatement(
+                Token.function(Position.at(1, 8)),
+                new Identifier(
+                    Token.ident("abc", Position.at(1, 13)),
+                    "abc",
+                    null
+                ),
+                Lists.newArrayList(),
+                new BlockExpression(
+                    Token.lbrace(Position.at(1, 19)),
+                    Lists.newArrayList(
+                        new ExpressionStatement(
+                            Token._int("1", Position.at(1, 21)),
+                            new IntegerLiteral(
+                                Token._int("1", Position.at(1, 21)),
+                                1,
+                                PrimitiveTypes.INTEGER
+                            )
+                        )
+                    ),
+                    PrimitiveTypes.INTEGER
+                ),
+                true
+            ),
+            "a", new ValStatement(
+                Token.val(Position.at(3, 8)),
+                new Identifier(
+                    Token.ident("a", Position.at(3, 12)),
+                    "a",
+                    null,
+                    PrimitiveTypes.STRING
+                ),
+                new StringLiteral(
+                    Token.string("asdf", Position.at(3, 16)),
+                    "asdf",
+                    PrimitiveTypes.STRING
+                ),
+                true
+            ),
+            "c", new VarStatement(
+                Token.var(Position.at(5, 8)),
+                new Identifier(
+                    Token.ident("c", Position.at(5, 12)),
+                    "c",
+                    null,
+                    PrimitiveTypes.INTEGER
+                ),
+                new CallExpression.UnnamedArgs(
+                    Token.lparen(Position.at(5, 19)),
+                    new Identifier(
+                        Token.ident("abc", Position.at(5, 16)),
+                        "abc",
+                        null,
+                        new FunctionType(Lists.newArrayList(), PrimitiveTypes.INTEGER, Kind.METHOD)
+                    ),
+                    Lists.newArrayList(),
+                    PrimitiveTypes.INTEGER
+                ),
+                true
+            ),
+            "Person", new TypeDeclarationStatement(
+                Token.type(Position.at(7, 8)),
+                new Identifier(
+                    Token.ident("Person", Position.at(7, 13)),
+                    "Person",
+                    null
+                ),
+                new StructTypeExpression(
+                    Lists.newArrayList(
+                        Pair.of("name", new BasicTypeExpression("String", Position.at(7, 30)))
+                    ),
+                    Position.at(7, 22)
+                ),
+                true
+            )
+        );
+        assertEquals(expectedExports, module.exports);
+    }
+
+    @Test
+    void testTypecheckModuleExports_errors() {
+        String input = "" +
+            "export func abc() { 1 }\n" +
+            "export val abc = 'asdf'";
+
+        TypeCheckResult result = testTypecheckModuleAndGetResult(input);
+        assertEquals(
+            Lists.newArrayList(new DuplicateExportError("abc", Position.at(2, 8))),
+            result.errors
+        );
+    }
 
     @TestFactory
     List<DynamicTest> testTypecheckIntegerLiteral() {

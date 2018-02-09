@@ -1,12 +1,15 @@
 package co.kenrg.mega.backend.compilation;
 
 import static java.util.stream.Collectors.toList;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +26,7 @@ import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 class CompilerTestUtils {
@@ -49,6 +53,7 @@ class CompilerTestUtils {
     }
 
     static boolean requireNoParseOrTypecheckErrors = false;
+
     static TestCompilationResult parseTypecheckAndCompileInput(String input) {
         Lexer l = new Lexer(input);
         Parser p = new Parser(l);
@@ -66,7 +71,7 @@ class CompilerTestUtils {
         TypeEnvironment typeEnv = new TypeEnvironment();
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 
-        if (requireNoParseOrTypecheckErrors &&!typecheckResult.errors.isEmpty()) {
+        if (requireNoParseOrTypecheckErrors && !typecheckResult.errors.isEmpty()) {
             System.out.println("Encountered typechecking errors: ");
             for (TypeCheckerError error : typecheckResult.errors) {
                 System.out.printf("  %s", error.message());
@@ -74,7 +79,7 @@ class CompilerTestUtils {
             throw new TestFailureException("Test failed due to typechecking errors");
         }
 
-        String className = RandomStringUtils.randomAlphabetic(16);
+        String className = StringUtils.capitalize(RandomStringUtils.randomAlphabetic(16));
         Compiler compiler = new Compiler(className, typeEnv);
         List<Pair<String, byte[]>> generatedClasses = compiler.compile(module);
 
@@ -125,14 +130,14 @@ class CompilerTestUtils {
 
     static Field loadStaticVariableFromClass(String className, String fieldName) {
         try {
-            return loadClass(className).getField(fieldName);
+            return loadClass(className).getDeclaredField(fieldName);
         } catch (NoSuchFieldException e) {
             throw new TestFailureException(e);
         }
     }
 
     static List<Method> loadStaticMethodsFromClass(String className, String methodName) {
-        return Arrays.stream(loadClass(className).getMethods())
+        return Arrays.stream(loadClass(className).getDeclaredMethods())
             .filter(method -> method.getName().equals(methodName))
             .collect(toList());
     }
@@ -145,9 +150,43 @@ class CompilerTestUtils {
         }
     }
 
+    static Object loadPrivateStaticValueFromClass(String className, String fieldName) {
+        try {
+            Field field = loadStaticVariableFromClass(className, fieldName);
+
+            if (!Modifier.isPrivate(field.getModifiers())) {
+                throw new TestFailureException("Field " + fieldName + " on class " + className + " was not private");
+            }
+
+            field.setAccessible(true);
+            return field.get(null);
+        } catch (IllegalAccessException e) {
+            throw new TestFailureException(e);
+        }
+    }
+
+    static void assertPrivateStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
+        if (value instanceof Integer) {
+            int variable = (int) loadPrivateStaticValueFromClass(className, staticFieldName);
+            assertEquals(value, variable, "The static value read off the generated class should be as expected");
+        } else if (value instanceof Float) {
+            float variable = (float) loadPrivateStaticValueFromClass(className, staticFieldName);
+            assertEquals(value, variable, "The static value read off the generated class should be as expected");
+        } else if (value instanceof Boolean) {
+            boolean variable = (boolean) loadPrivateStaticValueFromClass(className, staticFieldName);
+            assertEquals(value, variable, "The static value read off the generated class should be as expected");
+        } else if (value instanceof String) {
+            String variable = (String) loadPrivateStaticValueFromClass(className, staticFieldName);
+            assertEquals(value, variable, "The static value read off the generated class should be as expected");
+        } else if (value instanceof Object[]) {
+            Object[] variable = (Object[]) loadPrivateStaticValueFromClass(className, staticFieldName);
+            assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");
+        }
+    }
+
     static Class getInnerClass(String outerClassName, String innerClassName) {
         try {
-            Class<?>[] innerClasses = CompilerTestUtils.class.getClassLoader().loadClass(outerClassName).getClasses();
+            Class<?>[] innerClasses = CompilerTestUtils.class.getClassLoader().loadClass(outerClassName).getDeclaredClasses();
             List<Class<?>> classesMatchingName = Arrays.stream(innerClasses)
                 .filter(clazz -> clazz.getSimpleName().equals(innerClassName))
                 .collect(toList());

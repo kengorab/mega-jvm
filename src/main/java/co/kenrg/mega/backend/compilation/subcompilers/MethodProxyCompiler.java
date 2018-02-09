@@ -7,6 +7,7 @@ import static co.kenrg.mega.backend.compilation.util.OpcodeUtils.storeInsn;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ACC_SYNTHETIC;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.IAND;
@@ -39,6 +40,7 @@ public class MethodProxyCompiler {
         ClassWriter cw,
         FunctionType fnType,
         String methodName,
+        String proxiedMethodName,
         Scope scope,
         BiConsumer<Node, Scope> compileNode
     ) {
@@ -46,7 +48,8 @@ public class MethodProxyCompiler {
         String methodProxyName = methodName + PROXY_SUFFIX;
         String funcProxyDesc = jvmMethodDescriptor(funcProxyType, false);
 
-        MethodVisitor proxyWriter = cw.visitMethod(ACC_PUBLIC | ACC_STATIC | ACC_FINAL, methodProxyName, funcProxyDesc, null, null);
+        int access = ACC_PUBLIC | ACC_STATIC | ACC_FINAL | ACC_SYNTHETIC;
+        MethodVisitor proxyWriter = cw.visitMethod(access, methodProxyName, funcProxyDesc, null, null);
         proxyWriter.visitCode();
 
         int idxBitmask = funcProxyType.arity() - 1; // Param which represents which parameters' bitmask
@@ -84,7 +87,7 @@ public class MethodProxyCompiler {
         }
 
         String fnDesc = jvmMethodDescriptor(fnType, false);
-        proxyWriter.visitMethodInsn(INVOKESTATIC, className, methodName, fnDesc, false);
+        proxyWriter.visitMethodInsn(INVOKESTATIC, className, proxiedMethodName, fnDesc, false);
 
         MegaType returnType = fnType.returnType;
         proxyWriter.visitInsn(OpcodeUtils.returnInsn(returnType));

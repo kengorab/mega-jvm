@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 
@@ -67,13 +68,13 @@ class StaticMethodTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertInvokingStaticMethodOnClassEvaluatesTo(className, bindingName, args, expectedResult);
+                    assertInvokingStaticMethodOnClassEvaluatesTo(className, bindingName, args, expectedResult, true);
                 });
             })
             .collect(toList());
     }
 
-    private void assertInvokingStaticMethodOnClassEvaluatesTo(String className, String name, Object[] args, Object res) {
+    private void assertInvokingStaticMethodOnClassEvaluatesTo(String className, String name, Object[] args, Object res, boolean assertPrivate) {
         List<Method> potentialMethods = loadStaticMethodsFromClass(className, name);
         long numMatches = potentialMethods.stream()
             .filter(method -> method.getParameterCount() == args.length)
@@ -85,8 +86,16 @@ class StaticMethodTests {
             fail("Too many static methods on class matching name " + name + " and arity " + args.length);
             return;
         }
-
         Method method = potentialMethods.get(0);
+
+        if (assertPrivate) {
+            if (!Modifier.isPrivate(method.getModifiers())) {
+                fail("Method " + name + " on class " + className + " was not private");
+            }
+
+            method.setAccessible(true);
+        }
+
         String arguments = Arrays.toString(args);
         try {
             Object result = method.invoke(null, args);

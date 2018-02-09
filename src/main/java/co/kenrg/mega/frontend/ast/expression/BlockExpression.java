@@ -7,6 +7,8 @@ import java.util.List;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 public class BlockExpression extends Expression {
@@ -16,6 +18,12 @@ public class BlockExpression extends Expression {
     public BlockExpression(Token token, List<Statement> statements) {
         this.token = token;
         this.statements = statements;
+    }
+
+    @VisibleForTesting
+    public BlockExpression(Token token, List<Statement> statements, MegaType type) {
+        this(token, statements);
+        this.setType(type);
     }
 
     @Override

@@ -48,11 +48,15 @@ public class Scope {
         return new Scope(this, focusedMethod, this.context);
     }
 
-    public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {
-        this.bindings.put(name, new Binding(bindingType, name, isMutable, type, this.nextLocalVarIndex));
+    public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable, boolean isExported) {
+        this.bindings.put(name, new Binding(bindingType, name, isMutable, type, this.nextLocalVarIndex, isExported));
         if (bindingType == BindingTypes.LOCAL) {
             this.nextLocalVarIndex++;
         }
+    }
+
+    public void addBinding(String name, MegaType type, BindingTypes bindingType, boolean isMutable) {
+        this.addBinding(name, type, bindingType, isMutable, false);
     }
 
     public int nextLocalVariableIndex() {

@@ -8,7 +8,6 @@ import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
@@ -57,7 +56,8 @@ public class TypeDeclarationStatementCompiler {
         String outerClassName,
         String innerClassName,
         TypeDeclarationStatement node,
-        TypeEnvironment typeEnv
+        TypeEnvironment typeEnv,
+        int access
     ) {
         String typeClassName = node.typeName.value;
         MegaType type = typeEnv.getTypeByName(typeClassName);
@@ -66,7 +66,7 @@ public class TypeDeclarationStatementCompiler {
             return Lists.newArrayList();
         }
         Compiler compiler = new Compiler(innerClassName, null, getInternalName(Object.class), null, typeEnv);
-        compiler.cw.visitInnerClass(innerClassName, outerClassName, typeClassName, ACC_PUBLIC | ACC_FINAL | ACC_STATIC);
+        compiler.cw.visitInnerClass(innerClassName, outerClassName, typeClassName, access);
 
         StructType structType = (StructType) type;
         structType.setClassName(innerClassName);

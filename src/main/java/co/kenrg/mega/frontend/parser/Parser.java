@@ -49,6 +49,7 @@ import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import mega.lang.collections.Arrays;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class Parser {
@@ -141,14 +142,20 @@ public class Parser {
         return Precedence.forTokenType(this.peekTok.type);
     }
 
-    private boolean expectPeek(TokenType tokenType) {
-        if (this.peekTokenIs(tokenType)) {
-            this.nextToken();
-            return true;
-        } else {
-            this.addParserError(String.format("Expected %s, saw %s", tokenType, this.peekTok.type));
-            return false;
+    private boolean expectPeek(TokenType... tokenTypes) {
+        String tokenTypesErrPart = tokenTypes.length == 1
+            ? tokenTypes[0].toString()
+            : "one of " + Arrays.toString(tokenTypes);
+
+        for (TokenType tokenType : tokenTypes) {
+            if (this.peekTokenIs(tokenType)) {
+                this.nextToken();
+                return true;
+            }
         }
+
+        this.addParserError(String.format("Expected %s, saw %s", tokenTypesErrPart, this.peekTok.type));
+        return false;
     }
 
     private boolean peekAheadTokenIs(TokenType tokenType) {
@@ -178,42 +185,50 @@ public class Parser {
     }
 
     private Statement parseStatement() {
+        boolean isExported = false;
+        if (this.curTokenIs(TokenType.EXPORT)) {
+            isExported = true;
+            if (!this.expectPeek(TokenType.VAL, TokenType.VAR, TokenType.FUNCTION, TokenType.TYPE)) {
+                return null;
+            }
+        }
+
         switch (this.curTok.type) {
             case VAL:
-                return this.parseValStatement();
+                return this.parseValStatement(isExported);
             case VAR:
-                return this.parseVarStatement();
+                return this.parseVarStatement(isExported);
             case FUNCTION:
-                return this.parseFunctionDeclarationStatement();
+                return this.parseFunctionDeclarationStatement(isExported);
             case FOR:
                 return this.parseForInLoopStatement();
             case TYPE:
-                return this.parseTypeDeclarationStatement();
+                return this.parseTypeDeclarationStatement(isExported);
             default:
                 return this.parseExpressionStatement();
         }
     }
 
-    // val <ident> = <expr>
-    private Statement parseValStatement() {
+    // [export] val <ident> = <expr>
+    private Statement parseValStatement(boolean isExported) {
         Token t = this.curTok;  // The 'val' token
 
         Pair<Identifier, Expression> binding = this.parseBinding();
         if (binding == null) {
             return null;
         }
-        return new ValStatement(t, binding.getLeft(), binding.getRight());
+        return new ValStatement(t, binding.getLeft(), binding.getRight(), isExported);
     }
 
-    // var <ident> = <expr>
-    private Statement parseVarStatement() {
+    // [export] var <ident> = <expr>
+    private Statement parseVarStatement(boolean isExported) {
         Token t = this.curTok;  // The 'var' token
 
         Pair<Identifier, Expression> binding = this.parseBinding();
         if (binding == null) {
             return null;
         }
-        return new VarStatement(t, binding.getLeft(), binding.getRight());
+        return new VarStatement(t, binding.getLeft(), binding.getRight(), isExported);
     }
 
     private Pair<Identifier, Expression> parseBinding() {
@@ -372,8 +387,8 @@ public class Parser {
         return null;
     }
 
-    // func <name>([<param> [, <param>]*]) { <stmts> }
-    private Statement parseFunctionDeclarationStatement() {
+    // [export] func <name>([<param> [, <param>]*]) { <stmts> }
+    private Statement parseFunctionDeclarationStatement(boolean isExported) {
         Token t = this.curTok;  // The 'func' token
 
         if (!this.expectPeek(TokenType.IDENT)) {
@@ -404,9 +419,9 @@ public class Parser {
 
         BlockExpression body = (BlockExpression) this.parseBlockExpression();
         if (typeAnnotation != null) {
-            return new FunctionDeclarationStatement(t, name, params, body, typeAnnotation);
+            return new FunctionDeclarationStatement(t, name, params, body, typeAnnotation, isExported);
         }
-        return new FunctionDeclarationStatement(t, name, params, body);
+        return new FunctionDeclarationStatement(t, name, params, body, isExported);
     }
 
     // for <ident> in <expr> { <stmts> }
@@ -434,8 +449,8 @@ public class Parser {
         return new ForLoopStatement(t, iterator, iteratee, block);
     }
 
-    // type <ident> = <type_expr>
-    private Statement parseTypeDeclarationStatement() {
+    // [export] type <ident> = <type_expr>
+    private Statement parseTypeDeclarationStatement(boolean isExported) {
         Token t = this.curTok;  // The 'type' token
 
         if (!this.expectPeek(TokenType.IDENT)) {
@@ -451,7 +466,7 @@ public class Parser {
 
         TypeExpression typeExpr = this.parseTypeExpression(true);
 
-        return new TypeDeclarationStatement(t, typeName, typeExpr);
+        return new TypeDeclarationStatement(t, typeName, typeExpr, isExported);
     }
 
     // Wrapper to allow top-level expressions

@@ -29,6 +29,7 @@ import co.kenrg.mega.frontend.ast.expression.ParenthesizedExpression;
 import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.Exportable;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Node;
@@ -48,6 +49,7 @@ import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.OperatorSignature;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment.Binding;
+import co.kenrg.mega.frontend.typechecking.errors.DuplicateExportError;
 import co.kenrg.mega.frontend.typechecking.errors.DuplicateTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionArityError;
 import co.kenrg.mega.frontend.typechecking.errors.FunctionDuplicateNamedArgumentError;
@@ -123,7 +125,7 @@ public class TypeChecker {
     private <T extends Node> MegaType typecheckNode(T node, TypeEnvironment env, @Nullable MegaType expectedType) {
         // Statements
         if (node instanceof Module) {
-            this.typecheckStatements(((Module) node).statements, env);
+            this.typecheckModule((Module) node, env);
         } else if (node instanceof ExpressionStatement) {
             return typecheckNode(((ExpressionStatement) node).expression, env, expectedType);
         } else if (node instanceof ValStatement) {
@@ -241,9 +243,19 @@ public class TypeChecker {
         return unknownType;
     }
 
-    private void typecheckStatements(List<Statement> statements, TypeEnvironment env) {
-        for (Statement statement : statements) {
+    private void typecheckModule(Module module, TypeEnvironment env) {
+        for (Statement statement : module.statements) {
             this.typecheckNode(statement, env);
+            if (statement instanceof Exportable) {
+                Exportable exportable = (Exportable) statement;
+                if (exportable.isExported()) {
+                    String exportName = exportable.exportName();
+                    if (module.exports.containsKey(exportName)) {
+                        this.errors.add(new DuplicateExportError(exportName, statement.getToken().position));
+                    }
+                    module.exports.put(exportName, statement);
+                }
+            }
         }
     }
 
@@ -277,6 +289,7 @@ public class TypeChecker {
         } else {
             env.addBindingWithType(name.value, type, isImmutable);
         }
+        name.setType(type);
     }
 
     private void typecheckFunctionDeclarationStatement(FunctionDeclarationStatement statement, TypeEnvironment env) {

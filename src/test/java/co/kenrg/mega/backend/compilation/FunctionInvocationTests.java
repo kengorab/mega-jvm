@@ -1,11 +1,9 @@
 package co.kenrg.mega.backend.compilation;
 
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertPrivateStaticBindingOnClassEquals;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
-import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
@@ -50,7 +48,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -96,7 +94,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -137,7 +135,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -221,7 +219,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -282,7 +280,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
@@ -330,28 +328,9 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertStaticBindingOnClassEquals(className, bindingName, val);
+                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
                 });
             })
             .collect(toList());
-    }
-
-    private void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
-        if (value instanceof Integer) {
-            int variable = (int) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Float) {
-            float variable = (float) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Boolean) {
-            boolean variable = (boolean) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof String) {
-            String variable = (String) loadStaticValueFromClass(className, staticFieldName);
-            assertEquals(value, variable, "The static value read off the generated class should be as expected");
-        } else if (value instanceof Object[]) {
-            Object[] variable = (Object[]) loadStaticValueFromClass(className, staticFieldName);
-            assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");
-        }
     }
 }

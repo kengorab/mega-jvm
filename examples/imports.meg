@@ -1,0 +1,22 @@
+// person.meg
+
+export type Person = {
+  firstName: String,
+  lastName: String,
+  age: Int
+}
+
+export func greet(p: Person, greeting: String = 'Hello') { greeting + ' ' + p.name }
+
+func privateGreet(p: Person, greeting: String = 'Hello') { greeting + ' ' + p.name }
+
+// module1.meg
+
+import Person, greet from 'person'
+
+val people = [
+  Person(name: 'Ken', age: 26),
+  Person(name: 'Meg', age: 25)
+]
+
+val greetings = greet(people[0]) + ', and ' + greet(people[1], greeting: 'welcome') // 'Hello Ken, and welcome Meg'
