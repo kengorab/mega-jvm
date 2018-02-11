@@ -25,7 +25,7 @@ public class ParserTestUtils {
         return p.parseModule();
     }
 
-    public static Statement parseStatement(String input) {
+    public static Module parseStatementAndGetModule(String input) {
         Lexer l = new Lexer(input);
         Parser p = new Parser(l);
         Module module = p.parseModule();
@@ -39,6 +39,11 @@ public class ParserTestUtils {
         }
         assertEquals(0, p.errors.size(), "There should be 0 parser errors");
 
+        return module;
+    }
+
+    public static Statement parseStatement(String input) {
+        Module module = parseStatementAndGetModule(input);
         return module.statements.get(0);
     }
 

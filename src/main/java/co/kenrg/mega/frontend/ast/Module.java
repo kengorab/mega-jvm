@@ -14,17 +14,23 @@ import com.google.common.collect.Maps;
 
 public class Module implements Node {
     public final List<Statement> statements;
+    public final List<Statement> imports;
     public final List<Statement> exports;
 
     public Map<String, Statement> namedExports = Maps.newHashMap(); // Entries inserted during typechecking
 
-    public Module(List<Statement> statements, List<Statement> exports) {
+    public Module(List<Statement> statements, List<Statement> imports, List<Statement> exports) {
         this.statements = statements;
         this.exports = exports;
+        this.imports = imports;
+    }
+
+    public Module(List<Statement> statements, List<Statement> exports) {
+        this(statements, Lists.newArrayList(), exports);
     }
 
     public Module(List<Statement> statements) {
-        this(statements, Lists.newArrayList());
+        this(statements, Lists.newArrayList(), Lists.newArrayList());
     }
 
     @Override

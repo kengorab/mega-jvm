@@ -174,6 +174,7 @@ public class Parser {
 
     public Module parseModule() {
         List<Statement> statements = Lists.newArrayList();
+        List<Statement> imports = Lists.newArrayList();
         List<Statement> exports = Lists.newArrayList();
 
         while (this.curTok.type != TokenType.EOF) {
@@ -181,6 +182,11 @@ public class Parser {
             if (stmt != null) {
                 statements.add(stmt);
             }
+
+            if (stmt instanceof ImportStatement) {
+                imports.add(stmt);
+            }
+
             if (stmt instanceof Exportable) {
                 if (((Exportable) stmt).isExported()) {
                     exports.add(stmt);
@@ -189,7 +195,7 @@ public class Parser {
             this.nextToken();
         }
 
-        return new Module(statements, exports);
+        return new Module(statements, imports, exports);
     }
 
     private Statement parseStatement() {

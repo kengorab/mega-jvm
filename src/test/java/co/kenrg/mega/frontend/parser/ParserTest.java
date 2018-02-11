@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.parser;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetErrors;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetModule;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -440,8 +441,9 @@ class ParserTest {
 
     @Test
     void testParseSingleImportStatement() {
-        String input = "import a from \"co.kenrg.some-package\"";
-        Statement statement = parseStatement(input);
+        String input = "import a from \"co.kenrg.some-package.Module\"";
+        Module module = parseStatementAndGetModule(input);
+        Statement statement = module.statements.get(0);
         assertTrue(statement instanceof ImportStatement);
         ImportStatement importStmt = (ImportStatement) statement;
 
@@ -454,17 +456,20 @@ class ParserTest {
                 )
             ),
             new StringLiteral(
-                Token.string("co.kenrg.some-package", Position.at(1, 15)),
-                "co.kenrg.some-package"
+                Token.string("co.kenrg.some-package.Module", Position.at(1, 15)),
+                "co.kenrg.some-package.Module"
             )
         );
         assertEquals(expected, importStmt);
+
+        assertEquals(Lists.newArrayList(expected), module.imports);
     }
 
     @Test
     void testImportStatement() {
-        String input = "import a, bc, def from 'co.kenrg.some-package'";
-        Statement statement = parseStatement(input);
+        String input = "import a, bc, def from 'co.kenrg.some-package.Module'";
+        Module module = parseStatementAndGetModule(input);
+        Statement statement = module.statements.get(0);
         assertTrue(statement instanceof ImportStatement);
         ImportStatement importStmt = (ImportStatement) statement;
 
@@ -485,16 +490,18 @@ class ParserTest {
                 )
             ),
             new StringLiteral(
-                Token.string("co.kenrg.some-package", Position.at(1, 24)),
-                "co.kenrg.some-package"
+                Token.string("co.kenrg.some-package.Module", Position.at(1, 24)),
+                "co.kenrg.some-package.Module"
             )
         );
         assertEquals(expected, importStmt);
+
+        assertEquals(Lists.newArrayList(expected), module.imports);
     }
 
     @Test
     void testImportStatement_errors() {
-        String input = "import from 'co.kenrg.some-package'";
+        String input = "import from 'co.kenrg.some-package.Module'";
 
         Parser p = new Parser(new Lexer(input));
         p.parseModule();
