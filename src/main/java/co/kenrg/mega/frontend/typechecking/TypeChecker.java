@@ -246,16 +246,17 @@ public class TypeChecker {
     private void typecheckModule(Module module, TypeEnvironment env) {
         for (Statement statement : module.statements) {
             this.typecheckNode(statement, env);
-            if (statement instanceof Exportable) {
-                Exportable exportable = (Exportable) statement;
-                if (exportable.isExported()) {
-                    String exportName = exportable.exportName();
-                    if (module.exports.containsKey(exportName)) {
-                        this.errors.add(new DuplicateExportError(exportName, statement.getToken().position));
-                    }
-                    module.exports.put(exportName, statement);
-                }
+        }
+
+        for (Statement exportedStmt : module.exports) {
+            assert exportedStmt instanceof Exportable;
+            Exportable export = (Exportable) exportedStmt;
+
+            String exportName = export.exportName();
+            if (module.namedExports.containsKey(exportName)) {
+                this.errors.add(new DuplicateExportError(exportName, exportedStmt.getToken().position));
             }
+            module.namedExports.put(exportName, exportedStmt);
         }
     }
 

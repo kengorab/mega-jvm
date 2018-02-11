@@ -174,7 +174,7 @@ class TypeCheckerTest {
                 true
             )
         );
-        assertEquals(expectedExports, module.exports);
+        assertEquals(expectedExports, module.namedExports);
     }
 
     @Test

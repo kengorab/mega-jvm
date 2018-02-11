@@ -30,6 +30,7 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.Exportable;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
@@ -173,16 +174,22 @@ public class Parser {
 
     public Module parseModule() {
         List<Statement> statements = Lists.newArrayList();
+        List<Statement> exports = Lists.newArrayList();
 
         while (this.curTok.type != TokenType.EOF) {
             Statement stmt = this.parseStatement();
             if (stmt != null) {
                 statements.add(stmt);
             }
+            if (stmt instanceof Exportable) {
+                if (((Exportable) stmt).isExported()) {
+                    exports.add(stmt);
+                }
+            }
             this.nextToken();
         }
 
-        return new Module(statements);
+        return new Module(statements, exports);
     }
 
     private Statement parseStatement() {

@@ -9,19 +9,22 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class Module implements Node {
     public final List<Statement> statements;
-    public final Map<String, Statement> exports;
+    public final List<Statement> exports;
 
-    public Module(List<Statement> statements, Map<String, Statement> exports) {
+    public Map<String, Statement> namedExports = Maps.newHashMap(); // Entries inserted during typechecking
+
+    public Module(List<Statement> statements, List<Statement> exports) {
         this.statements = statements;
         this.exports = exports;
     }
 
     public Module(List<Statement> statements) {
-        this(statements, Maps.newHashMap());
+        this(statements, Lists.newArrayList());
     }
 
     @Override
