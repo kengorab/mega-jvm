@@ -9,7 +9,6 @@ import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class Module implements Node {
@@ -23,14 +22,6 @@ public class Module implements Node {
         this.statements = statements;
         this.exports = exports;
         this.imports = imports;
-    }
-
-    public Module(List<Statement> statements, List<Statement> exports) {
-        this(statements, Lists.newArrayList(), exports);
-    }
-
-    public Module(List<Statement> statements) {
-        this(statements, Lists.newArrayList(), Lists.newArrayList());
     }
 
     @Override
