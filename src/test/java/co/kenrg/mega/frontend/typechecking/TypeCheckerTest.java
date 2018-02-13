@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.List;
@@ -49,9 +50,12 @@ import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
+import co.kenrg.mega.frontend.typechecking.errors.VisibilityError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
@@ -188,6 +192,129 @@ class TypeCheckerTest {
             Lists.newArrayList(new DuplicateExportError("abc", Position.at(2, 8))),
             result.errors
         );
+    }
+
+    @Test
+    void testTypecheckModuleImports_singleImport() {
+        String module1Input = "export val a = 1";
+        String module2Input = "" +
+            "import a from 'co.mega.test.module1'" +
+            "val b = a";
+
+        TypeCheckResult result = testTypecheckModuleAndGetResult(module2Input, moduleName -> {
+            switch (moduleName) {
+                case "co.mega.test.module1":
+                    return module1Input;
+                default:
+                    fail("Unknown module: " + moduleName);
+                    return null;
+            }
+        });
+
+        assertEquals(
+            new Binding(PrimitiveTypes.INTEGER, true),
+            result.typeEnvironment.getBinding("a")
+        );
+
+        assertEquals(
+            new Binding(PrimitiveTypes.INTEGER, true),
+            result.typeEnvironment.getBinding("b")
+        );
+    }
+
+    @Test
+    void testTypecheckModuleImports_multipleImports() {
+        String module1Input = "" +
+            "export val a = 1\n" +
+            "export func abc(i: Int = 1) { a + i }";
+        String module2Input = "" +
+            "import a, abc from 'co.mega.test.module1'\n" +
+            "val b = abc(a)";
+
+        TypeCheckResult result = testTypecheckModuleAndGetResult(module2Input, moduleName -> {
+            switch (moduleName) {
+                case "co.mega.test.module1":
+                    return module1Input;
+                default:
+                    fail("Unknown module: " + moduleName);
+                    return null;
+            }
+        });
+
+        // Assert imported bindings added to module's type env
+        assertEquals(
+            new Binding(PrimitiveTypes.INTEGER, true),
+            result.typeEnvironment.getBinding("a")
+        );
+        assertEquals(
+            new Binding(
+                new FunctionType(
+                    Lists.newArrayList(
+                        new Parameter(
+                            new Identifier(
+                                Token.ident("i", Position.at(2, 17)),
+                                "i",
+                                new BasicTypeExpression("Int", Position.at(2, 20)),
+                                PrimitiveTypes.INTEGER
+                            ),
+                            new IntegerLiteral(Token._int("1", Position.at(2, 26)), 1, PrimitiveTypes.INTEGER)
+                        )
+                    ),
+                    PrimitiveTypes.INTEGER,
+                    Kind.METHOD
+                ),
+                true
+            ),
+            result.typeEnvironment.getBinding("abc")
+        );
+
+        assertEquals(
+            new Binding(PrimitiveTypes.INTEGER, true),
+            result.typeEnvironment.getBinding("b")
+        );
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckModuleImports_errors() {
+        List<Triple<String, String, TypeCheckerError>> testCases = Lists.newArrayList(
+            Triple.of(
+                "export val a = 1", // co.mega.test.module1
+                "import b from 'co.mega.test.module1'", // co.mega.test.module2
+                new UnknownExportError("co.mega.test.module1", "b", Position.at(1, 8))
+            ),
+            Triple.of(
+                "val a = 1", // co.mega.test.module1
+                "import a from 'co.mega.test.module1'", // co.mega.test.module2
+                new VisibilityError("co.mega.test.module1", "a", Position.at(1, 8))
+            ),
+            Triple.of(
+                "val a = 1", // co.mega.test.module1
+                "import a from 'co.mega.test.invalid-module'", // co.mega.test.module2
+                new UnknownModuleError("co.mega.test.invalid-module", Position.at(1, 15))
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String module1 = testCase.getLeft();
+                String module2 = testCase.getMiddle();
+                TypeCheckerError error = testCase.getRight();
+
+                String name = String.format("For module1 (`%s`) and module2 (`%s`), there should be an error", module1, module2);
+                return dynamicTest(name, () -> {
+                    TypeCheckResult result = testTypecheckModuleAndGetResult(module2, moduleName -> {
+                        switch (moduleName) {
+                            case "co.mega.test.module1":
+                                return module1;
+                            default:
+                                return null;
+                        }
+                    });
+
+                    assertEquals(Lists.newArrayList(error), result.errors);
+                });
+            })
+            .collect(toList());
     }
 
     @TestFactory

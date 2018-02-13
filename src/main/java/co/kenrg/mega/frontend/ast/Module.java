@@ -6,6 +6,7 @@ import java.util.Map;
 
 import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
+import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
@@ -13,12 +14,12 @@ import com.google.common.collect.Maps;
 
 public class Module implements Node {
     public final List<Statement> statements;
-    public final List<Statement> imports;
+    public final List<ImportStatement> imports;
     public final List<Statement> exports;
 
     public Map<String, Statement> namedExports = Maps.newHashMap(); // Entries inserted during typechecking
 
-    public Module(List<Statement> statements, List<Statement> imports, List<Statement> exports) {
+    public Module(List<Statement> statements, List<ImportStatement> imports, List<Statement> exports) {
         this.statements = statements;
         this.exports = exports;
         this.imports = imports;

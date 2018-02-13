@@ -16,6 +16,7 @@ import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeEnvironment {
@@ -46,6 +47,11 @@ public class TypeEnvironment {
             this.type = type;
             this.isImmutable = isImmutable;
             this.expression = expression;
+        }
+
+        @Override
+        public String toString() {
+            return ToStringBuilder.reflectionToString(this);
         }
 
         @Override

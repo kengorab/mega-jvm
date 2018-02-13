@@ -10,11 +10,13 @@ public class TypeCheckResult<T extends Node> {
     public final T node;
     public final MegaType type;
     public final List<TypeCheckerError> errors;
+    public final TypeEnvironment typeEnvironment;
 
-    public TypeCheckResult(T node, MegaType type, List<TypeCheckerError> errors) {
+    public TypeCheckResult(T node, MegaType type, List<TypeCheckerError> errors, TypeEnvironment typeEnvironment) {
         this.node = node;
         this.type = type;
         this.errors = errors;
+        this.typeEnvironment = typeEnvironment;
     }
 
     public boolean hasErrors() {
