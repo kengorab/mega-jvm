@@ -50,7 +50,8 @@ class TypeCheckerTestUtils {
 
             Module m = parseModule(moduleContents);
             TypeEnvironment e = new TypeEnvironment();
-            return typeChecker.typecheck(m, e);
+            TypeChecker tc = new TypeChecker();
+            return tc.typecheck(m, e);
         });
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, env);
 

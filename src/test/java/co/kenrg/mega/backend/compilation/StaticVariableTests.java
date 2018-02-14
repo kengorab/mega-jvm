@@ -1,6 +1,6 @@
 package co.kenrg.mega.backend.compilation;
 
-import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertPrivateStaticBindingOnClassEquals;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertStaticBindingOnClassEquals;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadPrivateStaticValueFromClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadStaticVariableFromClass;
@@ -111,13 +111,13 @@ class StaticVariableTests {
                         TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
                         String className = result.className;
 
-                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                        assertStaticBindingOnClassEquals(className, bindingName, val, true);
                     }),
                     dynamicTest(varName, () -> {
                         TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
                         String className = result.className;
 
-                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                        assertStaticBindingOnClassEquals(className, bindingName, val, true);
                     })
                 );
             })
@@ -155,13 +155,13 @@ class StaticVariableTests {
                         TestCompilationResult result = parseTypecheckAndCompileInput(valInput);
                         String className = result.className;
 
-                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                        assertStaticBindingOnClassEquals(className, bindingName, val, true);
                     }),
                     dynamicTest(varName, () -> {
                         TestCompilationResult result = parseTypecheckAndCompileInput(varInput);
                         String className = result.className;
 
-                        assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                        assertStaticBindingOnClassEquals(className, bindingName, val, true);
                     })
                 );
             })
@@ -192,7 +192,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -218,7 +218,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -354,7 +354,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -386,7 +386,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -410,7 +410,7 @@ class StaticVariableTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());

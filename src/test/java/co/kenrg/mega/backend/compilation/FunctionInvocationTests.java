@@ -1,6 +1,6 @@
 package co.kenrg.mega.backend.compilation;
 
-import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertPrivateStaticBindingOnClassEquals;
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertStaticBindingOnClassEquals;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.parseTypecheckAndCompileInput;
 import static java.util.stream.Collectors.toList;
@@ -11,14 +11,14 @@ import java.util.List;
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
 
-    @BeforeAll
-//    @AfterAll
+//    @BeforeAll
+    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -48,7 +48,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -94,7 +94,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -135,7 +135,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -219,7 +219,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -280,7 +280,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());
@@ -328,7 +328,7 @@ class FunctionInvocationTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertPrivateStaticBindingOnClassEquals(className, bindingName, val);
+                    assertStaticBindingOnClassEquals(className, bindingName, val, true);
                 });
             })
             .collect(toList());

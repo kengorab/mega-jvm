@@ -65,6 +65,7 @@ import static org.objectweb.asm.Opcodes.V1_6;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 
 import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
@@ -95,12 +96,15 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
+import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.ImmutableMap;
@@ -115,11 +119,14 @@ public class Compiler {
     private final TypeEnvironment typeEnv;
     private final List<String> errors = Lists.newArrayList();
     private final String className;
+
     public final ClassWriter cw;
     public final MethodVisitor clinitWriter;
+
     public Scope scope;
 
     private List<Pair<String, byte[]>> innerClasses = Lists.newArrayList();
+    private Function<String, TypeCheckResult<Module>> typedModuleProvider;
 
     public Compiler(String className, TypeEnvironment typeEnv) {
         this(className, null, "java/lang/Object", null, typeEnv);
@@ -152,6 +159,10 @@ public class Compiler {
         clinitWriter.visitCode();
     }
 
+    public void setTypedModuleProvider(Function<String, TypeCheckResult<Module>> typedModuleProvider) {
+        this.typedModuleProvider = typedModuleProvider;
+    }
+
     public <T extends Node> List<Pair<String, byte[]>> compile(T node) {
         compileNode(node);
         this.clinitWriter.visitInsn(RETURN);
@@ -161,7 +172,7 @@ public class Compiler {
         return results();
     }
 
-    public List<Pair<String, byte[]>> results() { /// // Used publicly by sub-compilers
+    public List<Pair<String, byte[]>> results() { // Used publicly by sub-compilers
         this.cw.visitEnd();
         innerClasses.add(Pair.of(this.className, this.cw.toByteArray()));
         return innerClasses;
@@ -185,6 +196,8 @@ public class Compiler {
             this.compileFunctionDeclarationStatement((FunctionDeclarationStatement) node);
         } else if (node instanceof TypeDeclarationStatement) {
             this.compileTypeDeclarationStatement((TypeDeclarationStatement) node);
+        } else if (node instanceof ImportStatement) {
+            this.compileImportStatement((ImportStatement) node);
         }
 
         // Expressions
@@ -261,14 +274,14 @@ public class Compiler {
             onCompileNode.run();
             clinitWriter.visitFieldInsn(PUTSTATIC, className, bindingName, jvmDescriptor);
 
-            this.scope.addBinding(bindingName, bindingType, BindingTypes.STATIC, isMutable, isExported);
+            this.scope.addBinding(bindingName, bindingType, this.className, BindingTypes.STATIC, isMutable, isExported);
             return;
         }
 
         int index = this.scope.nextLocalVariableIndex();
         onCompileNode.run();
         this.scope.focusedMethod.writer.visitVarInsn(storeInsn(bindingType), index);
-        this.scope.addBinding(bindingName, bindingType, BindingTypes.LOCAL, isMutable, isExported);
+        this.scope.addBinding(bindingName, bindingType, this.className, BindingTypes.LOCAL, isMutable, isExported);
     }
 
     private void compileForLoopStatement(ForLoopStatement node) {
@@ -277,18 +290,18 @@ public class Compiler {
         compileNode(node.iteratee);
         int iterateeIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitVarInsn(ASTORE, iterateeIndex);
-        this.scope.addBinding("$$for_loop_iteratee_" + tag, node.iteratee.getType(), BindingTypes.LOCAL, false);
+        this.scope.addBinding("$$for_loop_iteratee_" + tag, node.iteratee.getType(), this.className, BindingTypes.LOCAL, false);
 
         int iterateeLengthIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitVarInsn(ALOAD, iterateeIndex);
         this.scope.focusedMethod.writer.visitInsn(ARRAYLENGTH);
         this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iterateeLengthIndex);
-        this.scope.addBinding("$$for_loop_iteratee_length_" + tag, PrimitiveTypes.INTEGER, BindingTypes.LOCAL, false);
+        this.scope.addBinding("$$for_loop_iteratee_length_" + tag, PrimitiveTypes.INTEGER, this.className, BindingTypes.LOCAL, false);
 
         int iteratorIndexIndex = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitInsn(ICONST_0);
         this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iteratorIndexIndex);
-        this.scope.addBinding("$$for_loop_iterator_idx_" + tag, PrimitiveTypes.INTEGER, BindingTypes.LOCAL, false);
+        this.scope.addBinding("$$for_loop_iterator_idx_" + tag, PrimitiveTypes.INTEGER, this.className, BindingTypes.LOCAL, false);
 
         Label loopStart = new Label();
         Label loopEnd = new Label();
@@ -312,7 +325,7 @@ public class Compiler {
             this.scope.focusedMethod.writer.visitVarInsn(ISTORE, iteratorIndex);
         }
 
-        this.scope.addBinding(iteratorName, node.iterator.getType(), BindingTypes.LOCAL, false);
+        this.scope.addBinding(iteratorName, node.iterator.getType(), this.className, BindingTypes.LOCAL, false);
 
         compileBlockExpression(node.block);
 
@@ -342,7 +355,7 @@ public class Compiler {
         Scope origScope = this.scope;
         this.scope = this.scope.createChild(new FocusedMethod(methodWriter, null, null));
         for (Parameter param : node.parameters) {
-            this.scope.addBinding(param.ident.value, param.getType(), BindingTypes.LOCAL, false);
+            this.scope.addBinding(param.ident.value, param.getType(), this.className, BindingTypes.LOCAL, false);
         }
         methodWriter.visitCode();
 
@@ -353,7 +366,7 @@ public class Compiler {
         methodWriter.visitEnd();
         this.scope = origScope;
 
-        this.scope.addBinding(methodName, fnType, BindingTypes.METHOD, false, node.isExported);
+        this.scope.addBinding(methodName, fnType, this.className, BindingTypes.METHOD, false, node.isExported);
 
         String methodAccessProxyName = methodName + "$access";
 
@@ -371,6 +384,25 @@ public class Compiler {
             methodAccessProxyWriter.visitInsn(returnInsn(fnType.returnType));
             methodAccessProxyWriter.visitMaxs(fnType.arity(), 0);
             methodAccessProxyWriter.visitEnd();
+        } else {
+            String lambdaName = methodName + "$ref";
+            String methodRefClassName = this.className + "$" + lambdaName;
+            if (this.innerClasses.stream().noneMatch(innerClass -> innerClass.getLeft().equals(methodRefClassName))) {
+                int methodRefAccess = ACC_PUBLIC | ACC_FINAL | ACC_STATIC | ACC_SYNTHETIC;
+                this.cw.visitInnerClass(methodRefClassName, this.className, lambdaName, methodRefAccess);
+                // TODO: This will only work for static method references at the moment; make this work for non-static method references
+                List<Pair<String, byte[]>> generatedClasses = compileMethodReference(
+                    this.className,
+                    lambdaName,
+                    methodRefClassName,
+                    fnType,
+                    methodName,
+                    this.typeEnv,
+                    this.scope.context,
+                    methodRefAccess
+                );
+                this.innerClasses.addAll(generatedClasses);
+            }
         }
 
         if (fnType.containsParamsWithDefaultValues()) {
@@ -396,6 +428,30 @@ public class Compiler {
         this.cw.visitInnerClass(innerClassName, this.className, node.typeName.value, access);
         List<Pair<String, byte[]>> generatedClasses = compileTypeDeclaration(this.className, innerClassName, node, this.typeEnv, access);
         innerClasses.addAll(generatedClasses);
+    }
+
+    private void compileImportStatement(ImportStatement node) {
+        String targetModuleName = node.targetModule.value;
+        if (this.typedModuleProvider == null) {
+            throw new IllegalStateException("Module provider function not set on Compiler");
+        }
+        TypeCheckResult<Module> module = this.typedModuleProvider.apply(targetModuleName);
+
+        for (Identifier _import : node.imports) {
+            String importName = _import.value;
+
+            TypeEnvironment.Binding typeBinding = module.typeEnvironment.getBinding(importName);
+            assert typeBinding != null;
+            MegaType importType = typeBinding.type;
+
+            BindingTypes bindingType = BindingTypes.STATIC;
+            if (importType instanceof FunctionType) {
+                if (((FunctionType) importType).kind == Kind.METHOD) {
+                    bindingType = BindingTypes.METHOD;
+                }
+            }
+            this.scope.addBinding(importName, typeBinding.type, targetModuleName, bindingType, false, false);
+        }
     }
 
     //***************************************************************
@@ -615,29 +671,40 @@ public class Compiler {
     private void loadIdentifier(String identName, Binding binding) {
         if (binding.bindingType == BindingTypes.METHOD) {
             String lambdaName = identName + "$ref";
-            String innerClassName = this.className + "$" + lambdaName;
-            // Don't recreate the inner class twice
-            if (this.innerClasses.stream().noneMatch(innerClass -> innerClass.getLeft().equals(innerClassName))) {
-                int access = ACC_FINAL | ACC_STATIC | ACC_SYNTHETIC;
-                if (binding.isExported) {
-                    access = access | ACC_PUBLIC;
-                } else {
-                    access = access | ACC_PRIVATE;
+            String methodRefClassName = binding.ownerModule + "$" + lambdaName;
+            if (binding.ownerModule.equals(this.className)) {
+                // Don't recreate the inner class twice
+                if (this.innerClasses.stream().noneMatch(innerClass -> innerClass.getLeft().equals(methodRefClassName))) {
+                    int access = ACC_FINAL | ACC_STATIC | ACC_SYNTHETIC;
+                    if (binding.isExported) {
+                        access = access | ACC_PUBLIC;
+                    } else {
+                        access = access | ACC_PRIVATE;
+                    }
+                    this.cw.visitInnerClass(methodRefClassName, this.className, lambdaName, access);
+                    // TODO: This will only work for static method references at the moment; make this work for non-static method references
+                    List<Pair<String, byte[]>> generatedClasses = compileMethodReference(
+                        this.className,
+                        lambdaName,
+                        methodRefClassName,
+                        (FunctionType) binding.type,
+                        binding.isExported ? binding.name : binding.name + "$access",
+                        this.typeEnv,
+                        this.scope.context,
+                        access
+                    );
+                    this.innerClasses.addAll(generatedClasses);
                 }
-                this.cw.visitInnerClass(innerClassName, this.className, lambdaName, access);
-                // TODO: This will only work for static method references at the moment; make this work for non-static method references
-                List<Pair<String, byte[]>> generatedClasses = compileMethodReference(this.className, lambdaName, innerClassName, binding, this.typeEnv, this.scope.context, access);
-                this.innerClasses.addAll(generatedClasses);
             }
 
-            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, innerClassName, "INSTANCE", "L" + innerClassName + ";");
+            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, methodRefClassName, "INSTANCE", "L" + methodRefClassName + ";");
             return;
         }
 
         MegaType type = binding.type;
 
         if (binding.bindingType == BindingTypes.STATIC) {
-            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, this.className, identName, jvmDescriptor(type, false));
+            this.scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, binding.ownerModule, identName, jvmDescriptor(type, false));
             return;
         }
 
@@ -706,6 +773,6 @@ public class Compiler {
     }
 
     private void compileCallExpression(CallExpression node) {
-        compileInvocation(node, this.scope, this.className, this::compileNode);
+        compileInvocation(node, this.scope, this::compileNode);
     }
 }

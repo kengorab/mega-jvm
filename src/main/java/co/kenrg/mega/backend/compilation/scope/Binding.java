@@ -9,13 +9,15 @@ public class Binding {
     public final MegaType type;
     public final int index;
     public final boolean isExported;
+    public final String ownerModule;
 
-    Binding(BindingTypes bindingType, String name, boolean isMutable, MegaType type, int index, boolean isExported) {
+    Binding(BindingTypes bindingType, String name, boolean isMutable, MegaType type, int index, boolean isExported, String ownerModule) {
         this.bindingType = bindingType;
         this.name = name;
         this.isMutable = isMutable;
         this.type = type;
         this.index = index;
         this.isExported = isExported;
+        this.ownerModule = ownerModule;
     }
 }

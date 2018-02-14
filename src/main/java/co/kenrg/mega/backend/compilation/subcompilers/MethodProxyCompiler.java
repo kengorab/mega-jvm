@@ -95,7 +95,7 @@ public class MethodProxyCompiler {
         proxyWriter.visitMaxs(-1, -1);
         proxyWriter.visitEnd();
 
-        scope.addBinding(methodProxyName, funcProxyType, BindingTypes.METHOD, false);
+        scope.addBinding(methodProxyName, funcProxyType, className, BindingTypes.METHOD, false);
     }
 
     static FunctionType getMethodProxyType(FunctionType arrowFnType) {
