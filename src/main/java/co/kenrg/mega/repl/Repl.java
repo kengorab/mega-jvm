@@ -1,6 +1,7 @@
 package co.kenrg.mega.repl;
 
 import java.util.Optional;
+import java.util.function.Function;
 
 import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.backend.evaluation.evaluator.Evaluator;
@@ -44,7 +45,7 @@ public class Repl {
         }
     }
 
-    public static Optional<Module> readAndTypecheck(String code, TypeEnvironment typeEnv) {
+    public static Optional<TypeCheckResult<Module>> readAndTypecheck(String code, TypeEnvironment typeEnv, String moduleName, Function<String, String> moduleContentsProvider) {
         Lexer lexer = new Lexer(code);
         Parser parser = new Parser(lexer);
         Module module = parser.parseModule();
@@ -52,34 +53,39 @@ public class Repl {
         if (!parser.errors.isEmpty()) {
             System.out.println("Syntax errors:");
             for (SyntaxError error : parser.errors) {
-                System.out.println("  " + error.message);
+                System.out.println("  " + moduleName + " " + error.message);
             }
 
             return Optional.empty();
         }
 
         TypeChecker typeChecker = new TypeChecker();
+        typeChecker.setModuleProvider(_moduleName -> {
+            String moduleContents = moduleContentsProvider.apply(_moduleName);
+            Optional<TypeCheckResult<Module>> result = readAndTypecheck(moduleContents, new TypeEnvironment(), _moduleName, moduleContentsProvider);
+            return result.orElse(null); // TODO: Make moduleprovider expect Optional<TypeCheckResult<Module>> instead of null-checking
+        });
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 
         if (typecheckResult.hasErrors()) {
             System.out.println("Type errors:");
             for (TypeCheckerError error : typecheckResult.errors) {
-                System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message()));
+                System.out.println(String.format("  %s (%d, %d): %s", moduleName, error.position.line, error.position.col, error.message()));
             }
 
             return Optional.empty();
         }
-        return Optional.of(module);
+        return Optional.of(typecheckResult);
     }
 
     public static void readEvalPrint(String code, Environment env, TypeEnvironment typeEnv) {
-        Optional<Module> module = readAndTypecheck(code, typeEnv);
+        Optional<TypeCheckResult<Module>> module = readAndTypecheck(code, typeEnv, "<repl>", moduleName -> null); // TODO: Give provider function here
         if (!module.isPresent()) {
             System.out.println("Cannot proceed due to errors.");
             return;
         }
 
-        Obj evaluated = Evaluator.eval(module.get(), env);
+        Obj evaluated = Evaluator.eval(module.get().node, env);
         if (evaluated != null && !evaluated.equals(NullObj.NULL)) {
             System.out.println(evaluated.inspect(0));
         }

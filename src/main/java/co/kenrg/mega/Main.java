@@ -13,6 +13,7 @@ import java.util.Optional;
 import co.kenrg.mega.backend.compilation.Compiler;
 import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;
 import org.apache.commons.cli.CommandLine;
@@ -145,6 +146,58 @@ public class Main {
         evalFile(new Environment(), new TypeEnvironment(), fileToLoad);
     }
 
+    private static String getFileContents(String moduleName) {
+        String moduleFilepath = moduleName.endsWith(".meg") ? moduleName : moduleName + ".meg";
+        Path filepath = Paths.get(moduleFilepath);
+        try {
+            byte[] bytes = Files.readAllBytes(filepath);
+            return new String(bytes);
+        } catch (IOException e) {
+            System.err.printf("No such file: %s\n", filepath.toAbsolutePath().toString());
+            System.exit(1);
+            return null;
+        }
+    }
+
+    private static TypeCheckResult<Module> compileModule(String fileToCompile, String outputDirectory) {
+        Path filepath = Paths.get(fileToCompile);
+        String code = getFileContents(fileToCompile);
+        String moduleFileName = filepath.toString();
+
+        TypeEnvironment typeEnv = new TypeEnvironment();
+        Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code, typeEnv, moduleFileName, Main::getFileContents);
+        if (!resultOpt.isPresent()) {
+            System.err.println("Cannot proceed due to errors.");
+            System.exit(1);
+            return null;
+        }
+        TypeCheckResult<Module> result = resultOpt.get();
+        Module module = result.node;
+
+        String moduleName = filepath.getFileName().toString().replace(".meg", "");
+        Compiler compiler = new Compiler(moduleName, typeEnv);
+        compiler.setTypedModuleProvider(_moduleName -> compileModule(_moduleName, outputDirectory));
+        List<Pair<String, byte[]>> classes = compiler.compile(module);
+        for (Pair<String, byte[]> output : classes) {
+            try {
+                String name = output.getLeft();
+                byte[] bytes = output.getRight();
+
+                File file = Paths.get(outputDirectory, String.format("%s.class", name)).toFile();
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(bytes);
+                fos.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.err.println("Could not write class files");
+                System.exit(1);
+                return null;
+            }
+        }
+
+        return result;
+    }
+
     private static void handleCompileCommand(String[] args) throws ParseException, IOException {
         CommandLine command = parse(Subcommand.COMPILE, args);
         assert command != null;
@@ -165,34 +218,51 @@ public class Main {
 
         String fileToCompile = command.getArgList().get(0);
         Path filepath = Paths.get(fileToCompile);
-        String code;
-        try {
-            byte[] bytes = Files.readAllBytes(filepath);
-            code = new String(bytes);
-        } catch (IOException e) {
-            System.err.printf("No such file: %s\n", filepath.toAbsolutePath().toString());
+        if (!fileToCompile.endsWith(".meg")) {
+            System.err.printf("Invalid file extension for module %s; expected .meg extension\n", filepath.toAbsolutePath().toString());
             System.exit(1);
-            return;
         }
-
-        TypeEnvironment typeEnv = new TypeEnvironment();
-        Optional<Module> module = Repl.readAndTypecheck(code, typeEnv);
-        if (!module.isPresent()) {
-            System.out.println("Cannot proceed due to errors.");
-            return;
-        }
-
-        Compiler compiler = new Compiler("MyClass", typeEnv);
-        List<Pair<String, byte[]>> classes = compiler.compile(module.get());
-        for (Pair<String, byte[]> output : classes) {
-            String name = output.getLeft();
-            byte[] bytes = output.getRight();
-
-            File file = Paths.get(outputDirectory, String.format("%s.class", name)).toFile();
-            FileOutputStream fos = new FileOutputStream(file);
-            fos.write(bytes);
-            fos.close();
-        }
+        compileModule(fileToCompile, outputDirectory);
+//        Path filepath = Paths.get(fileToCompile);
+//        String code = getFileContents(fileToCompile);
+//
+//        String moduleFileName = filepath.toString();
+//        if (!moduleFileName.endsWith(".meg")) {
+//            System.err.printf("Invalid file extension for module %s; expected .meg extension\n", filepath.toAbsolutePath().toString());
+//            System.exit(1);
+//            return;
+//        }
+//
+//        TypeEnvironment typeEnv = new TypeEnvironment();
+//        Optional<TypeCheckResult<Module>> result = Repl.readAndTypecheck(code, typeEnv, moduleFileName, Main::getFileContents);
+//        if (!result.isPresent()) {
+//            System.err.println("Cannot proceed due to errors.");
+//            System.exit(1);
+//            return;
+//        }
+//        Module module = result.get().node;
+//
+//        String moduleName = filepath.getFileName().toString().replace(".meg", "");
+//        Compiler compiler = new Compiler(moduleName, typeEnv);
+//        compiler.setTypedModuleProvider(_moduleName -> {
+//            String _code = getFileContents(_moduleName);
+//            TypeEnvironment _typeEnv = new TypeEnvironment();
+//            Optional<TypeCheckResult<Module>> _result = Repl.readAndTypecheck(_code, _typeEnv, _moduleName, Main::getFileContents);
+//            if (_result.isPresent()) {
+//                Compiler _compiler = new Compiler(_moduleName, _typeEnv);
+//            }
+//            return _result.orElse(null);
+//        });
+//        List<Pair<String, byte[]>> classes = compiler.compile(module);
+//        for (Pair<String, byte[]> output : classes) {
+//            String name = output.getLeft();
+//            byte[] bytes = output.getRight();
+//
+//            File file = Paths.get(outputDirectory, String.format("%s.class", name)).toFile();
+//            FileOutputStream fos = new FileOutputStream(file);
+//            fos.write(bytes);
+//            fos.close();
+//        }
     }
 
     private static void handleHelpCommand(String[] args) {
