@@ -538,7 +538,36 @@ class TypeCheckerTest {
                 ),
                 PrimitiveTypes.INTEGER,
                 Kind.METHOD
-            ))
+            )),
+            Triple.of("" +
+                    "type Person = { name: String }\n" +
+                    "func addOne(p: Person, a: Int) { a + 1 }",
+                "addOne",
+                new FunctionType(
+                    Lists.newArrayList(
+                        new Parameter(
+                            new Identifier(
+                                Token.ident("p", Position.at(2, 13)),
+                                "p",
+                                new BasicTypeExpression("Person", Position.at(2, 16)),
+                                new StructType("Person", Lists.newArrayList(
+                                    Pair.of("name", PrimitiveTypes.STRING)
+                                ))
+                            )
+                        ),
+                        new Parameter(
+                            new Identifier(
+                                Token.ident("a", Position.at(2, 24)),
+                                "a",
+                                new BasicTypeExpression("Int", Position.at(2, 27)),
+                                PrimitiveTypes.INTEGER
+                            )
+                        )
+                    ),
+                    PrimitiveTypes.INTEGER,
+                    Kind.METHOD
+                )
+            )
         );
 
         return testCases.stream()
@@ -550,8 +579,7 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to %s", input, type.signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    MegaType result = testTypecheckStatement(input, env);
-                    assertEquals(PrimitiveTypes.UNIT, result);
+                    testTypecheckModuleAndGetResult(input, env);
 
                     Binding binding = env.getBinding(funcName);
                     assertNotNull(binding);
