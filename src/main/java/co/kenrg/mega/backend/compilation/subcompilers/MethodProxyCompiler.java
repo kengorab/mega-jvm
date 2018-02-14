@@ -69,7 +69,7 @@ public class MethodProxyCompiler {
 
             compileNode.accept(parameter.defaultValue, scope.createChild(new FocusedMethod(proxyWriter, null, null)));
             if (parameter.ident.getType() instanceof FunctionType) {
-                proxyWriter.visitTypeInsn(CHECKCAST, getInternalName(parameter.getType().typeClass()));
+                proxyWriter.visitTypeInsn(CHECKCAST, getInternalName(parameter.getType()));
             }
 
             MegaType paramType = parameter.getType();
