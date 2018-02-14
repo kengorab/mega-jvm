@@ -117,12 +117,12 @@ public class CallExpressionCompiler {
             compileNode.accept(target);
         }
 
-        scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, getInternalName(fnType.typeClass()));
+        scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, getInternalName(fnType));
 
         pushArguments(arguments, scope, compileNode, true);
 
         String invokeDesc = String.format("(%s)Ljava/lang/Object;", Strings.repeat("Ljava/lang/Object;", fnType.arity()));
-        scope.focusedMethod.writer.visitMethodInsn(INVOKEINTERFACE, getInternalName(fnType.typeClass()), "invoke", invokeDesc, true);
+        scope.focusedMethod.writer.visitMethodInsn(INVOKEINTERFACE, getInternalName(fnType), "invoke", invokeDesc, true);
 
         assert fnType.returnType != null;
         scope.focusedMethod.writer.visitTypeInsn(CHECKCAST, jvmDescriptor(fnType.returnType, true));

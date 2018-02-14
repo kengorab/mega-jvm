@@ -196,10 +196,10 @@ public class BooleanInfixExpressionCompiler {
 
         String jvmDescriptor = jvmDescriptor(leftType, false);
         String signature = String.format("(%s)I", jvmDescriptor);
-        String className = getInternalName(leftType.typeClass());
+        String className = getInternalName(leftType);
         if (className == null) {
             System.out.printf("Expected type %s to have a class name\n", leftType);
-            className = getInternalName(PrimitiveTypes.ANY.typeClass());
+            className = getInternalName(PrimitiveTypes.ANY);
         }
 
         Label trueLabel = new Label();

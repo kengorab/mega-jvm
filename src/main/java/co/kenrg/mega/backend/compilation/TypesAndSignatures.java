@@ -34,6 +34,13 @@ public class TypesAndSignatures {
         return name;
     }
 
+    public static String getInternalName(MegaType type) {
+        if (type.typeClass() != null) {
+            return getInternalName(type.typeClass());
+        }
+        return type.className();
+    }
+
     private static String descriptorForClass(String className) {
         return String.format("L%s;", className);
     }

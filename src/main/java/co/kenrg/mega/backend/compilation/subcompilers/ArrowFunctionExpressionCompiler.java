@@ -86,7 +86,7 @@ public class ArrowFunctionExpressionCompiler {
 
     static Compiler getCompiler(String innerClassName, FunctionType arrowFnType, TypeEnvironment typeEnv, Context context) {
         String functionDesc = getFunctionJvmDescriptor(arrowFnType);
-        String functionIfaceName = getInternalName(arrowFnType.typeClass());
+        String functionIfaceName = getInternalName(arrowFnType);
         String arrowFnSignature = String.format("%s%s", getDescriptor(Invokeable.class), functionDesc);
         Compiler compiler = new Compiler(innerClassName, arrowFnSignature, getInternalName(Invokeable.class), new String[]{functionIfaceName}, typeEnv);
         compiler.scope.context = context;
@@ -130,7 +130,7 @@ public class ArrowFunctionExpressionCompiler {
             ifaceInvokeWriter.visitVarInsn(ALOAD, i + 1); // Load subsequent parameters
 
             MegaType paramType = arrowFnType.paramTypes.get(i);
-            ifaceInvokeWriter.visitTypeInsn(CHECKCAST, getInternalName(paramType.typeClass()));
+            ifaceInvokeWriter.visitTypeInsn(CHECKCAST, getInternalName(paramType));
             if (isPrimitive(paramType)) {
                 compileUnboxPrimitiveType(paramType, ifaceInvokeWriter);
             }

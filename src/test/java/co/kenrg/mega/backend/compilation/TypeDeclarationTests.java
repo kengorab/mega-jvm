@@ -1,5 +1,6 @@
 package co.kenrg.mega.backend.compilation;
 
+import static co.kenrg.mega.backend.compilation.CompilerTestUtils.assertStaticBindingOnClassEquals;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.deleteGeneratedClassFiles;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.getInnerClass;
 import static co.kenrg.mega.backend.compilation.CompilerTestUtils.loadPrivateStaticValueFromClass;
@@ -22,14 +23,15 @@ import java.util.stream.Stream;
 import co.kenrg.mega.backend.compilation.CompilerTestUtils.TestCompilationResult;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 class TypeDeclarationTests {
 
-//    @BeforeAll
-    @AfterAll
+    @BeforeAll
+//    @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
     }
@@ -60,6 +62,18 @@ class TypeDeclarationTests {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    void testCustomType_functionWithCustomTypeAsParam() {
+        String input = "" +
+            "type Person = { name: String }\n" +
+            "export func abc(p: Person) { 'abc' }\n" +
+            "val p = Person(name: 'Ken')\n" +
+            "val a = abc(p)";
+
+        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+        assertStaticBindingOnClassEquals(result.className, "a", "abc", true);
     }
 
     @TestFactory

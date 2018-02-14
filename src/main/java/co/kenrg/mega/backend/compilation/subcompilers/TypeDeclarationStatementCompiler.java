@@ -217,7 +217,7 @@ public class TypeDeclarationStatementCompiler {
             hashCodeWriter.visitFieldInsn(GETFIELD, innerClassName, propName, propDesc);
             if (isPrimitive(propType)) {
                 String desc = String.format("(%s)I", jvmDescriptor(propType, false));
-                hashCodeWriter.visitMethodInsn(INVOKESTATIC, getInternalName(propType.typeClass()), "hashCode", desc, false);
+                hashCodeWriter.visitMethodInsn(INVOKESTATIC, getInternalName(propType), "hashCode", desc, false);
             } else if (propType instanceof ArrayType) {
                 hashCodeWriter.visitMethodInsn(INVOKESTATIC, "java/util/Arrays", "hashCode", "([Ljava/lang/Object;)I", false);
             } else {
