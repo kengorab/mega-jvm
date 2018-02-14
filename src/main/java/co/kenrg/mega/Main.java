@@ -46,6 +46,7 @@ public class Main {
                 handleCompileCommand(tailArgs);
                 return;
             }
+            case "-h":
             case "help": {
                 handleHelpCommand(tailArgs);
             }
@@ -195,6 +196,11 @@ public class Main {
     }
 
     private static void handleHelpCommand(String[] args) {
+        if (args.length == 0) {
+            printTopLevelUsage();
+            return;
+        }
+
         String topic = args[0];
         Optional<Subcommand> helpTopic = Arrays.stream(Subcommand.values())
             .filter(c -> c.name().toLowerCase().equals(topic))
