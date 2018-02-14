@@ -54,7 +54,9 @@ public enum TokenType {
     FOR("FOR"),
     IN("IN"),
     TYPE("TYPE"),
-    EXPORT("EXPORT");
+    EXPORT("EXPORT"),
+    IMPORT("IMPORT"),
+    FROM("FROM");
 
     public final String literal;
 
@@ -74,6 +76,8 @@ public enum TokenType {
         .put("in", IN)
         .put("type", TYPE)
         .put("export", EXPORT)
+        .put("import", IMPORT)
+        .put("from", FROM)
         .build();
 
     public static TokenType lookupIdent(String ident) {

@@ -36,6 +36,7 @@ import co.kenrg.mega.frontend.ast.iface.Node;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
@@ -64,11 +65,14 @@ import co.kenrg.mega.frontend.typechecking.errors.TypeCheckerError;
 import co.kenrg.mega.frontend.typechecking.errors.TypeMismatchError;
 import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
+import co.kenrg.mega.frontend.typechecking.errors.VisibilityError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
@@ -108,14 +112,19 @@ public class TypeChecker {
     };
 
     final List<TypeCheckerError> errors;
+    private Function<String, TypeCheckResult<Module>> moduleProvider;
 
     public TypeChecker() {
         this.errors = Lists.newArrayList();
     }
 
+    public void setModuleProvider(Function<String, TypeCheckResult<Module>> moduleProvider) {
+        this.moduleProvider = moduleProvider;
+    }
+
     public <T extends Node> TypeCheckResult<T> typecheck(T node, TypeEnvironment env) {
         MegaType type = typecheckNode(node, env, null);
-        return new TypeCheckResult<>(node, type, this.errors);
+        return new TypeCheckResult<>(node, type, this.errors, env);
     }
 
     private <T extends Node> MegaType typecheckNode(T node, TypeEnvironment env) {
@@ -138,6 +147,8 @@ public class TypeChecker {
             this.typecheckForLoopStatement((ForLoopStatement) node, env);
         } else if (node instanceof TypeDeclarationStatement) {
             this.typecheckTypeDeclarationStatement((TypeDeclarationStatement) node, env);
+        } else if (node instanceof ImportStatement) {
+            this.typecheckImportStatement((ImportStatement) node, env);
         }
 
         // Expressions
@@ -246,16 +257,17 @@ public class TypeChecker {
     private void typecheckModule(Module module, TypeEnvironment env) {
         for (Statement statement : module.statements) {
             this.typecheckNode(statement, env);
-            if (statement instanceof Exportable) {
-                Exportable exportable = (Exportable) statement;
-                if (exportable.isExported()) {
-                    String exportName = exportable.exportName();
-                    if (module.exports.containsKey(exportName)) {
-                        this.errors.add(new DuplicateExportError(exportName, statement.getToken().position));
-                    }
-                    module.exports.put(exportName, statement);
-                }
+        }
+
+        for (Statement exportedStmt : module.exports) {
+            assert exportedStmt instanceof Exportable;
+            Exportable export = (Exportable) exportedStmt;
+
+            String exportName = export.exportName();
+            if (module.namedExports.containsKey(exportName)) {
+                this.errors.add(new DuplicateExportError(exportName, exportedStmt.getToken().position));
             }
+            module.namedExports.put(exportName, exportedStmt);
         }
     }
 
@@ -284,7 +296,7 @@ public class TypeChecker {
         }
 
         MegaType type = this.typecheckNode(value, env, expectedType);
-        if (containsInferences(type)) {
+        if (containsInferences(type)) { // Save expression for later re-evaluation of types
             env.addBindingWithType(name.value, type, isImmutable, value);
         } else {
             env.addBindingWithType(name.value, type, isImmutable);
@@ -375,6 +387,43 @@ public class TypeChecker {
             case NO_ERROR:
             default:
                 // No action needed, type has been saved
+        }
+    }
+
+    private void typecheckImportStatement(ImportStatement node, TypeEnvironment env) {
+        if (this.moduleProvider == null) {
+            throw new IllegalStateException("Module provider function not set on TypeChecker");
+        }
+
+        TypeCheckResult<Module> targetModuleResult = this.moduleProvider.apply(node.targetModule.value);
+        if (targetModuleResult == null) {
+            this.errors.add(new UnknownModuleError(node.targetModule.value, node.targetModule.token.position));
+
+            for (Identifier _import : node.imports) {
+                String importName = _import.value;
+                env.addBindingWithType(importName, unknownType, true);
+            }
+            return;
+        }
+
+        Module module = targetModuleResult.node;
+        TypeEnvironment moduleTypeEnv = targetModuleResult.typeEnvironment;
+
+        for (Identifier _import : node.imports) {
+            String importName = _import.value;
+
+            MegaType importType;
+            Binding binding = moduleTypeEnv.getBinding(importName);
+            if (binding == null) {
+                this.errors.add(new UnknownExportError(node.targetModule.value, importName, _import.token.position));
+                importType = unknownType;
+            } else {
+                if (!module.namedExports.containsKey(importName)) {
+                    this.errors.add(new VisibilityError(node.targetModule.value, importName, _import.token.position));
+                }
+                importType = binding.type;
+            }
+            env.addBindingWithType(importName, importType, true);
         }
     }
 

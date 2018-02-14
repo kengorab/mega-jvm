@@ -30,11 +30,13 @@ import co.kenrg.mega.frontend.ast.expression.PrefixExpression;
 import co.kenrg.mega.frontend.ast.expression.RangeExpression;
 import co.kenrg.mega.frontend.ast.expression.StringInterpolationExpression;
 import co.kenrg.mega.frontend.ast.expression.StringLiteral;
+import co.kenrg.mega.frontend.ast.iface.Exportable;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
@@ -172,16 +174,28 @@ public class Parser {
 
     public Module parseModule() {
         List<Statement> statements = Lists.newArrayList();
+        List<ImportStatement> imports = Lists.newArrayList();
+        List<Statement> exports = Lists.newArrayList();
 
         while (this.curTok.type != TokenType.EOF) {
             Statement stmt = this.parseStatement();
             if (stmt != null) {
                 statements.add(stmt);
             }
+
+            if (stmt instanceof ImportStatement) {
+                imports.add((ImportStatement) stmt);
+            }
+
+            if (stmt instanceof Exportable) {
+                if (((Exportable) stmt).isExported()) {
+                    exports.add(stmt);
+                }
+            }
             this.nextToken();
         }
 
-        return new Module(statements);
+        return new Module(statements, imports, exports);
     }
 
     private Statement parseStatement() {
@@ -204,6 +218,8 @@ public class Parser {
                 return this.parseForInLoopStatement();
             case TYPE:
                 return this.parseTypeDeclarationStatement(isExported);
+            case IMPORT:
+                return this.parseImportStatement();
             default:
                 return this.parseExpressionStatement();
         }
@@ -467,6 +483,32 @@ public class Parser {
         TypeExpression typeExpr = this.parseTypeExpression(true);
 
         return new TypeDeclarationStatement(t, typeName, typeExpr, isExported);
+    }
+
+    // import <ident>[, <ident>] from <module_str>
+    private Statement parseImportStatement() {
+        Token t = this.curTok; // The 'import' token
+
+        if (this.peekTokenIs(TokenType.FROM)) {
+            this.addParserError("Invalid imported name: 'from'");
+            return null;
+        }
+
+        List<Expression> exprs = this.parseExpressionList(TokenType.FROM);
+        if (exprs == null) {
+            return null;
+        }
+        List<Identifier> imports = Lists.newArrayList();
+        for (Expression expr : exprs) {
+            imports.add((Identifier) expr);
+        }
+
+        if (!expectPeek(TokenType.STRING)) {
+            return null;
+        }
+        StringLiteral targetModule = (StringLiteral) this.parseStringLiteral();
+
+        return new ImportStatement(t, imports, targetModule);
     }
 
     // Wrapper to allow top-level expressions

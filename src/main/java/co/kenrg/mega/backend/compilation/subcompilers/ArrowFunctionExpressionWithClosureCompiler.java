@@ -117,10 +117,10 @@ public class ArrowFunctionExpressionWithClosureCompiler {
         invokeMethodWriter.visitCode();
 
         compiler.scope = compiler.scope.createChild(new FocusedMethod(invokeMethodWriter, null, null)); // TODO: Fix this, it's a little awkward...
-        compiler.scope.addBinding("this", PrimitiveTypes.ANY, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
+        compiler.scope.addBinding("this", PrimitiveTypes.ANY, innerClassName, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
 
         for (Parameter parameter : node.parameters) {
-            compiler.scope.addBinding(parameter.ident.value, parameter.getType(), BindingTypes.LOCAL, false);
+            compiler.scope.addBinding(parameter.ident.value, parameter.getType(), innerClassName, BindingTypes.LOCAL, false);
         }
 
         for (Entry<String, Binding> capturedBinding : capturedBindings) {
@@ -132,7 +132,7 @@ public class ArrowFunctionExpressionWithClosureCompiler {
 
             int index = compiler.scope.nextLocalVariableIndex();
             invokeMethodWriter.visitVarInsn(storeInsn(binding.type), index);
-            compiler.scope.addBinding(capturedBinding.getKey(), binding.type, BindingTypes.LOCAL, binding.isImmutable);
+            compiler.scope.addBinding(capturedBinding.getKey(), binding.type, innerClassName, BindingTypes.LOCAL, binding.isImmutable);
         }
 
         compiler.compileNode(node.body);

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.TestFactory;
 
 class StaticMethodTests {
 
-//    @BeforeAll
+    //    @BeforeAll
     @AfterAll
     static void cleanup() {
         deleteGeneratedClassFiles();
@@ -68,13 +68,13 @@ class StaticMethodTests {
                     TestCompilationResult result = parseTypecheckAndCompileInput(input);
                     String className = result.className;
 
-                    assertInvokingStaticMethodOnClassEvaluatesTo(className, bindingName, args, expectedResult, true);
+                    assertInvokingPrivateStaticMethodOnClassEvaluatesTo(className, bindingName, args, expectedResult);
                 });
             })
             .collect(toList());
     }
 
-    private void assertInvokingStaticMethodOnClassEvaluatesTo(String className, String name, Object[] args, Object res, boolean assertPrivate) {
+    private void assertInvokingPrivateStaticMethodOnClassEvaluatesTo(String className, String name, Object[] args, Object res) {
         List<Method> potentialMethods = loadStaticMethodsFromClass(className, name);
         long numMatches = potentialMethods.stream()
             .filter(method -> method.getParameterCount() == args.length)
@@ -88,13 +88,11 @@ class StaticMethodTests {
         }
         Method method = potentialMethods.get(0);
 
-        if (assertPrivate) {
-            if (!Modifier.isPrivate(method.getModifiers())) {
-                fail("Method " + name + " on class " + className + " was not private");
-            }
-
-            method.setAccessible(true);
+        if (!Modifier.isPrivate(method.getModifiers())) {
+            fail("Method " + name + " on class " + className + " was not private");
         }
+
+        method.setAccessible(true);
 
         String arguments = Arrays.toString(args);
         try {

@@ -3,6 +3,7 @@ package co.kenrg.mega.frontend.parser;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetErrors;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetModule;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -42,6 +43,7 @@ import co.kenrg.mega.frontend.ast.iface.ExpressionStatement;
 import co.kenrg.mega.frontend.ast.iface.Statement;
 import co.kenrg.mega.frontend.ast.statement.ForLoopStatement;
 import co.kenrg.mega.frontend.ast.statement.FunctionDeclarationStatement;
+import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.ast.statement.TypeDeclarationStatement;
 import co.kenrg.mega.frontend.ast.statement.ValStatement;
 import co.kenrg.mega.frontend.ast.statement.VarStatement;
@@ -435,6 +437,75 @@ class ParserTest {
             )
         );
         assertEquals(expected, actual);
+    }
+
+    @Test
+    void testParseSingleImportStatement() {
+        String input = "import a from \"co.kenrg.some-package.Module\"";
+        Module module = parseStatementAndGetModule(input);
+        Statement statement = module.statements.get(0);
+        assertTrue(statement instanceof ImportStatement);
+        ImportStatement importStmt = (ImportStatement) statement;
+
+        ImportStatement expected = new ImportStatement(
+            Token._import(Position.at(1, 1)),
+            Lists.newArrayList(
+                new Identifier(
+                    Token.ident("a", Position.at(1, 8)),
+                    "a"
+                )
+            ),
+            new StringLiteral(
+                Token.string("co.kenrg.some-package.Module", Position.at(1, 15)),
+                "co.kenrg.some-package.Module"
+            )
+        );
+        assertEquals(expected, importStmt);
+
+        assertEquals(Lists.newArrayList(expected), module.imports);
+    }
+
+    @Test
+    void testImportStatement() {
+        String input = "import a, bc, def from 'co.kenrg.some-package.Module'";
+        Module module = parseStatementAndGetModule(input);
+        Statement statement = module.statements.get(0);
+        assertTrue(statement instanceof ImportStatement);
+        ImportStatement importStmt = (ImportStatement) statement;
+
+        ImportStatement expected = new ImportStatement(
+            Token._import(Position.at(1, 1)),
+            Lists.newArrayList(
+                new Identifier(
+                    Token.ident("a", Position.at(1, 8)),
+                    "a"
+                ),
+                new Identifier(
+                    Token.ident("bc", Position.at(1, 11)),
+                    "bc"
+                ),
+                new Identifier(
+                    Token.ident("def", Position.at(1, 15)),
+                    "def"
+                )
+            ),
+            new StringLiteral(
+                Token.string("co.kenrg.some-package.Module", Position.at(1, 24)),
+                "co.kenrg.some-package.Module"
+            )
+        );
+        assertEquals(expected, importStmt);
+
+        assertEquals(Lists.newArrayList(expected), module.imports);
+    }
+
+    @Test
+    void testImportStatement_errors() {
+        String input = "import from 'co.kenrg.some-package.Module'";
+
+        Parser p = new Parser(new Lexer(input));
+        p.parseModule();
+        assertTrue(p.errors.get(0).message.contains("Invalid imported name: 'from'"));
     }
 
     @Test

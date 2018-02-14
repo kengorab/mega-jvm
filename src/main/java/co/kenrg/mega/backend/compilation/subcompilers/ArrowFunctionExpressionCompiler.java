@@ -60,7 +60,7 @@ public class ArrowFunctionExpressionCompiler {
         writeClinitMethod(compiler, innerClassName);
         writeInitMethod(compiler, arrowFnType.arity());
         writeIfaceInvokeMethod(compiler, innerClassName, arrowFnType);
-        writeActualInvokeMethod(compiler, node, arrowFnType);
+        writeActualInvokeMethod(compiler, node, arrowFnType, innerClassName);
 
         compiler.cw.visitEnd();
         return compiler.results();
@@ -155,15 +155,15 @@ public class ArrowFunctionExpressionCompiler {
         return String.format("(%s)%s", paramTypeDescs, returnTypeDesc);
     }
 
-    private static void writeActualInvokeMethod(Compiler compiler, ArrowFunctionExpression node, FunctionType arrowFnType) {
+    private static void writeActualInvokeMethod(Compiler compiler, ArrowFunctionExpression node, FunctionType arrowFnType, String innerClassName) {
         MethodVisitor invokeMethodWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_FINAL, "invoke", getInvokeMethodDesc(arrowFnType), null, null);
         invokeMethodWriter.visitCode();
 
         compiler.scope = compiler.scope.createChild(new FocusedMethod(invokeMethodWriter, null, null)); // TODO: Fix this, it's a little awkward...
-        compiler.scope.addBinding("this", PrimitiveTypes.ANY, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
+        compiler.scope.addBinding("this", PrimitiveTypes.ANY, innerClassName, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
 
         for (Parameter parameter : node.parameters) {
-            compiler.scope.addBinding(parameter.ident.value, parameter.getType(), BindingTypes.LOCAL, false);
+            compiler.scope.addBinding(parameter.ident.value, parameter.getType(), innerClassName, BindingTypes.LOCAL, false);
         }
 
         compiler.compileNode(node.body);

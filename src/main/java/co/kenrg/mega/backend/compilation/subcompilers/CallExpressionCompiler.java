@@ -45,7 +45,7 @@ import com.google.common.base.Strings;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class CallExpressionCompiler {
-    public static void compileInvocation(CallExpression node, Scope scope, String className, Consumer<Node> compileNode) {
+    public static void compileInvocation(CallExpression node, Scope scope, Consumer<Node> compileNode) {
         Node target = node.getTarget();
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null;
@@ -72,13 +72,13 @@ public class CallExpressionCompiler {
 
         boolean shouldInvokeProxy = arguments.stream().anyMatch(Objects::isNull);
         if (shouldInvokeProxy) {
-            compileProxyInvocation(target, arguments, scope, className, compileNode);
+            compileProxyInvocation(target, arguments, scope, compileNode);
         } else {
-            compileInvocation(target, arguments, scope, className, compileNode);
+            compileNonProxyInvocation(target, arguments, scope, compileNode);
         }
     }
 
-    private static void compileInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
+    private static void compileNonProxyInvocation(Node target, List<Expression> arguments, Scope scope, Consumer<Node> compileNode) {
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null; // Should be populated in typechecking pass
 
@@ -103,12 +103,12 @@ public class CallExpressionCompiler {
                 pushArguments(arguments, scope, compileNode, false);
 
                 String jvmDesc = jvmMethodDescriptor(fnType, false);
-                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, name, jvmDesc, false); // TODO: Don't assume all methods are static
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, binding.ownerModule, name, jvmDesc, false); // TODO: Don't assume all methods are static
                 return;
             } else {
                 String jvmDesc = jvmDescriptor(fnType, true);
                 if (binding.bindingType == BindingTypes.STATIC) {
-                    scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, className, name, jvmDesc);
+                    scope.focusedMethod.writer.visitFieldInsn(GETSTATIC, binding.ownerModule, name, jvmDesc);
                 } else {
                     scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
                 }
@@ -143,7 +143,7 @@ public class CallExpressionCompiler {
         }
     }
 
-    private static void compileProxyInvocation(Node target, List<Expression> arguments, Scope scope, String className, Consumer<Node> compileNode) {
+    private static void compileProxyInvocation(Node target, List<Expression> arguments, Scope scope, Consumer<Node> compileNode) {
         FunctionType fnType = (FunctionType) target.getType();
         assert fnType != null; // Should be populated in typechecking pass
 
@@ -167,7 +167,7 @@ public class CallExpressionCompiler {
                 scope.focusedMethod.writer.visitLdcInsn(argBitmask);
 
                 String jvmDesc = jvmMethodDescriptor(funcProxyType, false);
-                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, className, proxyName, jvmDesc, false); // TODO: Don't assume all methods are static
+                scope.focusedMethod.writer.visitMethodInsn(INVOKESTATIC, binding.ownerModule, proxyName, jvmDesc, false); // TODO: Don't assume all methods are static
             } else {
                 throw new IllegalStateException("Cannot invoke arrow functions with default params");
             }

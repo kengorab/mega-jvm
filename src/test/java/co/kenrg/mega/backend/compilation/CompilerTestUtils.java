@@ -15,6 +15,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.error.SyntaxError;
@@ -35,10 +37,12 @@ class CompilerTestUtils {
     public static class TestCompilationResult {
         final String className;
         final List<Path> classFiles;
+        final TypeCheckResult<Module> typeCheckResult;
 
-        TestCompilationResult(String className, List<Path> classFiles) {
+        TestCompilationResult(String className, List<Path> classFiles, TypeCheckResult<Module> typeCheckResult) {
             this.className = className;
             this.classFiles = classFiles;
+            this.typeCheckResult = typeCheckResult;
         }
     }
 
@@ -54,7 +58,7 @@ class CompilerTestUtils {
 
     static boolean requireNoParseOrTypecheckErrors = false;
 
-    static TestCompilationResult parseTypecheckAndCompileInput(String input) {
+    static TestCompilationResult parseTypecheckAndCompileInput(String input, Function<String, TypeCheckResult<Module>> typedModuleProvider) {
         Lexer l = new Lexer(input);
         Parser p = new Parser(l);
         Module module = p.parseModule();
@@ -68,6 +72,7 @@ class CompilerTestUtils {
         }
 
         TypeChecker typeChecker = new TypeChecker();
+        typeChecker.setModuleProvider(typedModuleProvider);
         TypeEnvironment typeEnv = new TypeEnvironment();
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 
@@ -81,6 +86,7 @@ class CompilerTestUtils {
 
         String className = StringUtils.capitalize(RandomStringUtils.randomAlphabetic(16));
         Compiler compiler = new Compiler(className, typeEnv);
+        compiler.setTypedModuleProvider(typedModuleProvider);
         List<Pair<String, byte[]>> generatedClasses = compiler.compile(module);
 
         try {
@@ -98,10 +104,14 @@ class CompilerTestUtils {
                 fos.close();
             }
 
-            return new TestCompilationResult(className, classFiles);
+            return new TestCompilationResult(className, classFiles, typecheckResult);
         } catch (IOException e) {
             throw new TestFailureException(e);
         }
+    }
+
+    static TestCompilationResult parseTypecheckAndCompileInput(String input) {
+        return parseTypecheckAndCompileInput(input, moduleName -> null);
     }
 
     static void deleteGeneratedClassFiles() {
@@ -165,21 +175,25 @@ class CompilerTestUtils {
         }
     }
 
-    static void assertPrivateStaticBindingOnClassEquals(String className, String staticFieldName, Object value) {
+    static void assertStaticBindingOnClassEquals(String className, String staticFieldName, Object value, boolean isPrivate) {
+        BiFunction<String, String, Object> valueGetter = isPrivate
+            ? CompilerTestUtils::loadPrivateStaticValueFromClass
+            : CompilerTestUtils::loadStaticValueFromClass;
+
         if (value instanceof Integer) {
-            int variable = (int) loadPrivateStaticValueFromClass(className, staticFieldName);
+            int variable = (int) valueGetter.apply(className, staticFieldName);
             assertEquals(value, variable, "The static value read off the generated class should be as expected");
         } else if (value instanceof Float) {
-            float variable = (float) loadPrivateStaticValueFromClass(className, staticFieldName);
+            float variable = (float) valueGetter.apply(className, staticFieldName);
             assertEquals(value, variable, "The static value read off the generated class should be as expected");
         } else if (value instanceof Boolean) {
-            boolean variable = (boolean) loadPrivateStaticValueFromClass(className, staticFieldName);
+            boolean variable = (boolean) valueGetter.apply(className, staticFieldName);
             assertEquals(value, variable, "The static value read off the generated class should be as expected");
         } else if (value instanceof String) {
-            String variable = (String) loadPrivateStaticValueFromClass(className, staticFieldName);
+            String variable = (String) valueGetter.apply(className, staticFieldName);
             assertEquals(value, variable, "The static value read off the generated class should be as expected");
         } else if (value instanceof Object[]) {
-            Object[] variable = (Object[]) loadPrivateStaticValueFromClass(className, staticFieldName);
+            Object[] variable = (Object[]) valueGetter.apply(className, staticFieldName);
             assertArrayEquals((Object[]) value, variable, "The static value read off the generated class should be as expected");
         }
     }

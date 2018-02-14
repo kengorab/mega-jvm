@@ -31,41 +31,37 @@ public class StaticMethodReferenceCompiler {
         String outerClassName,
         String lambdaName,
         String innerClassName,
-        Binding binding,
+        FunctionType methodType,
+        String methodName,
         TypeEnvironment typeEnv,
         Context context,
         int access
     ) {
-        FunctionType methodType = (FunctionType) binding.type;
-        assert methodType != null; // Should be populated in typechecking pass
-
         Compiler compiler = getCompiler(innerClassName, methodType, typeEnv, context);
         compiler.cw.visitInnerClass(innerClassName, outerClassName, lambdaName, access);
 
         writeClinitMethod(compiler, innerClassName);
         writeInitMethod(compiler, methodType.arity());
         writeIfaceInvokeMethod(compiler, innerClassName, methodType);
-
-        String methodName = binding.isExported ? binding.name : binding.name + "$access";
-        writeActualInvokeMethod(compiler, methodType, outerClassName, methodName);
+        writeActualInvokeMethod(compiler, methodType, outerClassName, innerClassName, methodName);
 
         compiler.cw.visitEnd();
         return compiler.results();
     }
 
-    private static void writeActualInvokeMethod(Compiler compiler, FunctionType methodType, String outerClassName, String methodName) {
+    private static void writeActualInvokeMethod(Compiler compiler, FunctionType methodType, String outerClassName, String innerClassName, String methodName) {
         MethodVisitor invokeMethodWriter = compiler.cw.visitMethod(ACC_PUBLIC | ACC_FINAL, "invoke", getInvokeMethodDesc(methodType), null, null);
         invokeMethodWriter.visitCode();
 
         compiler.scope = compiler.scope.createChild(new FocusedMethod(invokeMethodWriter, null, null)); // TODO: Fix this, it's a little awkward...
-        compiler.scope.addBinding("this", PrimitiveTypes.ANY, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
+        compiler.scope.addBinding("this", PrimitiveTypes.ANY, innerClassName, BindingTypes.LOCAL, false); // TODO: Fix this; this is terrible
 
         List<MegaType> paramTypes = methodType.paramTypes;
         for (int i = 0; i < paramTypes.size(); i++) {
             MegaType paramType = paramTypes.get(i);
             String paramName = "$p" + i; // The name doesn't matter, just used for tracking bindings during debugging
 
-            compiler.scope.addBinding(paramName, paramType, BindingTypes.LOCAL, false);
+            compiler.scope.addBinding(paramName, paramType, innerClassName, BindingTypes.LOCAL, false);
             Binding binding = compiler.scope.getBinding(paramName);
             assert binding != null; // It was just added above, I don't think there's a way for it to be null...
             invokeMethodWriter.visitVarInsn(loadInsn(binding.type), binding.index);
