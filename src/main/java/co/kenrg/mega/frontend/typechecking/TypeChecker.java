@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -112,13 +113,13 @@ public class TypeChecker {
     };
 
     final List<TypeCheckerError> errors;
-    private Function<String, TypeCheckResult<Module>> moduleProvider;
+    private Function<String, Optional<TypeCheckResult<Module>>> moduleProvider;
 
     public TypeChecker() {
         this.errors = Lists.newArrayList();
     }
 
-    public void setModuleProvider(Function<String, TypeCheckResult<Module>> moduleProvider) {
+    public void setModuleProvider(Function<String, Optional<TypeCheckResult<Module>>> moduleProvider) {
         this.moduleProvider = moduleProvider;
     }
 
@@ -395,8 +396,8 @@ public class TypeChecker {
             throw new IllegalStateException("Module provider function not set on TypeChecker");
         }
 
-        TypeCheckResult<Module> targetModuleResult = this.moduleProvider.apply(node.targetModule.value);
-        if (targetModuleResult == null) {
+        Optional<TypeCheckResult<Module>> targetModuleResultOpt = this.moduleProvider.apply(node.targetModule.value);
+        if (!targetModuleResultOpt.isPresent()) {
             this.errors.add(new UnknownModuleError(node.targetModule.value, node.targetModule.token.position));
 
             for (Identifier _import : node.imports) {
@@ -405,6 +406,7 @@ public class TypeChecker {
             }
             return;
         }
+        TypeCheckResult<Module> targetModuleResult = targetModuleResultOpt.get();
 
         Module module = targetModuleResult.node;
         TypeEnvironment moduleTypeEnv = targetModuleResult.typeEnvironment;

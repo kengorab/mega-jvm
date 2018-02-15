@@ -45,7 +45,12 @@ public class Repl {
         }
     }
 
-    public static Optional<TypeCheckResult<Module>> readAndTypecheck(String code, TypeEnvironment typeEnv, String moduleName, Function<String, String> moduleContentsProvider) {
+    public static Optional<TypeCheckResult<Module>> readAndTypecheck(
+        String code,
+        TypeEnvironment typeEnv,
+        String moduleName,
+        Function<String, Optional<TypeCheckResult<Module>>> typedModuleProvider
+    ) {
         Lexer lexer = new Lexer(code);
         Parser parser = new Parser(lexer);
         Module module = parser.parseModule();
@@ -60,11 +65,7 @@ public class Repl {
         }
 
         TypeChecker typeChecker = new TypeChecker();
-        typeChecker.setModuleProvider(_moduleName -> {
-            String moduleContents = moduleContentsProvider.apply(_moduleName);
-            Optional<TypeCheckResult<Module>> result = readAndTypecheck(moduleContents, new TypeEnvironment(), _moduleName, moduleContentsProvider);
-            return result.orElse(null); // TODO: Make moduleprovider expect Optional<TypeCheckResult<Module>> instead of null-checking
-        });
+        typeChecker.setModuleProvider(typedModuleProvider);
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 
         if (typecheckResult.hasErrors()) {
@@ -79,7 +80,7 @@ public class Repl {
     }
 
     public static void readEvalPrint(String code, Environment env, TypeEnvironment typeEnv) {
-        Optional<TypeCheckResult<Module>> module = readAndTypecheck(code, typeEnv, "<repl>", moduleName -> null); // TODO: Give provider function here
+        Optional<TypeCheckResult<Module>> module = readAndTypecheck(code, typeEnv, "<repl>", moduleName -> Optional.empty()); // TODO: Give provider function here
         if (!module.isPresent()) {
             System.out.println("Cannot proceed due to errors.");
             return;
