@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -72,7 +73,7 @@ class CompilerTestUtils {
         }
 
         TypeChecker typeChecker = new TypeChecker();
-        typeChecker.setModuleProvider(typedModuleProvider);
+        typeChecker.setModuleProvider(moduleName -> Optional.of(typedModuleProvider.apply(moduleName)));
         TypeEnvironment typeEnv = new TypeEnvironment();
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 

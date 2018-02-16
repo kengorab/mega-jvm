@@ -6,6 +6,7 @@ import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -45,13 +46,13 @@ class TypeCheckerTestUtils {
         typeChecker.setModuleProvider(moduleName -> {
             String moduleContents = moduleProvider.apply(moduleName);
             if (moduleContents == null) {
-                return null;
+                return Optional.empty();
             }
 
             Module m = parseModule(moduleContents);
             TypeEnvironment e = new TypeEnvironment();
             TypeChecker tc = new TypeChecker();
-            return tc.typecheck(m, e);
+            return Optional.of(tc.typecheck(m, e));
         });
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, env);
 

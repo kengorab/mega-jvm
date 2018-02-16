@@ -11,18 +11,71 @@ import java.util.Map;
 import java.util.Optional;
 
 import co.kenrg.mega.backend.compilation.Compiler;
+import co.kenrg.mega.commandline.iface.Subcommand;
 import co.kenrg.mega.frontend.ast.Module;
 import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;
 import com.google.common.collect.Maps;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.tuple.Pair;
 
-public class CompileCommand {
+public class CompileSubcommand implements Subcommand {
+
+    @Override
+    public String name() {
+        return "compile [filename]";
+    }
+
+    @Override
+    public String desc() {
+        return "Compile the Mega file passed as an argument to JVM class files";
+    }
+
+    @Override
+    public Options opts() {
+        return new Options()
+            .addOption("h", "help", false, "Displays this help information, for the compile subcommand")
+            .addOption("o", "out-dir", true, "Directory where compiled class files should be written (defaults to current directory)");
+    }
+
+    @Override
+    public boolean execute(CommandLine command) {
+        if (command.hasOption('h') || command.getArgList().size() != 1) {
+            return false;
+        }
+
+        String outputDirectory = System.getProperty("user.dir");
+        if (command.hasOption('o')) {
+            Path path = Paths.get(command.getOptionValue('o'));
+            if (!Files.exists(path)) {
+                try {
+                    Files.createDirectories(path);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.exit(1);
+                    return false;
+                }
+            }
+            outputDirectory = path.toAbsolutePath().toString();
+        }
+
+        String fileToCompile = command.getArgList().get(0);
+        Path filepath = Paths.get(fileToCompile);
+        if (!fileToCompile.endsWith(".meg")) {
+            System.err.printf("Invalid file extension for module %s; expected .meg extension\n", filepath.toAbsolutePath().toString());
+            System.exit(1);
+        }
+        compileModule(fileToCompile, outputDirectory);
+
+        return true;
+    }
+
     private static Map<String, TypeCheckResult<Module>> typedModuleCache = Maps.newHashMap();
     private static Map<String, TypeCheckResult<Module>> compiledModulesCache = Maps.newHashMap();
 
-    public static TypeCheckResult<Module> compileModule(String moduleFileName, String outputDirectory) {
+    private static TypeCheckResult<Module> compileModule(String moduleFileName, String outputDirectory) {
         String fullyQualifiedModuleName = moduleFileName.replace(".meg", "");
         if (compiledModulesCache.containsKey(fullyQualifiedModuleName)) {
             return compiledModulesCache.get(fullyQualifiedModuleName);
@@ -57,7 +110,7 @@ public class CompileCommand {
         } else {
             String code = getFileContents(moduleName);
             TypeEnvironment typeEnv = new TypeEnvironment();
-            Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code, typeEnv, moduleName, CompileCommand::typecheckModule);
+            Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code, typeEnv, moduleName, CompileSubcommand::typecheckModule);
             resultOpt.ifPresent(moduleTypeCheckResult -> typedModuleCache.put(moduleName, moduleTypeCheckResult));
             return resultOpt;
         }

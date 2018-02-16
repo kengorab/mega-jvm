@@ -1,208 +1,87 @@
 package co.kenrg.mega;
 
-import static co.kenrg.mega.commandline.commands.CompileCommand.compileModule;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.Optional;
+import java.util.List;
 
-import co.kenrg.mega.backend.evaluation.evaluator.Environment;
-import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
-import co.kenrg.mega.repl.Repl;
+import co.kenrg.mega.commandline.commands.CompileSubcommand;
+import co.kenrg.mega.commandline.commands.HelpSubcommand;
+import co.kenrg.mega.commandline.commands.ReplSubcommand;
+import co.kenrg.mega.commandline.commands.RunSubcommand;
+import co.kenrg.mega.commandline.iface.Subcommand;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
 public class Main {
-    public static void main(String[] args) throws ParseException, IOException {
-        if (args.length == 0) {
-            printTopLevelUsage();
-            return;
-        }
+    private static final ReplSubcommand replSubcommand = new ReplSubcommand();
+    private static final RunSubcommand runSubcommand = new RunSubcommand();
+    private static final CompileSubcommand compileSubcommand = new CompileSubcommand();
+    private static HelpSubcommand helpSubcommand = new HelpSubcommand();
 
-        String subcommand = args[0];
-        String[] tailArgs = Arrays.copyOfRange(args, 1, args.length);
+    private static final List<Subcommand> subcommands = Lists.newArrayList(
+        replSubcommand, runSubcommand, compileSubcommand, helpSubcommand
+    );
+
+    private static Subcommand getSubcommand(String subcommand) {
         switch (subcommand) {
-            case "repl": {
-                handleReplCommand(tailArgs);
-                return;
-            }
-            case "run": {
-                handleRunCommand(tailArgs);
-                return;
-            }
-            case "compile": {
-                handleCompileCommand(tailArgs);
-                return;
-            }
+            case "repl":
+                return replSubcommand;
+            case "run":
+                return runSubcommand;
+            case "compile":
+                return compileSubcommand;
             case "-h":
-            case "help": {
-                handleHelpCommand(tailArgs);
-            }
-        }
-    }
-
-    private enum Subcommand {
-        RUN(
-            "run [filename]",
-            "Evaluates the Mega file passed as an argument",
-            new Options()
-                .addOption("h", "help", false, "Displays this help information, for the run subcommand")
-        ),
-        REPL(
-            "repl",
-            "Start up the Mega REPL (Read Eval Print Loop)",
-            new Options()
-                .addOption("l", "load-file", true, "Loads a REPL, with the given file evaluated")
-                .addOption("h", "help", false, "Displays this help information, for the repl subcommand")
-        ),
-        COMPILE(
-            "compile [filename]",
-            "Compile the Mega file passed as an argument to JVM class files",
-            new Options()
-                .addOption("h", "help", false, "Displays this help information, for the compile subcommand")
-                .addOption("o", "out-dir", true, "Directory where compiled class files should be written (defaults to current directory)")
-        );
-
-        final String name;
-        final String desc;
-        final Options options;
-
-        Subcommand(String subcommandName, String subcommandDesc, Options options) {
-            this.name = subcommandName;
-            this.desc = subcommandDesc;
-            this.options = options;
+            case "help":
+                return helpSubcommand;
+            default:
+                return null;
         }
     }
 
     private static CommandLine parse(Subcommand subcommand, String[] args) throws ParseException {
         CommandLineParser parser = new DefaultParser();
         try {
-            return parser.parse(subcommand.options, args);
+            return parser.parse(subcommand.opts(), args);
         } catch (UnrecognizedOptionException e) {
-            printUsage(subcommand);
+            helpSubcommand.printUsage(subcommand);
             System.exit(1);
             return null;
         }
     }
 
-    private static void handleReplCommand(String[] args) throws ParseException {
-        CommandLine command = parse(Subcommand.REPL, args);
-        assert command != null;
+    @VisibleForTesting
+    static void handleSubcommand(String[] args, PrintStream out) throws ParseException {
+        // Late init help subcommand, to pass in PrintStream and subcommands list inc. help
+        helpSubcommand.init(out, subcommands);
 
-        if (command.hasOption('h') || !command.getArgList().isEmpty()) {
-            printUsage(Subcommand.REPL);
-            return;
-        }
-
-        Environment env = new Environment();
-        TypeEnvironment typeEnv = new TypeEnvironment();
-
-        if (command.getOptionValue('l') == null) {
-            Repl.start(env, typeEnv);
-            return;
-        }
-
-        String fileToLoad = command.getOptionValue('l');
-        evalFile(env, typeEnv, fileToLoad);
-
-        Repl.start(env, typeEnv);
-    }
-
-    private static void evalFile(Environment env, TypeEnvironment typeEnv, String fileToLoad) {
-        Path filepath = Paths.get(fileToLoad);
-        try {
-            byte[] bytes = Files.readAllBytes(filepath);
-            String code = new String(bytes);
-            Repl.readEvalPrint(code, env, typeEnv);
-        } catch (IOException e) {
-            System.err.printf("No such file: %s\n", filepath.toAbsolutePath().toString());
-            System.exit(1);
-        }
-    }
-
-    private static void handleRunCommand(String[] args) throws ParseException {
-        CommandLine command = parse(Subcommand.RUN, args);
-        assert command != null;
-
-        if (command.hasOption('h') || command.getArgList().size() != 1) {
-            printUsage(Subcommand.RUN);
-            return;
-        }
-
-        String fileToLoad = command.getArgList().get(0);
-        evalFile(new Environment(), new TypeEnvironment(), fileToLoad);
-    }
-
-    private static void handleCompileCommand(String[] args) throws ParseException, IOException {
-        CommandLine command = parse(Subcommand.COMPILE, args);
-        assert command != null;
-
-        if (command.hasOption('h') || command.getArgList().size() != 1) {
-            printUsage(Subcommand.COMPILE);
-            return;
-        }
-
-        String outputDirectory = System.getProperty("user.dir");
-        if (command.hasOption('o')) {
-            Path path = Paths.get(command.getOptionValue('o'));
-            if (!Files.exists(path)) {
-                Files.createDirectories(path);
-            }
-            outputDirectory = path.toAbsolutePath().toString();
-        }
-
-        String fileToCompile = command.getArgList().get(0);
-        Path filepath = Paths.get(fileToCompile);
-        if (!fileToCompile.endsWith(".meg")) {
-            System.err.printf("Invalid file extension for module %s; expected .meg extension\n", filepath.toAbsolutePath().toString());
-            System.exit(1);
-        }
-        compileModule(fileToCompile, outputDirectory);
-    }
-
-    private static void handleHelpCommand(String[] args) {
         if (args.length == 0) {
-            printTopLevelUsage();
+            helpSubcommand.printTopLevelUsage();
             return;
         }
 
-        String topic = args[0];
-        Optional<Subcommand> helpTopic = Arrays.stream(Subcommand.values())
-            .filter(c -> c.name().toLowerCase().equals(topic))
-            .findFirst();
-        if (!helpTopic.isPresent()) {
-            printTopLevelUsage();
+        Subcommand subcommand = getSubcommand(args[0]);
+        String[] tailArgs = Arrays.copyOfRange(args, 1, args.length);
+
+        if (subcommand == null) {
+            helpSubcommand.printTopLevelUsage();
+            System.exit(1);
             return;
         }
 
-        printUsage(helpTopic.get());
+        CommandLine command = parse(subcommand, tailArgs);
+        boolean result = subcommand.execute(command);
+        if (!result) {
+            helpSubcommand.printUsage(subcommand);
+            System.exit(1);
+        }
     }
 
-    private static void printUsage(Subcommand subcommand) {
-        HelpFormatter usage = new HelpFormatter();
-        usage.setLeftPadding(2);
-        usage.printHelp("mega " + subcommand.name, subcommand.desc, subcommand.options, "");
-    }
-
-    private static void printTopLevelUsage() {
-        String usage = "" +
-            "usage: mega\n" +
-            "Mega has a couple of subcommands\n" +
-            "  help              Displays this help information. You can also\n" +
-            "                    run help on a specific command.\n" +
-            "                      e.g. `mega help repl`\n" +
-            "                      Equivalent to `mega repl -h`\n" +
-            "  repl              Starts up the Mega REPL (Read Eval Print Loop)\n" +
-            "  run               Executes the Mega file passed as an argument\n" +
-            "  compile           Compiles the Mega file to JVM bytecode";
-        System.out.println(usage);
+    public static void main(String[] args) throws ParseException {
+        handleSubcommand(args, System.out);
     }
 }
