@@ -50,6 +50,7 @@ import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import co.kenrg.mega.frontend.ast.type.BasicTypeExpression;
 import co.kenrg.mega.frontend.ast.type.FunctionTypeExpression;
 import co.kenrg.mega.frontend.ast.type.ParametrizedTypeExpression;
+import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
@@ -147,6 +148,7 @@ class ParserTest {
 
             new TestCase("var x: Int = 4", "x", new BasicTypeExpression("Int", Position.at(1, 8)), getVarStmtIdent),
             new TestCase("var s: String = \"asdf\"", "s", new BasicTypeExpression("String", Position.at(1, 8)), getVarStmtIdent),
+            new TestCase("var p: { name: String } = { name: \"asdf\" }", "p", new StructTypeExpression(Lists.newArrayList(Pair.of("name", new BasicTypeExpression("String", Position.at(1, 16)))), Position.at(1, 8)), getVarStmtIdent),
 
             new TestCase("func abc(a: Int, b: Int) { a + b }", "a", new BasicTypeExpression("Int", Position.at(1, 13)), getFuncStmtParamIdent.apply(0)),
             new TestCase("func abc(a: Int, b: Int) { a + b }", "b", new BasicTypeExpression("Int", Position.at(1, 21)), getFuncStmtParamIdent.apply(1)),
@@ -238,12 +240,14 @@ class ParserTest {
         String input = "val person: { name: String } = { name: 'Ken' }";
         Pair<Statement, List<SyntaxError>> result = parseStatementAndGetErrors(input);
         ValStatement valStatement = (ValStatement) result.getLeft();
-        assertEquals(null, valStatement.name.typeAnnotation);
 
-        assertEquals(
-            "Unexpected struct-based type definition",
-            result.getRight().get(0).message
+        StructTypeExpression expected = new StructTypeExpression(
+            Lists.newArrayList(
+                Pair.of("name", new BasicTypeExpression("String", Position.at(1, 21)))
+            ),
+            Position.at(1, 13)
         );
+        assertEquals(expected, valStatement.name.typeAnnotation);
     }
 
     @Test

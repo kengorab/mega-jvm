@@ -278,12 +278,12 @@ public class Parser {
         this.nextToken();
         this.nextToken();
 
-        TypeExpression type = this.parseTypeExpression(false);
+        TypeExpression type = this.parseTypeExpression();
         return new Identifier(t, ident, type);
     }
 
     @Nullable
-    private TypeExpression parseTypeExpression(boolean allowInlineStruct) {
+    private TypeExpression parseTypeExpression() {
         // Type annotations can take one of 6 forms:
         // 1. A single type:                            Int
         // 2. A type w/ type arg(s):                    Array[Int] or Map[String, Int]
@@ -302,13 +302,13 @@ public class Parser {
                 this.nextToken();
 
                 List<TypeExpression> typeArgs = Lists.newArrayList();
-                typeArgs.add(this.parseTypeExpression(allowInlineStruct));
+                typeArgs.add(this.parseTypeExpression());
 
                 while (this.peekTokenIs(TokenType.COMMA)) {
                     this.nextToken();   // Consume ','
                     this.nextToken();
 
-                    typeArgs.add(this.parseTypeExpression(allowInlineStruct));
+                    typeArgs.add(this.parseTypeExpression());
                 }
 
                 if (!expectPeek(TokenType.RBRACK)) {
@@ -319,7 +319,7 @@ public class Parser {
                 this.nextToken();
                 this.nextToken();
 
-                TypeExpression returnTypeExpr = this.parseTypeExpression(allowInlineStruct);
+                TypeExpression returnTypeExpr = this.parseTypeExpression();
                 return new FunctionTypeExpression(
                     Lists.newArrayList(new BasicTypeExpression(baseType, startToken.position)),
                     returnTypeExpr,
@@ -339,13 +339,13 @@ public class Parser {
                 this.nextToken();
                 this.nextToken();
             } else {
-                typeArgs.add(this.parseTypeExpression(allowInlineStruct));
+                typeArgs.add(this.parseTypeExpression());
 
                 while (this.peekTokenIs(TokenType.COMMA)) {
                     this.nextToken();   // Consume ','
                     this.nextToken();
 
-                    typeArgs.add(this.parseTypeExpression(allowInlineStruct));
+                    typeArgs.add(this.parseTypeExpression());
                 }
 
                 if (!expectPeek(TokenType.RPAREN)) {
@@ -357,7 +357,7 @@ public class Parser {
                 this.nextToken();
             }
 
-            TypeExpression returnType = this.parseTypeExpression(allowInlineStruct);
+            TypeExpression returnType = this.parseTypeExpression();
             return new FunctionTypeExpression(typeArgs, returnType, startToken.position);
         }
 
@@ -373,7 +373,7 @@ public class Parser {
             }
             this.nextToken();
 
-            propTypes.add(Pair.of(prop.value, this.parseTypeExpression(true)));
+            propTypes.add(Pair.of(prop.value, this.parseTypeExpression()));
 
             while (this.peekTokenIs(TokenType.COMMA)) {
                 this.nextToken();   // Consume ','
@@ -386,18 +386,14 @@ public class Parser {
                 }
                 this.nextToken();
 
-                propTypes.add(Pair.of(propName, this.parseTypeExpression(true)));
+                propTypes.add(Pair.of(propName, this.parseTypeExpression()));
             }
 
             if (!expectPeek(TokenType.RBRACE)) {
                 return null;
             }
 
-            if (allowInlineStruct) {
-                return new StructTypeExpression(propTypes, startToken.position);
-            } else {
-                this.errors.add(new SyntaxError("Unexpected struct-based type definition"));
-            }
+            return new StructTypeExpression(propTypes, startToken.position);
         }
 
         return null;
@@ -480,7 +476,7 @@ public class Parser {
         }
         this.nextToken();
 
-        TypeExpression typeExpr = this.parseTypeExpression(true);
+        TypeExpression typeExpr = this.parseTypeExpression();
 
         return new TypeDeclarationStatement(t, typeName, typeExpr, isExported);
     }
