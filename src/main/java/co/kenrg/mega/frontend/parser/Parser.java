@@ -56,6 +56,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class Parser {
     public final List<SyntaxError> errors = Lists.newArrayList();
+    public final List<SyntaxError> warnings = Lists.newArrayList();
 
     private final Map<TokenType, PrefixParseFunction> prefixParseFns = Maps.newHashMap();
     private final Map<TokenType, InfixParseFunction> infixParseFns = Maps.newHashMap();
@@ -110,6 +111,10 @@ public class Parser {
 
     private void addParserError(String message) {
         this.errors.add(new SyntaxError(message));
+    }
+
+    private void addParserWarning(String message) {
+        this.warnings.add(new SyntaxError(message));
     }
 
     private void nextToken() {
@@ -393,7 +398,11 @@ public class Parser {
                 return null;
             }
 
-            return new StructTypeExpression(propTypes, startToken.position);
+            StructTypeExpression structTypeExpr = new StructTypeExpression(propTypes, startToken.position);
+            if (structTypeExpr.isTooUnwieldy()) {
+                this.addParserWarning("Type signature is a bit too verbose, consider defining as a separate type?");
+            }
+            return structTypeExpr;
         }
 
         return null;

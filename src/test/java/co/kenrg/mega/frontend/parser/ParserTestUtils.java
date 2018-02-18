@@ -54,4 +54,12 @@ public class ParserTestUtils {
 
         return Pair.of(module.statements.get(0), p.errors);
     }
+
+    public static Pair<Statement, List<SyntaxError>> parseStatementAndGetWarnings(String input) {
+        Lexer l = new Lexer(input);
+        Parser p = new Parser(l);
+        Module module = p.parseModule();
+
+        return Pair.of(module.statements.get(0), p.warnings);
+    }
 }

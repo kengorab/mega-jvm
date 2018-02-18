@@ -64,6 +64,13 @@ public class Repl {
             return Optional.empty();
         }
 
+        if (!parser.warnings.isEmpty()) {
+            System.out.println("Syntax warnings:");
+            for (SyntaxError warning : parser.warnings) {
+                System.out.println("  " + moduleName + " " + warning.message);
+            }
+        }
+
         TypeChecker typeChecker = new TypeChecker();
         typeChecker.setModuleProvider(typedModuleProvider);
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);

@@ -4,6 +4,7 @@ import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseExpressionState
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatement;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetErrors;
 import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetModule;
+import static co.kenrg.mega.frontend.parser.ParserTestUtils.parseStatementAndGetWarnings;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -236,7 +237,7 @@ class ParserTest {
     }
 
     @Test
-    void testTypeAnnotations_structTypeExpression_syntaxError() {
+    void testTypeAnnotations_structTypeExpression() {
         String input = "val person: { name: String } = { name: 'Ken' }";
         Pair<Statement, List<SyntaxError>> result = parseStatementAndGetErrors(input);
         ValStatement valStatement = (ValStatement) result.getLeft();
@@ -248,6 +249,32 @@ class ParserTest {
             Position.at(1, 13)
         );
         assertEquals(expected, valStatement.name.typeAnnotation);
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypeAnnotations_structTypeExpression_typeAnnotationIsTooVerbose_addWarning() {
+        List<String> testCases = Lists.newArrayList(
+            "val person: { firstName: String, lastName: String, age: Int } = { name: 'Ken' }",
+            "val person: { f: Int, l: Int, a: Int } = { name: 'Ken' }",
+            "val person: { a: { b: Int } } = { name: 'Ken' }"
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String name = String.format("Parsing `%s` should result in a warning, due to length of type signature", testCase);
+
+                return dynamicTest(name, () -> {
+                    Pair<Statement, List<SyntaxError>> result = parseStatementAndGetWarnings(testCase);
+                    List<SyntaxError> warnings = result.getRight();
+
+                    List<SyntaxError> expected = Lists.newArrayList(
+                        new SyntaxError("Type signature is a bit too verbose, consider defining as a separate type?")
+                    );
+
+                    assertEquals(expected, warnings);
+                });
+            })
+            .collect(toList());
     }
 
     @Test
