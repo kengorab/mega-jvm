@@ -53,6 +53,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownPropertyError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.errors.VisibilityError;
@@ -477,11 +478,11 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsObjectType() {
-        ObjectType personObjType = new ObjectType( Lists.newArrayList(
+        ObjectType personObjType = new ObjectType(Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),
             Pair.of("age", PrimitiveTypes.INTEGER)
         ));
-        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
+        ObjectType teamObjType = new ObjectType(Lists.newArrayList(
             Pair.of("manager", personObjType),
             Pair.of("members", arrayOf.apply(personObjType))
         ));
@@ -517,15 +518,15 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_noTypeAnnotation_bindingHasCorrectlyGuessedType() {
-        ObjectType personObjType = new ObjectType( Lists.newArrayList(
+        ObjectType personObjType = new ObjectType(Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),
             Pair.of("age", PrimitiveTypes.INTEGER)
         ));
-        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
+        ObjectType teamObjType = new ObjectType(Lists.newArrayList(
             Pair.of("manager", personObjType),
             Pair.of("members", arrayOf.apply(personObjType))
         ));
-        ObjectType teamObjIncompleteType = new ObjectType( Lists.newArrayList(
+        ObjectType teamObjIncompleteType = new ObjectType(Lists.newArrayList(
             Pair.of("manager", personObjType),
             Pair.of("members", arrayOf.apply(PrimitiveTypes.NOTHING))
         ));
@@ -2000,6 +2001,156 @@ class TypeCheckerTest {
 
                     assertTrue(result.hasErrors());
                     assertEquals(testCase.getRight(), result.errors.get(0));
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression() {
+        class TestCase {
+            public final String input;
+            public final Map<String, MegaType> environment;
+            public final MegaType expectedType;
+
+            public TestCase(String input, Map<String, MegaType> environment, MegaType expectedType) {
+                this.input = input;
+                this.environment = environment;
+                this.expectedType = expectedType;
+            }
+        }
+
+        StructType personType = new StructType("Person", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("age", PrimitiveTypes.INTEGER)
+        ));
+        StructType teamType = new StructType("Team", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("manager", personType),
+            Pair.of("members", arrayOf.apply(personType))
+        ));
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "person.name",
+                ImmutableMap.of("person", personType),
+                PrimitiveTypes.STRING
+            ),
+            new TestCase(
+                "team.manager",
+                ImmutableMap.of("team", teamType),
+                personType
+            ),
+            new TestCase(
+                "team.members[0]",
+                ImmutableMap.of("team", teamType),
+                personType
+            ),
+            new TestCase(
+                "team.manager.name",
+                ImmutableMap.of("team", teamType),
+                PrimitiveTypes.STRING
+            ),
+            new TestCase(
+                "team.members[0].name",
+                ImmutableMap.of("team", teamType),
+                PrimitiveTypes.STRING
+            ),
+
+            // Object literals
+            new TestCase(
+                "objLit.abc",
+                ImmutableMap.of("objLit", new ObjectType(Lists.newArrayList(Pair.of("abc", PrimitiveTypes.INTEGER)))),
+                PrimitiveTypes.INTEGER
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                Map<String, MegaType> environment = testCase.environment;
+                MegaType expectedType = testCase.expectedType;
+
+                String name = String.format("'%s' should typecheck to %s", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(expectedType, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression_errors() {
+        class TestCase {
+            public final String input;
+            public final Map<String, MegaType> environment;
+            public final MegaType expectedType;
+            public final TypeCheckerError error;
+
+            public TestCase(String input, Map<String, MegaType> environment, MegaType expectedType, TypeCheckerError error) {
+                this.input = input;
+                this.environment = environment;
+                this.expectedType = expectedType;
+                this.error = error;
+            }
+        }
+
+        StructType personType = new StructType("Person", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("age", PrimitiveTypes.INTEGER)
+        ));
+        StructType teamType = new StructType("Team", Lists.newArrayList(
+            Pair.of("name", PrimitiveTypes.STRING),
+            Pair.of("manager", personType),
+            Pair.of("members", arrayOf.apply(personType))
+        ));
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "person.nonExistentProp",
+                ImmutableMap.of("person", personType),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 8))
+            ),
+            new TestCase(
+                "team.manager.nonExistentProp",
+                ImmutableMap.of("team", teamType),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 14))
+            ),
+
+            // Object literals
+            new TestCase(
+                "objLit.nonExistentProp",
+                ImmutableMap.of("objLit", new ObjectType(Lists.newArrayList(Pair.of("abc", PrimitiveTypes.INTEGER)))),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 8))
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                Map<String, MegaType> environment = testCase.environment;
+                MegaType expectedType = testCase.expectedType;
+                TypeCheckerError error = testCase.error;
+
+                String name = String.format("'%s' should typecheck to %s, with errors", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
+
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(input, env);
+                    assertEquals(expectedType, result.type);
+                    assertEquals(Lists.newArrayList(error), result.errors);
                 });
             })
             .collect(toList());

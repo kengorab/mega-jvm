@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -70,6 +71,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownPropertyError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
@@ -185,6 +187,8 @@ public class TypeChecker {
             return this.typecheckIndexExpression((IndexExpression) node, env, expectedType);
         } else if (node instanceof AssignmentExpression) {
             return this.typecheckAssignmentExpression((AssignmentExpression) node, env, expectedType);
+        } else if (node instanceof AccessorExpression) {
+            return this.typecheckAccessorExpression((AccessorExpression) node, env, expectedType);
         } else if (node instanceof RangeExpression) {
             return this.typecheckRangeExpression((RangeExpression) node, env, expectedType);
         }
@@ -935,6 +939,50 @@ public class TypeChecker {
         }
         expr.setType(PrimitiveTypes.UNIT);
         return PrimitiveTypes.UNIT;
+    }
+
+    private MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, MegaType expectedType) {
+        Expression target = node.target;
+        MegaType targetType = typecheckNode(target, env);
+        if (!(targetType instanceof StructType || targetType instanceof ObjectType)) {
+            this.errors.add(new UnsupportedFeatureError("Accessing properties of non-struct/non-object types", node.token.position));
+            MegaType type = expectedType == null ? unknownType : expectedType;
+            node.setType(type);
+            return type;
+        }
+
+        List<Pair<String, MegaType>> properties;
+        if (targetType instanceof StructType) {
+            properties = ((StructType) targetType).getProperties();
+        } else {
+            properties = ((ObjectType) targetType).properties;
+        }
+
+        String propName = node.property.value;
+        MegaType propType = null;
+        for (Pair<String, MegaType> property : properties) {
+            if (property.getLeft().equals(propName)) {
+                propType = property.getRight();
+                break;
+            }
+        }
+        if (propType == null) {
+            this.errors.add(new UnknownPropertyError(propName, node.property.token.position));
+            MegaType type = expectedType == null ? unknownType : expectedType;
+            node.setType(type);
+            return type;
+        }
+
+        MegaType type;
+        if (expectedType != null && !propType.isEquivalentTo(expectedType)) {
+            this.errors.add(new TypeMismatchError(expectedType, propType, node.property.token.position));
+            type = expectedType;
+        } else {
+            type = propType;
+        }
+
+        node.setType(type);
+        return type;
     }
 
     @VisibleForTesting
