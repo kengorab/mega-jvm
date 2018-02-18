@@ -476,26 +476,26 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType() {
-        StructType personType = new StructType("Person", Lists.newArrayList(
+    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsObjectType() {
+        ObjectType personObjType = new ObjectType( Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),
             Pair.of("age", PrimitiveTypes.INTEGER)
         ));
-        StructType teamType = new StructType("Team", Lists.newArrayList(
-            Pair.of("manager", personType),
-            Pair.of("members", arrayOf.apply(personType))
+        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
+            Pair.of("manager", personObjType),
+            Pair.of("members", arrayOf.apply(personObjType))
         ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("val x: Person = { name: 'Ken', age: 25 }", personType),
-            Pair.of("val x: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
-            Pair.of("val x: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
-            Pair.of("val x: Team = { manager: { name: 'Ken', age: 25 }, members: []}", teamType),
+            Pair.of("val x: { name: String, age: Int } = { name: 'Ken', age: 25 }", personObjType),
+            Pair.of("val x: Array[{ name: String, age: Int }] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personObjType)),
+            Pair.of("val x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamObjType),
+            Pair.of("val x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken', age: 25 }, members: []}", teamObjType),
 
-            Pair.of("var x: Person = { name: 'Ken', age: 25 }", personType),
-            Pair.of("var x: Array[Person] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personType)),
-            Pair.of("var x: Team = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamType),
-            Pair.of("var x: Team = { manager: { name: 'Ken', age: 25 }, members: [] }", teamType)
+            Pair.of("var x: { name: String, age: Int } = { name: 'Ken', age: 25 }", personObjType),
+            Pair.of("var x: Array[{ name: String, age: Int }] = [{ name: 'Ken', age: 25 }, { name: 'Meg', age: 24 }]", arrayOf.apply(personObjType)),
+            Pair.of("var x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken', age: 25 }, members: [{ name: 'Scott', age: 27 }] }", teamObjType),
+            Pair.of("var x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken', age: 25 }, members: [] }", teamObjType)
         );
 
         return testCases.stream()
@@ -503,8 +503,6 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getRight().signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    env.addType("Person", personType);
-                    env.addType("Team", teamType);
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
@@ -519,19 +517,23 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_noTypeAnnotation_bindingHasCorrectlyGuessedType() {
-        StructType personType = new StructType("Person", Lists.newArrayList(
+        ObjectType personObjType = new ObjectType( Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),
             Pair.of("age", PrimitiveTypes.INTEGER)
         ));
-        StructType teamType = new StructType("Team", Lists.newArrayList(
-            Pair.of("manager", personType),
-            Pair.of("members", arrayOf.apply(personType))
+        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
+            Pair.of("manager", personObjType),
+            Pair.of("members", arrayOf.apply(personObjType))
+        ));
+        ObjectType teamObjIncompleteType = new ObjectType( Lists.newArrayList(
+            Pair.of("manager", personObjType),
+            Pair.of("members", arrayOf.apply(PrimitiveTypes.NOTHING))
         ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
-            Pair.of("val x = { name: 'Ken', age: 25 }", personType),
-            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [{ name: 'Brian', age: 25 }] }", teamType),
-            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [] }", teamType)
+            Pair.of("val x = { name: 'Ken', age: 25 }", personObjType),
+            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [{ name: 'Brian', age: 25 }] }", teamObjType),
+            Pair.of("val x = { manager: { name: 'Ken', age: 26 }, members: [] }", teamObjIncompleteType)
         );
 
         return testCases.stream()
@@ -539,8 +541,6 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getRight().signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    env.addType("Person", personType);
-                    env.addType("Team", teamType);
                     MegaType result = testTypecheckStatement(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result);
 
@@ -554,26 +554,26 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_errors() {
-        StructType personType = new StructType("Person", Lists.newArrayList(
+    List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsObjectType_bindingIsMissingFields_errors() {
+        ObjectType personObjType = new ObjectType(Lists.newArrayList(
             Pair.of("name", PrimitiveTypes.STRING),
             Pair.of("age", PrimitiveTypes.INTEGER)
         ));
-        StructType teamType = new StructType("Team", Lists.newArrayList(
-            Pair.of("manager", personType),
-            Pair.of("members", arrayOf.apply(personType))
+        ObjectType teamObjType = new ObjectType(Lists.newArrayList(
+            Pair.of("manager", personObjType),
+            Pair.of("members", arrayOf.apply(personObjType))
         ));
 
         List<Triple<String, MegaType, String>> testCases = Lists.newArrayList(
             Triple.of(
-                "val x: Person = { name: 'Ken' }",
-                personType,
-                "(1, 17): Expected Person, got { name: String }; missing properties { age: Int }"
+                "val x: { name: String, age: Int } = { name: 'Ken' }",
+                personObjType,
+                "(1, 37): Expected { name: String, age: Int }, got { name: String }; missing properties { age: Int }"
             ),
             Triple.of(
-                "val x: Team = { manager: { name: 'Ken' }, members: [] }",
-                teamType,
-                "(1, 26): Expected Person, got { name: String }; missing properties { age: Int }"
+                "val x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken' }, members: [] }",
+                teamObjType,
+                "(1, 105): Expected { name: String, age: Int }, got { name: String }; missing properties { age: Int }"
             )
         );
 
@@ -582,8 +582,6 @@ class TypeCheckerTest {
                 String name = String.format("'%s' should typecheck to Unit, binding should typecheck to %s", testCase.getLeft(), testCase.getMiddle().signature());
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
-                    env.addType("Person", personType);
-                    env.addType("Team", teamType);
                     TypeCheckResult result = testTypecheckStatementAndGetResult(testCase.getLeft(), env);
                     assertEquals(PrimitiveTypes.UNIT, result.type);
 

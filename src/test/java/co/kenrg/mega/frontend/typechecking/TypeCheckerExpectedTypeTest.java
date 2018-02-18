@@ -38,6 +38,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnindexableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
@@ -201,7 +202,21 @@ class TypeCheckerExpectedTypeTest {
         }
 
         @Test
-        void expectedTypePassed_expectedTypeIsStruct_matchesStructOfExpectedType_returnsExpectedType() {
+        void expectedTypePassed_expectedTypeIsMatchingObjectType_returnsExpectedType() {
+            ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
+
+            ObjectType objectType = new ObjectType(Lists.newArrayList(
+                Pair.of("name", PrimitiveTypes.STRING),
+                Pair.of("age", PrimitiveTypes.INTEGER)
+            ));
+            MegaType type = typeChecker.typecheckObjectLiteral(object, env, objectType);
+
+            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
+            assertEquals(type, objectType);
+        }
+
+        @Test
+        void expectedTypePassed_expectedTypeIsStruct_throwsUnsupportedFeatureError_returnsUnknownType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
             StructType personType = new StructType("Person", Lists.newArrayList(
@@ -211,8 +226,11 @@ class TypeCheckerExpectedTypeTest {
             env.addType("Person", personType);
             MegaType objectType = typeChecker.typecheckObjectLiteral(object, env, personType);
 
-            assertEquals(0, typeChecker.errors.size(), "There should be no errors");
-            assertEquals(personType, objectType);
+            assertEquals(
+                Lists.newArrayList(new UnsupportedFeatureError("Object literals cannot be coerced to struct types", Position.at(1, 1))),
+                typeChecker.errors
+            );
+            assertEquals(TypeChecker.unknownType, objectType);
         }
 
         @Test

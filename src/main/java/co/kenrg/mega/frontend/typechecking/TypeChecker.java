@@ -502,15 +502,17 @@ public class TypeChecker {
     @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
         List<Pair<String, MegaType>> objectPropertyTypes;
+
         if (expectedType != null && (expectedType instanceof StructType || expectedType instanceof ObjectType)) {
-            Map<String, MegaType> expectedPairs;
             if (expectedType instanceof StructType) {
-                expectedPairs = ((StructType) expectedType).getProperties().stream()
-                    .collect(toMap(Pair::getKey, Pair::getValue));
-            } else {
-                expectedPairs = ((ObjectType) expectedType).properties.stream()
-                    .collect(toMap(Pair::getKey, Pair::getValue));
+                this.errors.add(new UnsupportedFeatureError("Object literals cannot be coerced to struct types", object.token.position));
+                object.setType(unknownType);
+                return unknownType;
             }
+
+            Map<String, MegaType> expectedPairs = ((ObjectType) expectedType).properties.stream()
+                .collect(toMap(Pair::getKey, Pair::getValue));
+
             objectPropertyTypes = object.pairs.stream()
                 .map(pair -> {
                     MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
@@ -521,11 +523,6 @@ public class TypeChecker {
             objectPropertyTypes = object.pairs.stream()
                 .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
                 .collect(toList());
-            StructType structType = env.getStructTypeByProps(objectPropertyTypes);
-            if (structType != null) {
-                object.setType(structType);
-                return structType;
-            }
         }
 
         ObjectType type = new ObjectType(objectPropertyTypes);

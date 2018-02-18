@@ -8,7 +8,6 @@ import java.util.Map;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
-import co.kenrg.mega.frontend.typechecking.types.StructType;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeMismatchError extends TypeCheckerError {
@@ -23,8 +22,8 @@ public class TypeMismatchError extends TypeCheckerError {
 
     @Override
     public String message() {
-        if (expected instanceof StructType && actual instanceof ObjectType) {
-            Map<String, MegaType> expectedProps = ((StructType) expected).getProperties().stream()
+        if (expected instanceof ObjectType && actual instanceof ObjectType) {
+            Map<String, MegaType> expectedProps = ((ObjectType) expected).properties.stream()
                 .collect(toMap(Pair::getKey, Pair::getValue));
             Map<String, MegaType> actualProps = ((ObjectType) actual).properties.stream()
                 .collect(toMap(Pair::getKey, Pair::getValue));
