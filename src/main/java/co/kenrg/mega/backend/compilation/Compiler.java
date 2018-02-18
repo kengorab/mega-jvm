@@ -1,5 +1,6 @@
 package co.kenrg.mega.backend.compilation;
 
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.getInternalName;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.isPrimitive;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmDescriptor;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.jvmMethodDescriptor;
@@ -53,15 +54,18 @@ import static org.objectweb.asm.Opcodes.IF_ICMPGE;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.IMUL;
 import static org.objectweb.asm.Opcodes.INEG;
+import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.NEW;
+import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V1_6;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -498,7 +502,31 @@ public class Compiler {
     }
 
     private void compileObjectLiteral(ObjectLiteral node) {
-        // TODO: compile object literals (wait until type declaration is done)
+        this.scope.focusedMethod.writer.visitTypeInsn(NEW, getInternalName(HashMap.class));
+        this.scope.focusedMethod.writer.visitInsn(DUP);
+        this.scope.focusedMethod.writer.visitMethodInsn(INVOKESPECIAL, getInternalName(HashMap.class), "<init>", "()V", false);
+        String tag = RandomStringUtils.randomAlphanumeric(6); // Tag to uniquely id map
+        this.scope.addBinding("$$map_" + tag, null, this.className, BindingTypes.LOCAL, false);
+        int mapIdx = this.scope.nextLocalVariableIndex();
+        this.scope.focusedMethod.writer.visitVarInsn(ASTORE, mapIdx);
+
+        for (Pair<Identifier, Expression> pair : node.pairs) {
+            this.scope.focusedMethod.writer.visitVarInsn(ALOAD, mapIdx);
+            this.scope.focusedMethod.writer.visitLdcInsn(pair.getKey().value);
+
+            Expression value = pair.getValue();
+            compileNode(value);
+            MegaType valueType = value.getType();
+            if (isPrimitive(valueType)) {
+                compileBoxPrimitiveType(valueType, this.scope.focusedMethod.writer);
+            }
+
+            String putDesc = "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;";
+            this.scope.focusedMethod.writer.visitMethodInsn(INVOKEINTERFACE, getInternalName(Map.class), "put", putDesc, true);
+            this.scope.focusedMethod.writer.visitInsn(POP);
+        }
+
+        this.scope.focusedMethod.writer.visitVarInsn(ALOAD, mapIdx);
     }
 
     private void compileIndexExpression(IndexExpression node) {

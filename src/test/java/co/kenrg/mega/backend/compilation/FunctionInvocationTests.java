@@ -13,6 +13,7 @@ import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 class FunctionInvocationTests {
@@ -332,5 +333,17 @@ class FunctionInvocationTests {
                 });
             })
             .collect(toList());
+    }
+
+    @Test
+    void testInvocationOfFunctionWhichAcceptsAMapLiteral() {
+        String input = "" +
+            "val m = { name: 'Ken', age: 26 }" +
+            "func doToMap(m: { name: String, age: Int }) { 123 }" +
+            "val oneTwoThree = doToMap(m)";
+        TestCompilationResult result = parseTypecheckAndCompileInput(input);
+        String className = result.className;
+
+        assertStaticBindingOnClassEquals(className, "oneTwoThree", 123, true);
     }
 }

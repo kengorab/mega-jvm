@@ -17,6 +17,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -93,7 +94,11 @@ class StaticVariableTests {
             Triple.of("val someBool = true", "someBool", true),
             Triple.of("val someBool = false", "someBool", false),
             Triple.of("val someStr = 'string 1'", "someStr", "string 1"),
-            Triple.of("val someStr = \"string 2\"", "someStr", "string 2")
+            Triple.of("val someStr = \"string 2\"", "someStr", "string 2"),
+            Triple.of("val someMap = { name: 'Ken', age: 26 }", "someMap", new HashMap<String, Object>() {{
+                put("name", "Ken");
+                put("age", 26);
+            }})
         );
 
         return testCases.stream()

@@ -7,6 +7,7 @@ import java.util.Map;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
+import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.Maps;
 import org.objectweb.asm.Type;
@@ -71,6 +72,8 @@ public class TypesAndSignatures {
             return "[" + elemDescriptor;
         } else if (type instanceof FunctionType) {
             return getDescriptor(type.typeClass());
+        } else if (type instanceof ObjectType) {
+            return getDescriptor(Map.class);
         }
 
         return descriptorForClass(type.className());
