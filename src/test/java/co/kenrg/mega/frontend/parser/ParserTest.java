@@ -471,6 +471,67 @@ class ParserTest {
     }
 
     @Test
+    void testFunctionDeclarationStatement_bodyIsSingleValueExpression() {
+        String input = "func add(a, b) = a + b";
+        Parser parser = new Parser(new Lexer(input));
+        Module module = parser.parseModule();
+        assertEquals(0, parser.errors.size());
+        FunctionDeclarationStatement actual = (FunctionDeclarationStatement) module.statements.get(0);
+        FunctionDeclarationStatement expected = new FunctionDeclarationStatement(
+            Token.function(Position.at(1, 1)),
+            new Identifier(Token.ident("add", Position.at(1, 6)), "add"),
+            Lists.newArrayList(
+                new Parameter(new Identifier(Token.ident("a", Position.at(1, 10)), "a")),
+                new Parameter(new Identifier(Token.ident("b", Position.at(1, 13)), "b"))
+            ),
+            new InfixExpression(
+                Token.plus(Position.at(1, 20)),
+                "+",
+                new Identifier(Token.ident("a", Position.at(1, 18)), "a"),
+                new Identifier(Token.ident("b", Position.at(1, 22)), "b")
+            )
+        );
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void testFunctionDeclarationStatement_bodyIsSingleValueBlockExpression_raisesWarning() {
+        String input = "func add(a, b) = { a + b }";
+        Parser parser = new Parser(new Lexer(input));
+        Module module = parser.parseModule();
+        assertEquals(0, parser.errors.size());
+        FunctionDeclarationStatement actual = (FunctionDeclarationStatement) module.statements.get(0);
+        FunctionDeclarationStatement expected = new FunctionDeclarationStatement(
+            Token.function(Position.at(1, 1)),
+            new Identifier(Token.ident("add", Position.at(1, 6)), "add"),
+            Lists.newArrayList(
+                new Parameter(new Identifier(Token.ident("a", Position.at(1, 10)), "a")),
+                new Parameter(new Identifier(Token.ident("b", Position.at(1, 13)), "b"))
+            ),
+            new BlockExpression(
+                Token.lbrace(Position.at(1, 18)),
+                Lists.newArrayList(
+                    new ExpressionStatement(
+                        Token.ident("a", Position.at(1, 20)),
+                        new InfixExpression(
+                            Token.plus(Position.at(1, 22)),
+                            "+",
+                            new Identifier(Token.ident("a", Position.at(1, 20)), "a"),
+                            new Identifier(Token.ident("b", Position.at(1, 24)), "b")
+                        )
+                    )
+                )
+            )
+        );
+        assertEquals(expected, actual);
+
+        List<SyntaxError> expectedWarnings = Lists.newArrayList(
+            new SyntaxError("Unnecessary equals sign; a function whose single-expression body is a block is pointless")
+        );
+        assertEquals(expectedWarnings, parser.warnings);
+    }
+
+    @Test
     void testParseSingleImportStatement() {
         String input = "import a from \"co.kenrg.some-package.Module\"";
         Module module = parseStatementAndGetModule(input);

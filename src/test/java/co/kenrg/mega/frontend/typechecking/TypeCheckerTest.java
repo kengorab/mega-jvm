@@ -565,11 +565,11 @@ class TypeCheckerTest {
         ));
 
         List<Triple<String, MegaType, String>> testCases = Lists.newArrayList(
-//            Triple.of(
-//                "val x: { name: String, age: Int } = { name: 'Ken' }",
-//                personObjType,
-//                "(1, 37): Expected { name: String, age: Int }, got { name: String }; missing properties { age: Int }"
-//            ),
+            Triple.of(
+                "val x: { name: String, age: Int } = { name: 'Ken' }",
+                personObjType,
+                "(1, 37): Expected { name: String, age: Int }, got { name: String }; missing properties { age: Int }"
+            ),
             Triple.of(
                 "val x: { manager: { name: String, age: Int }, members: Array[{ name: String, age: Int }] } = { manager: { name: 'Ken' }, members: [] }",
                 teamObjType,
@@ -692,7 +692,23 @@ class TypeCheckerTest {
                     PrimitiveTypes.INTEGER,
                     Kind.METHOD
                 )
-            )
+            ),
+
+            // Test with single-value body
+            Triple.of("func addOne(a: Int): Int = a + 1", "addOne", new FunctionType(
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 13)),
+                            "a",
+                            new BasicTypeExpression("Int", Position.at(1, 16)),
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.INTEGER,
+                Kind.METHOD
+            ))
         );
 
         return testCases.stream()

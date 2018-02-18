@@ -335,7 +335,7 @@ public class TypeChecker {
                 this.errors.add(new UnknownTypeError(statement.typeAnnotation, statement.token.position));
             } else {
                 if (!declaredReturnType.isEquivalentTo(returnType)) {
-                    this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.token.position));
+                    this.errors.add(new TypeMismatchError(declaredReturnType, returnType, statement.body.getToken().position));
                 }
                 env.addBindingWithType(statement.name.value, new FunctionType(statement.parameters, declaredReturnType, Kind.METHOD), true);
             }

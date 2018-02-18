@@ -122,6 +122,14 @@ class FunctionInvocationTests {
                     "val two = returnFn()(1)",
                 "two",
                 2
+            ),
+
+            // With single-value body
+            Triple.of("" +
+                    "func returnOne() = 1" +
+                    "val one = returnOne()",
+                "one",
+                1
             )
         );
 
@@ -146,64 +154,64 @@ class FunctionInvocationTests {
     List<DynamicTest> testInvocationOfStaticMethods_defaultValuedParameters() {
         List<Triple<String, String, Object>> testCases = Lists.newArrayList(
             Triple.of("" +
-                    "func shout(s: String = '', punc: String = '!') { s + punc }" +
+                    "func shout(s: String = '', punc: String = '!') = s + punc\n" +
                     "val helloWorld = shout('Hello', ' ') + shout('world')",
                 "helloWorld",
                 "Hello world!"
             ),
             Triple.of(
-                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }" +
-                    "val a = returnsSum()" +
-                    "val b = returnsSum(10)" +
-                    "val c = returnsSum(10, 20)" +
-                    "val d = returnsSum(10, 20, 30)" +
-                    "val sum = a + b + c + d;",
+                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }\n" +
+                    "val a = returnsSum()\n" +
+                    "val b = returnsSum(10)\n" +
+                    "val c = returnsSum(10, 20)\n" +
+                    "val d = returnsSum(10, 20, 30)\n" +
+                    "val sum = a + b + c + d",
                 "sum",
                 114
             ),
             Triple.of(
-                "func returnsOne() { 1 }" +
-                    "func returnsInt(i: () => Int = () => 1) { i() }" +
-                    "val three = returnsInt() + returnsInt(() => 2);",
+                "func returnsOne() = 1\n" +
+                    "func returnsInt(i: () => Int = () => 1) { i() }\n" +
+                    "val three = returnsInt() + returnsInt(() => 2)",
                 "three",
                 3
             ),
             Triple.of(
-                "func returnsOne() { 1 }" +
-                    "func returnsInt(i: () => Int = returnsOne) { i() }" +
-                    "val three = returnsInt() + returnsInt(() => 2);",
+                "func returnsOne() { 1 }\n" +
+                    "func returnsInt(i: () => Int = returnsOne) { i() }\n" +
+                    "val three = returnsInt() + returnsInt(() => 2)",
                 "three",
                 3
             ),
 
             // With named parameters
             Triple.of("" +
-                    "func shout(s: String = '', punc: String = '!') { s + punc }" +
+                    "func shout(s: String = '', punc: String = '!') { s + punc }\n" +
                     "val helloWorld = shout(s: 'Hello', punc: ' ') + shout(s: 'world')",
                 "helloWorld",
                 "Hello world!"
             ),
             Triple.of(
-                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }" +
-                    "val a = returnsSum()" +
-                    "val b = returnsSum(i1: 10)" +
-                    "val c = returnsSum(i2: 20, i1: 10)" +
+                "func returnsSum(i1: Int = 1, i2: Int = 2, i3: Int = 3) { i1 + i2 + i3 }\n" +
+                    "val a = returnsSum()\n" +
+                    "val b = returnsSum(i1: 10)\n" +
+                    "val c = returnsSum(i2: 20, i1: 10)\n" +
                     "val d = returnsSum(i2: 20, i3: 30, i1: 10)" +
                     "val sum = a + b + c + d;",
                 "sum",
                 114
             ),
             Triple.of(
-                "func returnsOne() { 1 }" +
-                    "func returnsInt(fn: () => Int = () => 1) { fn() }" +
-                    "val three = returnsInt() + returnsInt(fn: () => 2);",
+                "func returnsOne() { 1 }\n" +
+                    "func returnsInt(fn: () => Int = () => 1) { fn() }\n" +
+                    "val three = returnsInt() + returnsInt(fn: () => 2)",
                 "three",
                 3
             ),
             Triple.of(
-                "func returnsOne() { 1 }" +
-                    "func returnsInt(fn: () => Int = returnsOne) { fn() }" +
-                    "val three = returnsInt() + returnsInt(fn: () => 2);",
+                "func returnsOne() { 1 }\n" +
+                    "func returnsInt(fn: () => Int = returnsOne) = fn()\n" +
+                    "val three = returnsInt() + returnsInt(fn: () => 2)",
                 "three",
                 3
             )

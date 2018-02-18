@@ -363,7 +363,11 @@ public class Compiler {
         }
         methodWriter.visitCode();
 
-        compileBlockExpression(node.body);
+        if (node.body instanceof BlockExpression) {
+            compileStatements(((BlockExpression) node.body).statements);
+        } else {
+            compileNode(node.body);
+        }
         methodWriter.visitInsn(returnInsn(fnType.returnType));
 
         methodWriter.visitMaxs(-1, -1);

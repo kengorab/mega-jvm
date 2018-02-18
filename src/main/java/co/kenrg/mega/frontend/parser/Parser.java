@@ -408,7 +408,7 @@ public class Parser {
         return null;
     }
 
-    // [export] func <name>([<param> [, <param>]*]) { <stmts> }
+    // [export] func <name>([<param> [, <param>]*]) [{ <stmts> } | <expr>]
     private Statement parseFunctionDeclarationStatement(boolean isExported) {
         Token t = this.curTok;  // The 'func' token
 
@@ -434,11 +434,25 @@ public class Parser {
             typeAnnotation = this.curTok.literal;
         }
 
-        if (!this.expectPeek(TokenType.LBRACE)) {
+        if (!this.expectPeek(TokenType.LBRACE, TokenType.ASSIGN)) {
             return null;
         }
 
-        BlockExpression body = (BlockExpression) this.parseBlockExpression();
+        Expression body;
+        if (this.curTokenIs(TokenType.LBRACE)) {
+            body = this.parseBlockExpression();
+        } else if (this.curTokenIs(TokenType.ASSIGN)) {
+            this.nextToken(); // Skip '='
+            if (this.curTokenIs(TokenType.LBRACE)) {
+                this.addParserWarning("Unnecessary equals sign; a function whose single-expression body is a block is pointless");
+                body = this.parseBlockExpression();
+            } else {
+                body = this.parseExpression(LOWEST);
+            }
+        } else {
+            throw new IllegalStateException("There shouldn't be any other possibilities for a function body");
+        }
+
         if (typeAnnotation != null) {
             return new FunctionDeclarationStatement(t, name, params, body, typeAnnotation, isExported);
         }

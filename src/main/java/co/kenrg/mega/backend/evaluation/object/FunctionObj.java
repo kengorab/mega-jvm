@@ -9,17 +9,16 @@ import co.kenrg.mega.backend.evaluation.evaluator.Environment;
 import co.kenrg.mega.backend.evaluation.object.iface.InvokeableObj;
 import co.kenrg.mega.backend.evaluation.object.iface.Obj;
 import co.kenrg.mega.backend.evaluation.object.iface.ObjectType;
-import co.kenrg.mega.frontend.ast.expression.BlockExpression;
 import co.kenrg.mega.frontend.ast.expression.Parameter;
 import co.kenrg.mega.frontend.ast.iface.Expression;
 
 public class FunctionObj extends Obj implements InvokeableObj {
     public final String name;
     public final List<Parameter> params;
-    public final BlockExpression body;
+    public final Expression body;
     public final Environment env;
 
-    public FunctionObj(String name, List<Parameter> params, BlockExpression body, Environment env) {
+    public FunctionObj(String name, List<Parameter> params, Expression body, Environment env) {
         this.name = name;
         this.params = params;
         this.body = body;
