@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -1589,6 +1590,120 @@ class ParserTest {
                     p.parseModule();
                     assertEquals(1, p.errors.size(), "There should be one error message");
                     assertTrue(p.errors.get(0).message.contains("Expected one of [VAL, VAR, FUNCTION, TYPE], saw"));
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testAccessorExpression() {
+        class TestCase {
+            public final String input;
+            private final AccessorExpression expr;
+
+            private TestCase(String input, AccessorExpression expr) {
+                this.input = input;
+                this.expr = expr;
+            }
+        }
+
+        List<TestCase> tests = Lists.newArrayList(
+            new TestCase(
+                "a.b",
+                new AccessorExpression(
+                    Token.dot(Position.at(1, 2)),
+                    new Identifier(
+                        Token.ident("a", Position.at(1, 1)),
+                        "a",
+                        null
+                    ),
+                    new Identifier(
+                        Token.ident("b", Position.at(1, 3)),
+                        "b",
+                        null
+                    )
+                )
+            ),
+            new TestCase(
+                "a.b.c",
+                new AccessorExpression(
+                    Token.dot(Position.at(1, 4)),
+                    new AccessorExpression(
+                        Token.dot(Position.at(1, 2)),
+                        new Identifier(
+                            Token.ident("a", Position.at(1, 1)),
+                            "a",
+                            null
+                        ),
+                        new Identifier(
+                            Token.ident("b", Position.at(1, 3)),
+                            "b",
+                            null
+                        )
+                    ),
+                    new Identifier(
+                        Token.ident("c", Position.at(1, 5)),
+                        "c",
+                        null
+                    )
+                )
+            ),
+            new TestCase(
+                "'a'.b().c[0].d",
+                new AccessorExpression(
+                    Token.dot(Position.at(1, 13)),
+                    new IndexExpression(
+                        Token.lbrack(Position.at(1, 10)),
+                        new AccessorExpression(
+                            Token.dot(Position.at(1, 8)),
+                            new CallExpression.UnnamedArgs(
+                                Token.lparen(Position.at(1, 6)),
+                                new AccessorExpression(
+                                    Token.dot(Position.at(1, 4)),
+                                    new StringLiteral(
+                                        Token.string("a", Position.at(1, 1)),
+                                        "a"
+                                    ),
+                                    new Identifier(
+                                        Token.ident("b", Position.at(1, 5)),
+                                        "b",
+                                        null
+                                    )
+                                ),
+                                Lists.newArrayList()
+                            ),
+                            new Identifier(
+                                Token.ident("c", Position.at(1, 9)),
+                                "c",
+                                null
+                            )
+                        ),
+                        new IntegerLiteral(
+                            Token._int("0", Position.at(1, 11)),
+                            0
+                        )
+                    ),
+                    new Identifier(
+                        Token.ident("d", Position.at(1, 14)),
+                        "d",
+                        null
+                    )
+                )
+            )
+        );
+
+        return tests.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                AccessorExpression expectedExpr = testCase.expr;
+
+                String name = String.format("'%s', should be AccessorExpression", input);
+                return dynamicTest(name, () -> {
+                    ExpressionStatement statement = parseExpressionStatement(input);
+                    assertTrue(statement.expression instanceof AccessorExpression);
+                    AccessorExpression expr = (AccessorExpression) statement.expression;
+
+                    assertEquals(expectedExpr, expr);
                 });
             })
             .collect(toList());

@@ -11,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -107,6 +108,7 @@ public class Parser {
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
         this.registerInfix(TokenType.ASSIGN, this::parseAssignmentExpression);
+        this.registerInfix(TokenType.DOT, this::parseAccessorExpression);
         this.registerInfix(TokenType.DOTDOT, this::parseRangeExpression);
     }
 
@@ -920,6 +922,15 @@ public class Parser {
 
         Expression right = this.parseExpression(LOWEST);
         return new AssignmentExpression(t, name, right);
+    }
+
+    // <expr>.<ident>
+    private Expression parseAccessorExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '.' token
+        this.nextToken();   // Consume '.'
+
+        Identifier identifier = (Identifier) this.parseIdentifier();
+        return new AccessorExpression(t, leftExpr, identifier);
     }
 
     // <expr>..<expr>
