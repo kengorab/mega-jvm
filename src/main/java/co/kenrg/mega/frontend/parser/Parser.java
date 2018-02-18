@@ -47,6 +47,7 @@ import co.kenrg.mega.frontend.ast.type.StructTypeExpression;
 import co.kenrg.mega.frontend.ast.type.TypeExpression;
 import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
+import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
 import com.google.common.collect.Lists;
@@ -109,12 +110,12 @@ public class Parser {
         this.registerInfix(TokenType.DOTDOT, this::parseRangeExpression);
     }
 
-    private void addParserError(String message) {
-        this.errors.add(new SyntaxError(message));
+    private void addParserError(String message, Position position) {
+        this.errors.add(new SyntaxError(message, position));
     }
 
-    private void addParserWarning(String message) {
-        this.warnings.add(new SyntaxError(message));
+    private void addParserWarning(String message, Position position) {
+        this.warnings.add(new SyntaxError(message, position));
     }
 
     private void nextToken() {
@@ -127,7 +128,7 @@ public class Parser {
         if (this.peekTok == null || this.peekTok.type != TokenType.EOF) {
             Pair<Token, SyntaxError> token = this.lexer.nextToken();
             if (token.getRight() != null) {
-                this.addParserError(token.getRight().message);
+                this.addParserError(token.getRight().message, token.getLeft().position);
             }
             this.peekAheadTok = token.getLeft();
         }
@@ -161,7 +162,7 @@ public class Parser {
             }
         }
 
-        this.addParserError(String.format("Expected %s, saw %s", tokenTypesErrPart, this.peekTok.type));
+        this.addParserError(String.format("Expected %s, saw %s", tokenTypesErrPart, this.peekTok.type), this.peekTok.position);
         return false;
     }
 
@@ -400,7 +401,7 @@ public class Parser {
 
             StructTypeExpression structTypeExpr = new StructTypeExpression(propTypes, startToken.position);
             if (structTypeExpr.isTooUnwieldy()) {
-                this.addParserWarning("Type signature is a bit too verbose, consider defining as a separate type?");
+                this.addParserWarning("Type signature is a bit too verbose, consider defining as a separate type?", startToken.position);
             }
             return structTypeExpr;
         }
@@ -444,7 +445,7 @@ public class Parser {
         } else if (this.curTokenIs(TokenType.ASSIGN)) {
             this.nextToken(); // Skip '='
             if (this.curTokenIs(TokenType.LBRACE)) {
-                this.addParserWarning("Unnecessary equals sign; a function whose single-expression body is a block is pointless");
+                this.addParserWarning("Unnecessary equals sign; a function whose single-expression body is a block is pointless", this.prevTok.position);
                 body = this.parseBlockExpression();
             } else {
                 body = this.parseExpression(LOWEST);
@@ -509,7 +510,7 @@ public class Parser {
         Token t = this.curTok; // The 'import' token
 
         if (this.peekTokenIs(TokenType.FROM)) {
-            this.addParserError("Invalid imported name: 'from'");
+            this.addParserError("Invalid imported name: 'from'", this.peekTok.position);
             return null;
         }
 
@@ -546,7 +547,7 @@ public class Parser {
     private Expression parseExpression(Precedence precedence) {
         PrefixParseFunction prefixFn = this.prefixParseFns.get(this.curTok.type);
         if (prefixFn == null) {
-            this.addParserError(String.format("Unexpected '%s'", this.curTok.type));
+            this.addParserError(String.format("Unexpected '%s'", this.curTok.type), this.curTok.position);
             return null;
         }
 
@@ -807,8 +808,9 @@ public class Parser {
 
     // <param> => <expr>
     private Expression parseSingleParamArrowFunctionExpression(Expression leftExpr) {
-        if (leftExpr.getToken().type != TokenType.IDENT) {
-            addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, leftExpr.getToken().type));
+        Token token = leftExpr.getToken();
+        if (token.type != TokenType.IDENT) {
+            addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, token.type), token.position);
             return null;
         }
         Identifier param = (Identifier) leftExpr;
@@ -819,7 +821,7 @@ public class Parser {
         this.nextToken();   // Skip '=>'
 
         Expression body = this.parseBlockOrSingleExpression();
-        return new ArrowFunctionExpression(leftExpr.getToken(), Lists.newArrayList(new Parameter(param)), body);
+        return new ArrowFunctionExpression(token, Lists.newArrayList(new Parameter(param)), body);
     }
 
     // ([<param>[: <type_ident>] [= <expr>] [, <param>[: <type_ident>] [= <expr>]]*])
@@ -911,7 +913,7 @@ public class Parser {
         this.nextToken();   // Consume '='
 
         if (!(leftExpr instanceof Identifier)) {
-            this.addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, this.peekTok.type));
+            this.addParserError(String.format("Expected %s, saw %s", TokenType.IDENT, this.peekTok.type), this.peekTok.position);
             return null;
         }
         Identifier name = (Identifier) leftExpr;

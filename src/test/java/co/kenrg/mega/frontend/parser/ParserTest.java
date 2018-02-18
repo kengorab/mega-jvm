@@ -268,7 +268,7 @@ class ParserTest {
                     List<SyntaxError> warnings = result.getRight();
 
                     List<SyntaxError> expected = Lists.newArrayList(
-                        new SyntaxError("Type signature is a bit too verbose, consider defining as a separate type?")
+                        new SyntaxError("Type signature is a bit too verbose, consider defining as a separate type?", Position.at(1, 13))
                     );
 
                     assertEquals(expected, warnings);
@@ -526,7 +526,7 @@ class ParserTest {
         assertEquals(expected, actual);
 
         List<SyntaxError> expectedWarnings = Lists.newArrayList(
-            new SyntaxError("Unnecessary equals sign; a function whose single-expression body is a block is pointless")
+            new SyntaxError("Unnecessary equals sign; a function whose single-expression body is a block is pointless", Position.at(1, 16))
         );
         assertEquals(expectedWarnings, parser.warnings);
     }

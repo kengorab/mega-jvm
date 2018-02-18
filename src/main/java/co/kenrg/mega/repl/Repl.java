@@ -58,7 +58,7 @@ public class Repl {
         if (!parser.errors.isEmpty()) {
             System.out.println("Syntax errors:");
             for (SyntaxError error : parser.errors) {
-                System.out.println("  " + moduleName + " " + error.message);
+                System.out.println(String.format("  %s (%d, %d): %s", moduleName, error.position.line, error.position.col, error.message));
             }
 
             return Optional.empty();
@@ -67,7 +67,7 @@ public class Repl {
         if (!parser.warnings.isEmpty()) {
             System.out.println("Syntax warnings:");
             for (SyntaxError warning : parser.warnings) {
-                System.out.println("  " + moduleName + " " + warning.message);
+                System.out.println(String.format("  %s (%d, %d): %s", moduleName, warning.position.line, warning.position.col, warning.message));
             }
         }
 

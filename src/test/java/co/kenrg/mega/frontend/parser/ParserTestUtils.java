@@ -34,7 +34,7 @@ public class ParserTestUtils {
         if (numErrs != 0) {
             System.out.println("Parser errors:");
             for (SyntaxError error : p.errors) {
-                System.out.println("  " + error.message);
+                System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message));
             }
         }
         assertEquals(0, p.errors.size(), "There should be 0 parser errors");

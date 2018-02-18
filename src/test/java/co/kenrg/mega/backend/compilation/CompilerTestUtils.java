@@ -67,7 +67,7 @@ class CompilerTestUtils {
         if (requireNoParseOrTypecheckErrors && !p.errors.isEmpty()) {
             System.out.println("Encountered parser errors: ");
             for (SyntaxError error : p.errors) {
-                System.out.printf("  %s", error.message);
+                System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message));
             }
             throw new TestFailureException("Test failed due to parser errors");
         }
@@ -80,7 +80,7 @@ class CompilerTestUtils {
         if (requireNoParseOrTypecheckErrors && !typecheckResult.errors.isEmpty()) {
             System.out.println("Encountered typechecking errors: ");
             for (TypeCheckerError error : typecheckResult.errors) {
-                System.out.printf("  %s", error.message());
+                System.out.println(String.format("  (%d, %d): %s", error.position.line, error.position.col, error.message()));
             }
             throw new TestFailureException("Test failed due to typechecking errors");
         }

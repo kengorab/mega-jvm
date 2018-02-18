@@ -278,17 +278,17 @@ public class Lexer {
                         for (int length = 4; length > 0; length--) {
                             this.readChar();
                             if (this.ch == '"') {
-                                SyntaxError error = new SyntaxError("Invalid unicode value");
+                                SyntaxError error = new SyntaxError("Invalid unicode value", Position.at(this.line, this.col));
                                 return Pair.of("", error);
                             }
                             if (this.ch == 0) {
-                                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote));
+                                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote), Position.at(this.line, this.col));
                                 return Pair.of("", error);
                             }
 
                             int digitVal = digitValue(this.ch);
                             if (digitVal >= base) {
-                                SyntaxError error = new SyntaxError("Invalid unicode value");
+                                SyntaxError error = new SyntaxError("Invalid unicode value", Position.at(this.line, this.col));
                                 return Pair.of("", error);
                             }
 
@@ -301,7 +301,7 @@ public class Lexer {
                 }
             }
             if (ch == 0) {
-                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote));
+                SyntaxError error = new SyntaxError(String.format("Expected %c, saw EOF", quote), Position.at(this.line, this.col));
                 return Pair.of("", error);
             }
 
