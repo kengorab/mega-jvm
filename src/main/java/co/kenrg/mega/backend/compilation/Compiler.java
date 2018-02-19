@@ -57,6 +57,7 @@ import static org.objectweb.asm.Opcodes.INEG;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.NEW;
@@ -76,6 +77,7 @@ import co.kenrg.mega.backend.compilation.scope.BindingTypes;
 import co.kenrg.mega.backend.compilation.scope.FocusedMethod;
 import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -114,6 +116,7 @@ import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
@@ -237,6 +240,8 @@ public class Compiler {
             this.compileArrowFunctionExpression((ArrowFunctionExpression) node);
         } else if (node instanceof CallExpression) {
             this.compileCallExpression((CallExpression) node);
+        } else if (node instanceof AccessorExpression) {
+            this.compileAccessorExpression((AccessorExpression) node);
         }
 
         this.scope.context.popContext();
@@ -806,5 +811,19 @@ public class Compiler {
 
     private void compileCallExpression(CallExpression node) {
         compileInvocation(node, this.scope, this::compileNode);
+    }
+
+    private void compileAccessorExpression(AccessorExpression node) {
+        compileNode(node.target);
+        String propName = node.property.value;
+        String getterName = String.format("get%s", StringUtils.capitalize(propName));
+
+        MegaType targetType = node.target.getType();
+        assert targetType != null;
+
+        MegaType type = node.getType();
+        assert type != null;
+        String getterDesc = String.format("()%s", jvmDescriptor(type, false));
+        this.scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, getInternalName(targetType), getterName, getterDesc, false);
     }
 }
