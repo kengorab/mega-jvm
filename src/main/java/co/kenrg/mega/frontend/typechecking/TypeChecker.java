@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
@@ -959,21 +960,17 @@ public class TypeChecker {
     MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, @Nullable MegaType expectedType) {
         Expression target = node.target;
         MegaType targetType = typecheckNode(target, env);
-        LinkedHashMultimap<String, MegaType> properties = targetType.getProperties();
+//        LinkedHashMultimap<String, MegaType> properties = targetType.getProperties();
         // TODO: I wonder if some API like targetType.hasPropMatching(String name, MegaType type) would work? This way is currently too inefficient, I think
 
         String propName = node.property.value;
-        List<MegaType> propTypePossibilities = Lists.newArrayList();
-        properties.forEach((_propName, propType) -> {
-            if (_propName.equals(propName)) {
-                propTypePossibilities.add(propType);
-            }
-        });
-//        for (Entry<String, MegaType> property : properties.entries()) {
-//            if (property.getKey().equals(propName)) {
-//                propTypePossibilities.add(property.getRight());
+//        List<MegaType> propTypePossibilities = Lists.newArrayList();
+        Set<MegaType> propTypePossibilities = targetType.getPropertiesByName(propName);
+//        properties.forEach((_propName, propType) -> {
+//            if (_propName.equals(propName)) {
+//                propTypePossibilities.add(propType);
 //            }
-//        }
+//        });
 
         if (propTypePossibilities.size() == 0) {
             this.errors.add(new UnknownPropertyError(propName, node.property.token.position));
@@ -998,7 +995,7 @@ public class TypeChecker {
                 type = expectedType;
             }
         } else {
-            type = propTypePossibilities.get(0); // TODO: Fix this - the typechecker methods should probably return a Collection of possible types, and downstream methods can determine which one to use?
+            type = propTypePossibilities.iterator().next(); // TODO: Fix this - the typechecker methods should probably return a Collection of possible types, and downstream methods can determine which one to use?
         }
 
         node.setType(type);

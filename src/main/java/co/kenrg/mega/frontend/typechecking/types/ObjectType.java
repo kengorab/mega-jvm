@@ -2,6 +2,8 @@ package co.kenrg.mega.frontend.typechecking.types;
 
 import static java.util.stream.Collectors.joining;
 
+import java.util.Set;
+
 import com.google.common.collect.LinkedHashMultimap;
 
 public class ObjectType extends MegaType {
@@ -26,5 +28,10 @@ public class ObjectType extends MegaType {
     @Override
     public LinkedHashMultimap<String, MegaType> getProperties() {
         return this.properties;
+    }
+
+    @Override
+    public Set<MegaType> getPropertiesByName(String propName) {
+        return this.properties.get(propName);
     }
 }

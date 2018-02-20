@@ -37,6 +37,11 @@ public class StructType extends MegaType {
     }
 
     @Override
+    public Set<MegaType> getPropertiesByName(String propName) {
+        return this.properties.get(propName);
+    }
+
+    @Override
     public boolean isEquivalentTo(MegaType other) {
         if (other instanceof StructType || other instanceof ObjectType) {
             LinkedHashMultimap<String, MegaType> properties = other.getProperties();

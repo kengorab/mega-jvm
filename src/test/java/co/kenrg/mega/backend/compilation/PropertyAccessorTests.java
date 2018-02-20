@@ -90,17 +90,17 @@ class PropertyAccessorTests {
                 "val s = 'substring'.substring(1)",
                 "ubstring",
                 "s"
+            ),
+            new TestCase(
+                "val i = (123).floatValue().intValue()",
+                123,
+                "i"
+            ),
+            new TestCase(
+                "val b = true.toString()",
+                "true",
+                "b"
             )
-//            new TestCase(
-//                "val i = (123).floatValue().intValue()",
-//                123,
-//                "i"
-//            )
-//            new TestCase(
-//                "val b = true.toString()",
-//                "true",
-//                "b"
-//            )
 //            new TestCase( // TODO: Uncomment this when typechecking/compilation of polymorphic methods is supported
 //                "val s = 'substring'.substring(2, 5)",
 //                "str",
