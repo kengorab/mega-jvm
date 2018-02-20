@@ -2123,31 +2123,6 @@ class TypeCheckerTest {
                     Kind.METHOD
                 )
             )
-//            Pair.of(
-//                "'asdf'.substring",
-//                new FunctionType(
-//                    Lists.newArrayList(
-//                        new Parameter(
-//                            new Identifier(
-//                                Token.ident("arg0", Position.at(-1, -1)),
-//                                "arg0",
-//                                null,
-//                                PrimitiveTypes.INTEGER
-//                            )
-//                        ),
-//                        new Parameter(
-//                            new Identifier(
-//                                Token.ident("arg1", Position.at(-1, -1)),
-//                                "arg1",
-//                                null,
-//                                PrimitiveTypes.INTEGER
-//                            )
-//                        )
-//                    ),
-//                    PrimitiveTypes.STRING,
-//                    Kind.METHOD
-//                )
-//            )
         );
 
         return testCases.stream()
@@ -2159,7 +2134,6 @@ class TypeCheckerTest {
                 return dynamicTest(name, () -> {
                     TypeEnvironment env = new TypeEnvironment();
 
-                    MegaType _expectedType = testCase.getRight();
                     MegaType result = testTypecheckExpression(input, env);
                     assertEquals(expectedType, result);
                 });

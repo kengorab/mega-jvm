@@ -33,9 +33,6 @@ public class TypeExpressions {
                 propTypes.put(propName, TypeExpressions.fromType(propType));
             });
             return new StructTypeExpression(
-//                ((StructType) type).getProperties().stream()
-//                    .map(p -> Pair.of(p.getLeft(), TypeExpressions.fromType(p.getRight())))
-//                    .collect(toList()),
                 propTypes,
                 null
             );

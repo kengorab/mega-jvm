@@ -257,9 +257,6 @@ public class TypeChecker {
             structTypeExpr.propTypes.forEach((propName, propTypeExpr) -> {
                 propTypes.put(propName, resolveType(propTypeExpr, typeEnvironment));
             });
-//            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
-//                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
-//                .collect(toList());
             return new ObjectType(propTypes);
         }
 
@@ -528,20 +525,10 @@ public class TypeChecker {
                 MegaType expectedPairType = expectedPairs.get(ident.value);
                 objectPropertyTypes.put(ident.value, typecheckNode(expr, env, expectedPairType));
             });
-
-//            objectPropertyTypes = object.pairs.stream()
-//                .map(pair -> {
-//                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
-//                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
-//                })
-//                .collect(toList());
         } else {
             object.pairs.forEach((ident, expr) -> {
                 objectPropertyTypes.put(ident.value, typecheckNode(expr, env));
             });
-//            objectPropertyTypes = object.pairs.stream()
-//                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
-//                .collect(toList());
         }
 
         ObjectType type = new ObjectType(objectPropertyTypes);
@@ -960,17 +947,9 @@ public class TypeChecker {
     MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, @Nullable MegaType expectedType) {
         Expression target = node.target;
         MegaType targetType = typecheckNode(target, env);
-//        LinkedHashMultimap<String, MegaType> properties = targetType.getProperties();
-        // TODO: I wonder if some API like targetType.hasPropMatching(String name, MegaType type) would work? This way is currently too inefficient, I think
 
         String propName = node.property.value;
-//        List<MegaType> propTypePossibilities = Lists.newArrayList();
         Set<MegaType> propTypePossibilities = targetType.getPropertiesByName(propName);
-//        properties.forEach((_propName, propType) -> {
-//            if (_propName.equals(propName)) {
-//                propTypePossibilities.add(propType);
-//            }
-//        });
 
         if (propTypePossibilities.size() == 0) {
             this.errors.add(new UnknownPropertyError(propName, node.property.token.position));
