@@ -6,7 +6,7 @@ import co.kenrg.mega.frontend.typechecking.types.FunctionType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.LinkedHashMultimap;
 
 public class TypeExpressions {
     // TODO: Add tests for this
@@ -28,10 +28,15 @@ public class TypeExpressions {
                 null
             );
         } else if (type instanceof StructType) {
+            LinkedHashMultimap<String, TypeExpression> propTypes = LinkedHashMultimap.create();
+            type.getProperties().forEach((propName, propType) -> {
+                propTypes.put(propName, TypeExpressions.fromType(propType));
+            });
             return new StructTypeExpression(
-                ((StructType) type).getProperties().stream()
-                    .map(p -> Pair.of(p.getLeft(), TypeExpressions.fromType(p.getRight())))
-                    .collect(toList()),
+//                ((StructType) type).getProperties().stream()
+//                    .map(p -> Pair.of(p.getLeft(), TypeExpressions.fromType(p.getRight())))
+//                    .collect(toList()),
+                propTypes,
                 null
             );
         } else {

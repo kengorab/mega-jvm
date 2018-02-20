@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -85,6 +86,7 @@ import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
@@ -250,9 +252,13 @@ public class TypeChecker {
 
         if (typeExpr instanceof StructTypeExpression) {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
-            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
-                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
-                .collect(toList());
+            LinkedHashMultimap<String, MegaType> propTypes = LinkedHashMultimap.create();
+            structTypeExpr.propTypes.forEach((propName, propTypeExpr) -> {
+                propTypes.put(propName, resolveType(propTypeExpr, typeEnvironment));
+            });
+//            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
+//                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
+//                .collect(toList());
             return new ObjectType(propTypes);
         }
 
@@ -370,13 +376,13 @@ public class TypeChecker {
         String typeName = statement.typeName.value;
         MegaType type = resolveType(statement.typeExpr, env);
         if (type instanceof ObjectType) {
-            List<Pair<String, MegaType>> properties = ((ObjectType) type).properties;
+            LinkedHashMultimap<String, MegaType> properties = type.getProperties();
             type = new StructType(typeName, properties);
 
-            List<Identifier> params = properties.stream()
+            List<Identifier> params = properties.entries().stream()
                 .map(prop -> {
-                    String propName = prop.getLeft();
-                    MegaType propType = prop.getRight();
+                    String propName = prop.getKey();
+                    MegaType propType = prop.getValue();
 
                     TypeExpression typeExpr = TypeExpressions.fromType(propType);
                     return new Identifier(Token.ident(propName, null), propName, typeExpr, propType);
@@ -505,7 +511,7 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
-        List<Pair<String, MegaType>> objectPropertyTypes;
+        final LinkedHashMultimap<String, MegaType> objectPropertyTypes = LinkedHashMultimap.create();
 
         if (expectedType != null && (expectedType instanceof StructType || expectedType instanceof ObjectType)) {
             if (expectedType instanceof StructType) {
@@ -514,19 +520,27 @@ public class TypeChecker {
                 return unknownType;
             }
 
-            Map<String, MegaType> expectedPairs = ((ObjectType) expectedType).properties.stream()
-                .collect(toMap(Pair::getKey, Pair::getValue));
+            Map<String, MegaType> expectedPairs = ((ObjectType) expectedType).properties.entries().stream()
+                .collect(toMap(Entry::getKey, Entry::getValue));
 
-            objectPropertyTypes = object.pairs.stream()
-                .map(pair -> {
-                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
-                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
-                })
-                .collect(toList());
+            object.pairs.forEach((ident, expr) -> {
+                MegaType expectedPairType = expectedPairs.get(ident.value);
+                objectPropertyTypes.put(ident.value, typecheckNode(expr, env, expectedPairType));
+            });
+
+//            objectPropertyTypes = object.pairs.stream()
+//                .map(pair -> {
+//                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
+//                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
+//                })
+//                .collect(toList());
         } else {
-            objectPropertyTypes = object.pairs.stream()
-                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
-                .collect(toList());
+            object.pairs.forEach((ident, expr) -> {
+                objectPropertyTypes.put(ident.value, typecheckNode(expr, env));
+            });
+//            objectPropertyTypes = object.pairs.stream()
+//                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
+//                .collect(toList());
         }
 
         ObjectType type = new ObjectType(objectPropertyTypes);
@@ -945,16 +959,21 @@ public class TypeChecker {
     MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, @Nullable MegaType expectedType) {
         Expression target = node.target;
         MegaType targetType = typecheckNode(target, env);
-        List<Pair<String, MegaType>> properties = targetType.getProperties();
+        LinkedHashMultimap<String, MegaType> properties = targetType.getProperties();
         // TODO: I wonder if some API like targetType.hasPropMatching(String name, MegaType type) would work? This way is currently too inefficient, I think
 
         String propName = node.property.value;
         List<MegaType> propTypePossibilities = Lists.newArrayList();
-        for (Pair<String, MegaType> property : properties) {
-            if (property.getLeft().equals(propName)) {
-                propTypePossibilities.add(property.getRight());
+        properties.forEach((_propName, propType) -> {
+            if (_propName.equals(propName)) {
+                propTypePossibilities.add(propType);
             }
-        }
+        });
+//        for (Entry<String, MegaType> property : properties.entries()) {
+//            if (property.getKey().equals(propName)) {
+//                propTypePossibilities.add(property.getRight());
+//            }
+//        }
 
         if (propTypePossibilities.size() == 0) {
             this.errors.add(new UnknownPropertyError(propName, node.property.token.position));

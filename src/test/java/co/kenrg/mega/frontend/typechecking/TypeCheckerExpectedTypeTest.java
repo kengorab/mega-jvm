@@ -47,8 +47,8 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
+import co.kenrg.mega.utils.LinkedHashMultimaps;
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
@@ -194,9 +194,9 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(
-                new ObjectType(Lists.newArrayList(
-                    Pair.of("name", PrimitiveTypes.STRING),
-                    Pair.of("age", PrimitiveTypes.INTEGER)
+                new ObjectType(LinkedHashMultimaps.of(
+                    "name", PrimitiveTypes.STRING,
+                    "age", PrimitiveTypes.INTEGER
                 )),
                 objectType
             );
@@ -206,9 +206,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsMatchingObjectType_returnsExpectedType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
-            ObjectType objectType = new ObjectType(Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            ObjectType objectType = new ObjectType(LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             MegaType type = typeChecker.typecheckObjectLiteral(object, env, objectType);
 
@@ -220,9 +220,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsStruct_throwsUnsupportedFeatureError_returnsUnknownType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
-            StructType personType = new StructType("Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             env.addType("Person", personType);
             MegaType objectType = typeChecker.typecheckObjectLiteral(object, env, personType);
@@ -244,9 +244,9 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(
                     arrayType,
-                    new ObjectType(Lists.newArrayList(
-                        Pair.of("name", PrimitiveTypes.STRING),
-                        Pair.of("age", PrimitiveTypes.INTEGER)
+                    new ObjectType(LinkedHashMultimaps.of(
+                        "name", PrimitiveTypes.STRING,
+                        "age", PrimitiveTypes.INTEGER
                     )),
                     Position.at(1, 1)
                 )),
@@ -1158,9 +1158,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsCorrect_returnsExpectedType() {
             AccessorExpression expr = parseExpression("person.name", AccessorExpression.class);
 
-            StructType personType = new StructType("Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             env.addType("Person", personType);
             env.addBindingWithType("person", personType, true);
@@ -1173,9 +1173,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsIncorrect_returnsExpectedType_hasMismatchError() {
             AccessorExpression expr = parseExpression("person.age", AccessorExpression.class);
 
-            StructType personType = new StructType("Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             env.addType("Person", personType);
             env.addBindingWithType("person", personType, true);

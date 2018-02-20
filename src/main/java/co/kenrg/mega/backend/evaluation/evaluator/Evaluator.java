@@ -59,7 +59,6 @@ import co.kenrg.mega.frontend.ast.statement.VarStatement;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.apache.commons.lang3.tuple.Pair;
 
 public class Evaluator {
 
@@ -249,10 +248,14 @@ public class Evaluator {
     private static Obj evalObjectLiteral(ObjectLiteral obj, Environment env) {
         Map<String, Obj> pairs = Maps.newHashMap();
 
-        for (Pair<Identifier, Expression> entry : obj.pairs) {
-            Obj value = eval(entry.getValue(), env);
-            pairs.put(entry.getKey().value, value);
-        }
+        obj.pairs.forEach((ident, expr) -> {
+            Obj value = eval(expr, env);
+            pairs.put(ident.value, value);
+        });
+//        for (Pair<Identifier, Expression> entry : obj.pairs) {
+//            Obj value = eval(entry.getValue(), env);
+//            pairs.put(entry.getKey().value, value);
+//        }
 
         return new ObjectObj(pairs);
     }

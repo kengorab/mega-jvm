@@ -4,11 +4,11 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 import java.util.Map;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
-import org.apache.commons.lang3.tuple.Pair;
 
 public class TypeMismatchError extends TypeCheckerError {
     public final MegaType expected;
@@ -23,10 +23,10 @@ public class TypeMismatchError extends TypeCheckerError {
     @Override
     public String message() {
         if (expected instanceof ObjectType && actual instanceof ObjectType) {
-            Map<String, MegaType> expectedProps = ((ObjectType) expected).properties.stream()
-                .collect(toMap(Pair::getKey, Pair::getValue));
-            Map<String, MegaType> actualProps = ((ObjectType) actual).properties.stream()
-                .collect(toMap(Pair::getKey, Pair::getValue));
+            Map<String, MegaType> expectedProps = expected.getProperties().entries().stream()
+                .collect(toMap(Entry::getKey, Entry::getValue));
+            Map<String, MegaType> actualProps = actual.getProperties().entries().stream()
+                .collect(toMap(Entry::getKey, Entry::getValue));
 
             String missingProps = expectedProps.entrySet().stream()
                 .filter(entry -> !(actualProps.containsKey(entry.getKey()) && actualProps.get(entry.getKey()).isEquivalentTo(entry.getValue())))

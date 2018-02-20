@@ -2,20 +2,18 @@ package co.kenrg.mega.frontend.typechecking.types;
 
 import static java.util.stream.Collectors.joining;
 
-import java.util.List;
-
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.LinkedHashMultimap;
 
 public class ObjectType extends MegaType {
-    public final List<Pair<String, MegaType>> properties;
+    public final LinkedHashMultimap<String, MegaType> properties;
 
-    public ObjectType(List<Pair<String, MegaType>> properties) {
+    public ObjectType(LinkedHashMultimap<String, MegaType> properties) {
         this.properties = properties;
     }
 
     @Override
     public String displayName() {
-        return this.properties.stream()
+        return this.properties.entries().stream()
             .map(entry -> entry.getKey() + ": " + entry.getValue().signature())
             .collect(joining(", ", "{ ", " }"));
     }
@@ -26,7 +24,7 @@ public class ObjectType extends MegaType {
     }
 
     @Override
-    public List<Pair<String, MegaType>> getProperties() {
+    public LinkedHashMultimap<String, MegaType> getProperties() {
         return this.properties;
     }
 }

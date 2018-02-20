@@ -58,6 +58,7 @@ import co.kenrg.mega.frontend.error.SyntaxError;
 import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
+import co.kenrg.mega.utils.LinkedHashMultimaps;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -150,7 +151,7 @@ class ParserTest {
 
             new TestCase("var x: Int = 4", "x", new BasicTypeExpression("Int", Position.at(1, 8)), getVarStmtIdent),
             new TestCase("var s: String = \"asdf\"", "s", new BasicTypeExpression("String", Position.at(1, 8)), getVarStmtIdent),
-            new TestCase("var p: { name: String } = { name: \"asdf\" }", "p", new StructTypeExpression(Lists.newArrayList(Pair.of("name", new BasicTypeExpression("String", Position.at(1, 16)))), Position.at(1, 8)), getVarStmtIdent),
+            new TestCase("var p: { name: String } = { name: \"asdf\" }", "p", new StructTypeExpression(LinkedHashMultimaps.of("name", new BasicTypeExpression("String", Position.at(1, 16))), Position.at(1, 8)), getVarStmtIdent),
 
             new TestCase("func abc(a: Int, b: Int) { a + b }", "a", new BasicTypeExpression("Int", Position.at(1, 13)), getFuncStmtParamIdent.apply(0)),
             new TestCase("func abc(a: Int, b: Int) { a + b }", "b", new BasicTypeExpression("Int", Position.at(1, 21)), getFuncStmtParamIdent.apply(1)),
@@ -244,8 +245,8 @@ class ParserTest {
         ValStatement valStatement = (ValStatement) result.getLeft();
 
         StructTypeExpression expected = new StructTypeExpression(
-            Lists.newArrayList(
-                Pair.of("name", new BasicTypeExpression("String", Position.at(1, 21)))
+            LinkedHashMultimaps.of(
+                "name", new BasicTypeExpression("String", Position.at(1, 21))
             ),
             Position.at(1, 13)
         );
@@ -844,7 +845,7 @@ class ParserTest {
 
                     // Sorting expected and actual by alphabetical order helps ensure non-flaky tests, since objects'
                     // key/value pairs aren't always ordered the same.
-                    List<Pair<Identifier, Expression>> elems = Lists.newArrayList(expr.pairs);
+                    List<Entry<Identifier, Expression>> elems = Lists.newArrayList(expr.pairs.entries());
                     elems.sort(Comparator.comparing(e -> e.getKey().value));
 
                     for (int i = 0; i < elems.size(); i++) {

@@ -36,6 +36,7 @@ import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import java.util.List;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.backend.compilation.Compiler;
 import co.kenrg.mega.backend.compilation.util.OpcodeUtils;
@@ -45,6 +46,7 @@ import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import mega.lang.collections.Arrays;
 import org.apache.commons.lang3.tuple.Pair;
@@ -70,7 +72,7 @@ public class TypeDeclarationStatementCompiler {
 
         StructType structType = (StructType) type;
         structType.setClassName(innerClassName);
-        List<Pair<String, MegaType>> properties = structType.getProperties();
+        LinkedHashMultimap<String, MegaType> properties = structType.getProperties();
 
         writeClinitMethod(compiler, properties);
         writeInitMethod(innerClassName, compiler, properties);
@@ -83,8 +85,8 @@ public class TypeDeclarationStatementCompiler {
         return compiler.results();
     }
 
-    private static void writeClinitMethod(Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
-        for (Pair<String, MegaType> prop : typeProperties) {
+    private static void writeClinitMethod(Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
+        for (Entry<String, MegaType> prop : typeProperties.entries()) {
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
             compiler.cw.visitField(ACC_PRIVATE | ACC_FINAL, propName, jvmDescriptor(propType, false), null, null);
@@ -95,9 +97,9 @@ public class TypeDeclarationStatementCompiler {
         compiler.clinitWriter.visitEnd();
     }
 
-    private static void writeInitMethod(String innerClassName, Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
-        String initDesc = typeProperties.stream()
-            .map(Pair::getValue)
+    private static void writeInitMethod(String innerClassName, Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
+        String initDesc = typeProperties.entries().stream()
+            .map(Entry::getValue)
             .map(type -> jvmDescriptor(type, false))
             .collect(joining("", "(", ")V"));
         MethodVisitor initWriter = compiler.cw.visitMethod(ACC_PUBLIC, "<init>", initDesc, null, null);
@@ -106,7 +108,7 @@ public class TypeDeclarationStatementCompiler {
         initWriter.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
 
         int index = 1;
-        for (Pair<String, MegaType> prop : typeProperties) {
+        for (Entry<String, MegaType> prop : typeProperties.entries()) {
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
 
@@ -121,8 +123,8 @@ public class TypeDeclarationStatementCompiler {
         initWriter.visitEnd();
     }
 
-    private static void writeGetterMethods(String innerClassName, Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
-        for (Pair<String, MegaType> prop : typeProperties) {
+    private static void writeGetterMethods(String innerClassName, Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
+        for (Entry<String, MegaType> prop : typeProperties.entries()) {
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
             String propDesc = jvmDescriptor(propType, false);
@@ -139,7 +141,7 @@ public class TypeDeclarationStatementCompiler {
         }
     }
 
-    private static void writeEqualsMethod(String innerClassName, Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
+    private static void writeEqualsMethod(String innerClassName, Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
         MethodVisitor equalsWriter = compiler.cw.visitMethod(ACC_PUBLIC, "equals", "(Ljava/lang/Object;)Z", null, null);
         equalsWriter.visitCode();
 
@@ -158,7 +160,7 @@ public class TypeDeclarationStatementCompiler {
         equalsWriter.visitTypeInsn(CHECKCAST, innerClassName);
         equalsWriter.visitVarInsn(ASTORE, 2);
 
-        for (Pair<String, MegaType> prop : typeProperties) {
+        for (Entry<String, MegaType> prop : typeProperties.entries()) {
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
             String propDesc = jvmDescriptor(propType, false);
@@ -197,12 +199,13 @@ public class TypeDeclarationStatementCompiler {
         equalsWriter.visitEnd();
     }
 
-    private static void writeHashCodeMethod(String innerClassName, Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
+    private static void writeHashCodeMethod(String innerClassName, Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
         MethodVisitor hashCodeWriter = compiler.cw.visitMethod(ACC_PUBLIC, "hashCode", "()I", null, null);
         hashCodeWriter.visitCode();
 
+        List<Entry<String, MegaType>> entries = Lists.newArrayList(typeProperties.entries());
         for (int i = 0; i < typeProperties.size(); i++) {
-            Pair<String, MegaType> prop = typeProperties.get(i);
+            Entry<String, MegaType> prop = entries.get(i);
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
             String propDesc = jvmDescriptor(propType, false);
@@ -235,7 +238,7 @@ public class TypeDeclarationStatementCompiler {
         hashCodeWriter.visitEnd();
     }
 
-    private static void writeToStringMethod(String typeClassName, String innerClassName, Compiler compiler, List<Pair<String, MegaType>> typeProperties) {
+    private static void writeToStringMethod(String typeClassName, String innerClassName, Compiler compiler, LinkedHashMultimap<String, MegaType> typeProperties) {
         MethodVisitor toStringWriter = compiler.cw.visitMethod(ACC_PUBLIC, "toString", "()Ljava/lang/String;", null, null);
         toStringWriter.visitCode();
         toStringWriter.visitTypeInsn(NEW, "java/lang/StringBuilder");
@@ -245,8 +248,9 @@ public class TypeDeclarationStatementCompiler {
         toStringWriter.visitLdcInsn(typeClassName + " { ");
         toStringWriter.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;", false);
 
+        List<Entry<String, MegaType>> entries = Lists.newArrayList(typeProperties.entries());
         for (int i = 0; i < typeProperties.size(); i++) {
-            Pair<String, MegaType> prop = typeProperties.get(i);
+            Entry<String, MegaType> prop = entries.get(i);
             String propName = prop.getKey();
             MegaType propType = prop.getValue();
             String propDesc = jvmDescriptor(propType, false);

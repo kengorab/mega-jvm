@@ -2,22 +2,22 @@ package co.kenrg.mega.frontend.ast.type;
 
 import static java.util.stream.Collectors.joining;
 
-import java.util.List;
+import java.util.Map.Entry;
 
 import co.kenrg.mega.frontend.token.Position;
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.common.collect.LinkedHashMultimap;
 
 public class StructTypeExpression extends TypeExpression {
-    public final List<Pair<String, TypeExpression>> propTypes;
+    public final LinkedHashMultimap<String, TypeExpression> propTypes;
 
-    public StructTypeExpression(List<Pair<String, TypeExpression>> propTypes, Position position) {
+    public StructTypeExpression(LinkedHashMultimap<String, TypeExpression> propTypes, Position position) {
         super(position);
         this.propTypes = propTypes;
     }
 
     @Override
     public String signature() {
-        return this.propTypes.stream()
+        return this.propTypes.entries().stream()
             .map(entry -> String.format("%s: %s", entry.getKey(), entry.getValue().signature()))
             .collect(joining(", ", "{ ", " }"));
     }
@@ -28,8 +28,8 @@ public class StructTypeExpression extends TypeExpression {
      * @return true if it contains a nested StructTypeExpression, its display length is >= 30, or it has more than 2 fields; false otherwise
      */
     public boolean isTooUnwieldy() {
-        for (Pair<String, TypeExpression> prop : propTypes) {
-            if (prop.getRight() instanceof StructTypeExpression) {
+        for (Entry<String, TypeExpression> prop : propTypes.entries()) {
+            if (prop.getValue() instanceof StructTypeExpression) {
                 return true;
             }
         }

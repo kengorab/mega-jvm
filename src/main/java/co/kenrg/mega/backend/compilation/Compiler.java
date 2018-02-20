@@ -519,7 +519,7 @@ public class Compiler {
         int mapIdx = this.scope.nextLocalVariableIndex();
         this.scope.focusedMethod.writer.visitVarInsn(ASTORE, mapIdx);
 
-        for (Pair<Identifier, Expression> pair : node.pairs) {
+        for (Entry<Identifier, Expression> pair : node.pairs.entries()) {
             this.scope.focusedMethod.writer.visitVarInsn(ALOAD, mapIdx);
             this.scope.focusedMethod.writer.visitLdcInsn(pair.getKey().value);
 
