@@ -2,13 +2,21 @@ package co.kenrg.mega.backend.compilation;
 
 import static java.util.stream.Collectors.joining;
 
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 
+import co.kenrg.mega.frontend.ast.expression.Identifier;
+import co.kenrg.mega.frontend.ast.expression.Parameter;
+import co.kenrg.mega.frontend.token.Position;
+import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.types.ArrayType;
 import co.kenrg.mega.frontend.typechecking.types.FunctionType;
+import co.kenrg.mega.frontend.typechecking.types.FunctionType.Kind;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.objectweb.asm.Type;
 
@@ -81,5 +89,55 @@ public class TypesAndSignatures {
 
     public static boolean isPrimitive(MegaType type) {
         return type == PrimitiveTypes.INTEGER || type == PrimitiveTypes.FLOAT || type == PrimitiveTypes.BOOLEAN;
+    }
+
+    public static MegaType typeForClass(Class c) {
+        if (c.equals(Integer.class) || c.getName().equals("int")) {
+            return PrimitiveTypes.INTEGER;
+        } else if (c.equals(Float.class) || c.getName().equals("float")) {
+            return PrimitiveTypes.FLOAT;
+        } else if (c.equals(Boolean.class) || c.getName().equals("boolean")) {
+            return PrimitiveTypes.BOOLEAN;
+        } else if (c.equals(String.class)) {
+            return PrimitiveTypes.STRING;
+        } else if (c.equals(Object.class)) {
+            return PrimitiveTypes.ANY;
+        } else if (c.equals(Void.class) || c.getName().equals("void")) {
+            return PrimitiveTypes.UNIT;
+        } else if (c.isArray()) {
+            Class componentType = c.getComponentType();
+            if (componentType == null) {
+                return null;
+            }
+            return new ArrayType(typeForClass(componentType));
+        } else {
+            System.out.println("Warning: Cannot find MegaType for class: " + c);
+            return null;
+        }
+    }
+
+    public static FunctionType typeForMethod(Method method) {
+        List<Parameter> params = Lists.newArrayList();
+        for (java.lang.reflect.Parameter param : method.getParameters()) {
+            String paramName = param.getName();
+            MegaType type = typeForClass(param.getType());
+            if (type == null) {
+                System.out.println("Warning: Skipping method: " + method + " due to unsupported type: " + param.getType());
+                continue;
+            }
+
+            params.add(new Parameter(
+                new Identifier(
+                    Token.ident(paramName, Position.at(-1, -1)),
+                    paramName,
+                    null,
+                    type
+                )
+            ));
+        }
+
+        MegaType returnType = typeForClass(method.getReturnType());
+
+        return new FunctionType(params, returnType, Kind.METHOD);
     }
 }

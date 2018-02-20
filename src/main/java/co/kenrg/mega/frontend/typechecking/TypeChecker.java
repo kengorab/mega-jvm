@@ -941,44 +941,45 @@ public class TypeChecker {
         return PrimitiveTypes.UNIT;
     }
 
-    private MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, MegaType expectedType) {
+    @VisibleForTesting
+    MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, @Nullable MegaType expectedType) {
         Expression target = node.target;
         MegaType targetType = typecheckNode(target, env);
-        if (!(targetType instanceof StructType || targetType instanceof ObjectType)) {
-            this.errors.add(new UnsupportedFeatureError("Accessing properties of non-struct/non-object types", node.token.position));
-            MegaType type = expectedType == null ? unknownType : expectedType;
-            node.setType(type);
-            return type;
-        }
-
-        List<Pair<String, MegaType>> properties;
-        if (targetType instanceof StructType) {
-            properties = ((StructType) targetType).getProperties();
-        } else {
-            properties = ((ObjectType) targetType).properties;
-        }
+        List<Pair<String, MegaType>> properties = targetType.getProperties();
+        // TODO: I wonder if some API like targetType.hasPropMatching(String name, MegaType type) would work? This way is currently too inefficient, I think
 
         String propName = node.property.value;
-        MegaType propType = null;
+        List<MegaType> propTypePossibilities = Lists.newArrayList();
         for (Pair<String, MegaType> property : properties) {
             if (property.getLeft().equals(propName)) {
-                propType = property.getRight();
-                break;
+                propTypePossibilities.add(property.getRight());
             }
         }
-        if (propType == null) {
+
+        if (propTypePossibilities.size() == 0) {
             this.errors.add(new UnknownPropertyError(propName, node.property.token.position));
             MegaType type = expectedType == null ? unknownType : expectedType;
             node.setType(type);
             return type;
         }
 
-        MegaType type;
-        if (expectedType != null && !propType.isEquivalentTo(expectedType)) {
-            this.errors.add(new TypeMismatchError(expectedType, propType, node.property.token.position));
-            type = expectedType;
+        MegaType type = null;
+        if (expectedType != null) {
+            for (MegaType possibility : propTypePossibilities) {
+                if (possibility.isEquivalentTo(expectedType)) {
+                    type = possibility;
+                    break;
+                }
+            }
+
+            if (type == null) {
+                for (MegaType possibility : propTypePossibilities) {
+                    this.errors.add(new TypeMismatchError(expectedType, possibility, node.property.token.position));
+                }
+                type = expectedType;
+            }
         } else {
-            type = propType;
+            type = propTypePossibilities.get(0); // TODO: Fix this - the typechecker methods should probably return a Collection of possible types, and downstream methods can determine which one to use?
         }
 
         node.setType(type);

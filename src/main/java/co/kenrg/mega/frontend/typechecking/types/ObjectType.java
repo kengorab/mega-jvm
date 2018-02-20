@@ -24,4 +24,9 @@ public class ObjectType extends MegaType {
     public boolean isEquivalentTo(MegaType other) {
         return other instanceof ObjectType && this.properties.equals(((ObjectType) other).properties);
     }
+
+    @Override
+    public List<Pair<String, MegaType>> getProperties() {
+        return this.properties;
+    }
 }

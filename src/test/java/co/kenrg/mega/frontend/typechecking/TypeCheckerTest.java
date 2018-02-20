@@ -2007,7 +2007,7 @@ class TypeCheckerTest {
     }
 
     @TestFactory
-    List<DynamicTest> testTypecheckAccessorExpression() {
+    List<DynamicTest> testTypecheckAccessorExpression_definedTypes() {
         class TestCase {
             public final String input;
             public final Map<String, MegaType> environment;
@@ -2078,6 +2078,86 @@ class TypeCheckerTest {
                     env.addType("Team", teamType);
                     environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
 
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(expectedType, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression_builtinTypes() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of(
+                "'asdf'.length",
+                new FunctionType(
+                    Lists.newArrayList(),
+                    PrimitiveTypes.INTEGER,
+                    Kind.METHOD
+                )
+            ),
+            Pair.of(
+                "(123).floatValue",
+                new FunctionType(
+                    Lists.newArrayList(),
+                    PrimitiveTypes.FLOAT,
+                    Kind.METHOD
+                )
+            ),
+            Pair.of(
+                "'asdf'.concat",
+                new FunctionType(
+                    Lists.newArrayList(
+                        new Parameter(
+                            new Identifier(
+                                Token.ident("arg0", Position.at(-1, -1)),
+                                "arg0",
+                                null,
+                                PrimitiveTypes.STRING
+                            )
+                        )
+                    ),
+                    PrimitiveTypes.STRING,
+                    Kind.METHOD
+                )
+            )
+//            Pair.of(
+//                "'asdf'.substring",
+//                new FunctionType(
+//                    Lists.newArrayList(
+//                        new Parameter(
+//                            new Identifier(
+//                                Token.ident("arg0", Position.at(-1, -1)),
+//                                "arg0",
+//                                null,
+//                                PrimitiveTypes.INTEGER
+//                            )
+//                        ),
+//                        new Parameter(
+//                            new Identifier(
+//                                Token.ident("arg1", Position.at(-1, -1)),
+//                                "arg1",
+//                                null,
+//                                PrimitiveTypes.INTEGER
+//                            )
+//                        )
+//                    ),
+//                    PrimitiveTypes.STRING,
+//                    Kind.METHOD
+//                )
+//            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType expectedType = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+
+                    MegaType _expectedType = testCase.getRight();
                     MegaType result = testTypecheckExpression(input, env);
                     assertEquals(expectedType, result);
                 });

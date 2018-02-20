@@ -33,6 +33,7 @@ public class StructType extends MegaType {
         return this.typeName;
     }
 
+    @Override
     public List<Pair<String, MegaType>> getProperties() {
         return this.properties;
     }

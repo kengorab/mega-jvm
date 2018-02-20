@@ -126,6 +126,10 @@ public class FunctionType extends MegaType {
         }
         FunctionType otherType = (FunctionType) other;
 
+        if (this.arity() != ((FunctionType) other).arity()) {
+            return false;
+        }
+
         Boolean paramTypesEq = zip(this.paramTypes.stream(), otherType.paramTypes.stream(), Pair::of)
             .map(pair -> pair.getLeft().isEquivalentTo(pair.getRight()))
             .reduce(true, Boolean::logicalAnd);
