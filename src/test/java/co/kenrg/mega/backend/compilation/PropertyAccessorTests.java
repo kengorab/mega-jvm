@@ -92,8 +92,8 @@ class PropertyAccessorTests {
                 "s"
             ),
             new TestCase(
-                "val i = (123).floatValue().intValue()",
-                123,
+                "val i = 'substring'.length().floatValue().intValue()",
+                9,
                 "i"
             ),
             new TestCase(
