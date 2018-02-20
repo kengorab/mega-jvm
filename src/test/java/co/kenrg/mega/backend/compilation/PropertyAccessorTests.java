@@ -86,11 +86,11 @@ class PropertyAccessorTests {
         }
 
         List<TestCase> testCases = Lists.newArrayList(
-//            new TestCase(
-//                "val s = 'substring'.substring(1)",
-//                "ubstring",
-//                "s"
-//            ),
+            new TestCase(
+                "val s = 'substring'.substring(1)",
+                "ubstring",
+                "s"
+            ),
             new TestCase(
                 "val i = 'substring'.length().floatValue().intValue()",
                 9,
