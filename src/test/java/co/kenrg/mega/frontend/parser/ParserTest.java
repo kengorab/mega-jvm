@@ -1600,9 +1600,9 @@ class ParserTest {
     List<DynamicTest> testAccessorExpression() {
         class TestCase {
             public final String input;
-            private final AccessorExpression expr;
+            private final Expression expr;
 
-            private TestCase(String input, AccessorExpression expr) {
+            private TestCase(String input, Expression expr) {
                 this.input = input;
                 this.expr = expr;
             }
@@ -1622,6 +1622,43 @@ class ParserTest {
                         Token.ident("b", Position.at(1, 3)),
                         "b",
                         null
+                    )
+                )
+            ),
+            new TestCase(
+                "() => a.b + b.c",
+                new ArrowFunctionExpression(
+                    Token.lparen(Position.at(1, 1)),
+                    Lists.newArrayList(),
+                    new InfixExpression(
+                        Token.plus(Position.at(1, 11)),
+                        "+",
+                        new AccessorExpression(
+                            Token.dot(Position.at(1, 8)),
+                            new Identifier(
+                                Token.ident("a", Position.at(1, 7)),
+                                "a",
+                                null
+                            ),
+                            new Identifier(
+                                Token.ident("b", Position.at(1, 9)),
+                                "b",
+                                null
+                            )
+                        ),
+                        new AccessorExpression(
+                            Token.dot(Position.at(1, 14)),
+                            new Identifier(
+                                Token.ident("b", Position.at(1, 13)),
+                                "b",
+                                null
+                            ),
+                            new Identifier(
+                                Token.ident("c", Position.at(1, 15)),
+                                "c",
+                                null
+                            )
+                        )
                     )
                 )
             ),
@@ -1696,15 +1733,12 @@ class ParserTest {
         return tests.stream()
             .map(testCase -> {
                 String input = testCase.input;
-                AccessorExpression expectedExpr = testCase.expr;
+                Expression expectedExpr = testCase.expr;
 
                 String name = String.format("'%s', should be AccessorExpression", input);
                 return dynamicTest(name, () -> {
                     ExpressionStatement statement = parseExpressionStatement(input);
-                    assertTrue(statement.expression instanceof AccessorExpression);
-                    AccessorExpression expr = (AccessorExpression) statement.expression;
-
-                    assertEquals(expectedExpr, expr);
+                    assertEquals(expectedExpr, statement.expression);
                 });
             })
             .collect(toList());

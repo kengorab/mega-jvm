@@ -1,8 +1,8 @@
 export type Person = {
-  firstName: String,
+  name: String,
   age: Int
 }
 
-export func greet(p: Person, name: String, greeting: String = 'Hello') { greeting + ' ' + name }
+export func greet(p: Person, greeting: String = 'Hello') = greeting + ' ' + p.name
 
-func privateGreet(p: Person, name: String, greeting: String = 'Hello') { greeting + ' ' + name }
+func privateGreet(p: Person, greeting: String = 'Hello') = greeting + ' ' + p.name

@@ -1,5 +1,10 @@
 import Person, greet from 'examples/person'
 
-val people = [ Person(firstName: 'Ken', age: 26), Person(firstName: 'Meg', age: 25) ]
+val people = [
+  Person(name: 'Ken', age: 26),
+  Person(name: 'Meg', age: 25)
+]
 
-val greetings = greet(people[0], 'Ken') + ', and ' + greet(p: people[1], name: 'Meg', greeting: 'welcome')
+val greetKen = greet(people[0])
+val greetMeg = greet(people[1], 'welcome')
+val greetings = greetKen + ', and ' + greetMeg

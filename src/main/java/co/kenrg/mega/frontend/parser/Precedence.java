@@ -11,6 +11,7 @@ enum Precedence {
     PRODUCT,
     PREFIX,
     CALL,
+    DOT,
     INDEX;
 
     public static Precedence forTokenType(TokenType tokenType) {
@@ -19,7 +20,6 @@ enum Precedence {
             case NEQ:
             case ASSIGN:
             case DOTDOT:
-            case DOT:
                 return EQUALS;
             case LANGLE:
             case RANGLE:
@@ -40,6 +40,8 @@ enum Precedence {
                 return ARROW;
             case LPAREN:
                 return CALL;
+            case DOT:
+                return DOT;
             default:
                 return LOWEST;
         }
