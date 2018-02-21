@@ -753,7 +753,27 @@ public class TypeChecker {
     }
 
     private MegaType typecheckUnnamedArgsCallExpression(CallExpression.UnnamedArgs expr, TypeEnvironment env, @Nullable MegaType expectedType) {
-        MegaType targetType = typecheckNode(expr.target, env);
+        MegaType targetType;
+        boolean skipArgTypechecking = false;
+        if (expr.target instanceof AccessorExpression) {
+            // Okay, this part is pretty gross. If the target is an acc expr, I assume that it's a method invocation,
+            // and the expected type is necessary to determine which method to choose (given polymorphism) so we need
+            // to determine the types of the parameters/arguments upfront. Passing `null` as a return type indicates
+            // that we don't necessarily care about this (see FunctionType::isEquivalentTo). Also, since we don't want to
+            // typecheck the arguments twice, ensure that it's skipped later on. This is pretty safe to do, since methods
+            // require their args' types to be defined, and won't ever contain inferences.
+            //
+            // Where this runs into trouble is when the property being accessed is an arrow function, which can possibly
+            // have arguments which require inference... We can cross that bridge when we come to it, I suppose...
+            List<MegaType> paramTypes = expr.arguments.stream()
+                .map(arg -> typecheckNode(arg, env))
+                .collect(toList());
+            skipArgTypechecking = true;
+            targetType = typecheckNode(expr.target, env, FunctionType.ofSignature(paramTypes, null));
+        } else {
+            targetType = typecheckNode(expr.target, env);
+        }
+
         if (!(targetType instanceof FunctionType)) {
             this.errors.add(new UninvokeableTypeError(targetType, expr.target.getToken().position));
             expr.setType(unknownType);
@@ -773,19 +793,22 @@ public class TypeChecker {
             return funcType.returnType;
         }
 
-        if (this.containsInferences(funcType)) {
-            // If the target contains inferences, make two typechecking passes over it, since we know the param types...
-            List<MegaType> paramTypes = expr.arguments.stream()
-                .map(arg -> typecheckNode(arg, env))
-                .collect(toList());
-            FunctionType expectedFuncType = FunctionType.ofSignature(paramTypes, expectedType);
-            funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
-        } else {
-            // Otherwise, typecheck the passed params with expected param types from non-inferred function type
-            for (int i = 0; i < expr.arguments.size(); i++) {
-                Expression arg = expr.arguments.get(i);
-                MegaType expectedParamType = funcType.paramTypes.get(i);
-                typecheckNode(arg, env, expectedParamType);
+        // See comment above about why we'd skip arg typechecking here
+        if (!skipArgTypechecking) {
+            if (this.containsInferences(funcType)) {
+                // If the target contains inferences, make two typechecking passes over it, since we know the param types...
+                List<MegaType> paramTypes = expr.arguments.stream()
+                    .map(arg -> typecheckNode(arg, env))
+                    .collect(toList());
+                FunctionType expectedFuncType = FunctionType.ofSignature(paramTypes, expectedType);
+                funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
+            } else {
+                // Otherwise, typecheck the passed params with expected param types from non-inferred function type
+                for (int i = 0; i < expr.arguments.size(); i++) {
+                    Expression arg = expr.arguments.get(i);
+                    MegaType expectedParamType = funcType.paramTypes.get(i);
+                    typecheckNode(arg, env, expectedParamType);
+                }
             }
         }
 
@@ -961,7 +984,7 @@ public class TypeChecker {
         MegaType type = null;
         if (expectedType != null) {
             for (MegaType possibility : propTypePossibilities) {
-                if (possibility.isEquivalentTo(expectedType)) {
+                if (expectedType.isEquivalentTo(possibility)) {
                     type = possibility;
                     break;
                 }

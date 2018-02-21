@@ -100,12 +100,12 @@ class PropertyAccessorTests {
                 "val b = true.toString()",
                 "true",
                 "b"
+            ),
+            new TestCase(
+                "val s = 'substring'.substring(2, 5)",
+                "bst",
+                "s"
             )
-//            new TestCase( // TODO: Uncomment this when typechecking/compilation of polymorphic methods is supported
-//                "val s = 'substring'.substring(2, 5)",
-//                "str",
-//                "s"
-//            )
         );
 
         return testCases.stream()
