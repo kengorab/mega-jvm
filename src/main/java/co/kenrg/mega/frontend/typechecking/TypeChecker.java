@@ -8,10 +8,13 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -70,6 +73,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownOperatorError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownPropertyError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnparametrizableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
@@ -83,6 +87,7 @@ import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
@@ -185,6 +190,8 @@ public class TypeChecker {
             return this.typecheckIndexExpression((IndexExpression) node, env, expectedType);
         } else if (node instanceof AssignmentExpression) {
             return this.typecheckAssignmentExpression((AssignmentExpression) node, env, expectedType);
+        } else if (node instanceof AccessorExpression) {
+            return this.typecheckAccessorExpression((AccessorExpression) node, env, expectedType);
         } else if (node instanceof RangeExpression) {
             return this.typecheckRangeExpression((RangeExpression) node, env, expectedType);
         }
@@ -246,9 +253,10 @@ public class TypeChecker {
 
         if (typeExpr instanceof StructTypeExpression) {
             StructTypeExpression structTypeExpr = (StructTypeExpression) typeExpr;
-            List<Pair<String, MegaType>> propTypes = structTypeExpr.propTypes.stream()
-                .map(propType -> Pair.of(propType.getKey(), resolveType(propType.getValue(), typeEnvironment)))
-                .collect(toList());
+            LinkedHashMultimap<String, MegaType> propTypes = LinkedHashMultimap.create();
+            structTypeExpr.propTypes.forEach((propName, propTypeExpr) -> {
+                propTypes.put(propName, resolveType(propTypeExpr, typeEnvironment));
+            });
             return new ObjectType(propTypes);
         }
 
@@ -366,13 +374,13 @@ public class TypeChecker {
         String typeName = statement.typeName.value;
         MegaType type = resolveType(statement.typeExpr, env);
         if (type instanceof ObjectType) {
-            List<Pair<String, MegaType>> properties = ((ObjectType) type).properties;
+            LinkedHashMultimap<String, MegaType> properties = type.getProperties();
             type = new StructType(typeName, properties);
 
-            List<Identifier> params = properties.stream()
+            List<Identifier> params = properties.entries().stream()
                 .map(prop -> {
-                    String propName = prop.getLeft();
-                    MegaType propType = prop.getRight();
+                    String propName = prop.getKey();
+                    MegaType propType = prop.getValue();
 
                     TypeExpression typeExpr = TypeExpressions.fromType(propType);
                     return new Identifier(Token.ident(propName, null), propName, typeExpr, propType);
@@ -501,7 +509,7 @@ public class TypeChecker {
 
     @VisibleForTesting
     MegaType typecheckObjectLiteral(ObjectLiteral object, TypeEnvironment env, @Nullable MegaType expectedType) {
-        List<Pair<String, MegaType>> objectPropertyTypes;
+        final LinkedHashMultimap<String, MegaType> objectPropertyTypes = LinkedHashMultimap.create();
 
         if (expectedType != null && (expectedType instanceof StructType || expectedType instanceof ObjectType)) {
             if (expectedType instanceof StructType) {
@@ -510,19 +518,17 @@ public class TypeChecker {
                 return unknownType;
             }
 
-            Map<String, MegaType> expectedPairs = ((ObjectType) expectedType).properties.stream()
-                .collect(toMap(Pair::getKey, Pair::getValue));
+            Map<String, MegaType> expectedPairs = ((ObjectType) expectedType).properties.entries().stream()
+                .collect(toMap(Entry::getKey, Entry::getValue));
 
-            objectPropertyTypes = object.pairs.stream()
-                .map(pair -> {
-                    MegaType expectedPairType = expectedPairs.get(pair.getKey().value);
-                    return Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env, expectedPairType));
-                })
-                .collect(toList());
+            object.pairs.forEach((ident, expr) -> {
+                MegaType expectedPairType = expectedPairs.get(ident.value);
+                objectPropertyTypes.put(ident.value, typecheckNode(expr, env, expectedPairType));
+            });
         } else {
-            objectPropertyTypes = object.pairs.stream()
-                .map(pair -> Pair.of(pair.getKey().value, typecheckNode(pair.getValue(), env)))
-                .collect(toList());
+            object.pairs.forEach((ident, expr) -> {
+                objectPropertyTypes.put(ident.value, typecheckNode(expr, env));
+            });
         }
 
         ObjectType type = new ObjectType(objectPropertyTypes);
@@ -747,7 +753,27 @@ public class TypeChecker {
     }
 
     private MegaType typecheckUnnamedArgsCallExpression(CallExpression.UnnamedArgs expr, TypeEnvironment env, @Nullable MegaType expectedType) {
-        MegaType targetType = typecheckNode(expr.target, env);
+        MegaType targetType;
+        boolean skipArgTypechecking = false;
+        if (expr.target instanceof AccessorExpression) {
+            // Okay, this part is pretty gross. If the target is an acc expr, I assume that it's a method invocation,
+            // and the expected type is necessary to determine which method to choose (given polymorphism) so we need
+            // to determine the types of the parameters/arguments upfront. Passing `null` as a return type indicates
+            // that we don't necessarily care about this (see FunctionType::isEquivalentTo). Also, since we don't want to
+            // typecheck the arguments twice, ensure that it's skipped later on. This is pretty safe to do, since methods
+            // require their args' types to be defined, and won't ever contain inferences.
+            //
+            // Where this runs into trouble is when the property being accessed is an arrow function, which can possibly
+            // have arguments which require inference... We can cross that bridge when we come to it, I suppose...
+            List<MegaType> paramTypes = expr.arguments.stream()
+                .map(arg -> typecheckNode(arg, env))
+                .collect(toList());
+            skipArgTypechecking = true;
+            targetType = typecheckNode(expr.target, env, FunctionType.ofSignature(paramTypes, null));
+        } else {
+            targetType = typecheckNode(expr.target, env);
+        }
+
         if (!(targetType instanceof FunctionType)) {
             this.errors.add(new UninvokeableTypeError(targetType, expr.target.getToken().position));
             expr.setType(unknownType);
@@ -767,19 +793,22 @@ public class TypeChecker {
             return funcType.returnType;
         }
 
-        if (this.containsInferences(funcType)) {
-            // If the target contains inferences, make two typechecking passes over it, since we know the param types...
-            List<MegaType> paramTypes = expr.arguments.stream()
-                .map(arg -> typecheckNode(arg, env))
-                .collect(toList());
-            FunctionType expectedFuncType = FunctionType.ofSignature(paramTypes, expectedType);
-            funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
-        } else {
-            // Otherwise, typecheck the passed params with expected param types from non-inferred function type
-            for (int i = 0; i < expr.arguments.size(); i++) {
-                Expression arg = expr.arguments.get(i);
-                MegaType expectedParamType = funcType.paramTypes.get(i);
-                typecheckNode(arg, env, expectedParamType);
+        // See comment above about why we'd skip arg typechecking here
+        if (!skipArgTypechecking) {
+            if (this.containsInferences(funcType)) {
+                // If the target contains inferences, make two typechecking passes over it, since we know the param types...
+                List<MegaType> paramTypes = expr.arguments.stream()
+                    .map(arg -> typecheckNode(arg, env))
+                    .collect(toList());
+                FunctionType expectedFuncType = FunctionType.ofSignature(paramTypes, expectedType);
+                funcType = (FunctionType) typecheckNode(expr.target, env, expectedFuncType);
+            } else {
+                // Otherwise, typecheck the passed params with expected param types from non-inferred function type
+                for (int i = 0; i < expr.arguments.size(); i++) {
+                    Expression arg = expr.arguments.get(i);
+                    MegaType expectedParamType = funcType.paramTypes.get(i);
+                    typecheckNode(arg, env, expectedParamType);
+                }
             }
         }
 
@@ -935,6 +964,44 @@ public class TypeChecker {
         }
         expr.setType(PrimitiveTypes.UNIT);
         return PrimitiveTypes.UNIT;
+    }
+
+    @VisibleForTesting
+    MegaType typecheckAccessorExpression(AccessorExpression node, TypeEnvironment env, @Nullable MegaType expectedType) {
+        Expression target = node.target;
+        MegaType targetType = typecheckNode(target, env);
+
+        String propName = node.property.value;
+        Set<MegaType> propTypePossibilities = targetType.getPropertiesByName(propName);
+
+        if (propTypePossibilities.size() == 0) {
+            this.errors.add(new UnknownPropertyError(propName, node.property.token.position));
+            MegaType type = expectedType == null ? unknownType : expectedType;
+            node.setType(type);
+            return type;
+        }
+
+        MegaType type = null;
+        if (expectedType != null) {
+            for (MegaType possibility : propTypePossibilities) {
+                if (expectedType.isEquivalentTo(possibility)) {
+                    type = possibility;
+                    break;
+                }
+            }
+
+            if (type == null) {
+                for (MegaType possibility : propTypePossibilities) {
+                    this.errors.add(new TypeMismatchError(expectedType, possibility, node.property.token.position));
+                }
+                type = expectedType;
+            }
+        } else {
+            type = propTypePossibilities.iterator().next(); // TODO: Fix this - the typechecker methods should probably return a Collection of possible types, and downstream methods can determine which one to use?
+        }
+
+        node.setType(type);
+        return type;
     }
 
     @VisibleForTesting

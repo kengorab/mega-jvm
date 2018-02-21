@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -46,8 +47,8 @@ import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
+import co.kenrg.mega.utils.LinkedHashMultimaps;
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
@@ -193,9 +194,9 @@ class TypeCheckerExpectedTypeTest {
 
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(
-                new ObjectType(Lists.newArrayList(
-                    Pair.of("name", PrimitiveTypes.STRING),
-                    Pair.of("age", PrimitiveTypes.INTEGER)
+                new ObjectType(LinkedHashMultimaps.of(
+                    "name", PrimitiveTypes.STRING,
+                    "age", PrimitiveTypes.INTEGER
                 )),
                 objectType
             );
@@ -205,9 +206,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsMatchingObjectType_returnsExpectedType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
-            ObjectType objectType = new ObjectType(Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            ObjectType objectType = new ObjectType(LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             MegaType type = typeChecker.typecheckObjectLiteral(object, env, objectType);
 
@@ -219,9 +220,9 @@ class TypeCheckerExpectedTypeTest {
         void expectedTypePassed_expectedTypeIsStruct_throwsUnsupportedFeatureError_returnsUnknownType() {
             ObjectLiteral object = parseExpression("{ name: 'asdf', age: 3 }", ObjectLiteral.class);
 
-            StructType personType = new StructType("Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             ));
             env.addType("Person", personType);
             MegaType objectType = typeChecker.typecheckObjectLiteral(object, env, personType);
@@ -243,9 +244,9 @@ class TypeCheckerExpectedTypeTest {
             assertEquals(
                 Lists.newArrayList(new TypeMismatchError(
                     arrayType,
-                    new ObjectType(Lists.newArrayList(
-                        Pair.of("name", PrimitiveTypes.STRING),
-                        Pair.of("age", PrimitiveTypes.INTEGER)
+                    new ObjectType(LinkedHashMultimaps.of(
+                        "name", PrimitiveTypes.STRING,
+                        "age", PrimitiveTypes.INTEGER
                     )),
                     Position.at(1, 1)
                 )),
@@ -1147,6 +1148,96 @@ class TypeCheckerExpectedTypeTest {
             MegaType type = typeChecker.typecheckRangeExpression(rangeExpression, env, arrayOf.apply(PrimitiveTypes.INTEGER));
             assertEquals(0, typeChecker.errors.size(), "There should be no errors");
             assertEquals(arrayOf.apply(PrimitiveTypes.INTEGER), type);
+        }
+    }
+
+    @Nested
+    class AccessorExpressionTests {
+
+        @Test
+        void expectedTypePassed_expectedTypeIsCorrect_returnsExpectedType() {
+            AccessorExpression expr = parseExpression("person.name", AccessorExpression.class);
+
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
+            ));
+            env.addType("Person", personType);
+            env.addBindingWithType("person", personType, true);
+
+            MegaType type = typeChecker.typecheckAccessorExpression(expr, env, PrimitiveTypes.STRING);
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        void expectedTypePassed_expectedTypeIsIncorrect_returnsExpectedType_hasMismatchError() {
+            AccessorExpression expr = parseExpression("person.age", AccessorExpression.class);
+
+            StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
+            ));
+            env.addType("Person", personType);
+            env.addBindingWithType("person", personType, true);
+
+            MegaType type = typeChecker.typecheckAccessorExpression(expr, env, PrimitiveTypes.STRING);
+            assertEquals(
+                Lists.newArrayList(new TypeMismatchError(
+                    PrimitiveTypes.STRING, PrimitiveTypes.INTEGER, Position.at(1, 8)
+                )),
+                typeChecker.errors
+            );
+            assertEquals(PrimitiveTypes.STRING, type);
+        }
+
+        @Test
+        void expectedTypePassed_multiplePossibilitiesForPropType_expectedTypeIsOneOfThem_returnsExpectedType() {
+
+            // Case 1: public String substring(int arg0)
+            AccessorExpression expr1 = parseExpression("'asdf'.substring", AccessorExpression.class);
+            FunctionType expectedType1 = new FunctionType(
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("arg0", Position.at(-1, -1)),
+                            "arg0",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.METHOD
+            );
+            MegaType type1 = typeChecker.typecheckAccessorExpression(expr1, env, expectedType1);
+            assertEquals(expectedType1, type1);
+
+            // Case 2: public String substring(int arg0, int arg1)
+            AccessorExpression expr2 = parseExpression("'asdf'.substring", AccessorExpression.class);
+            FunctionType expectedType2 = new FunctionType(
+                Lists.newArrayList(
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("arg0", Position.at(-1, -1)),
+                            "arg0",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    ),
+                    new Parameter(
+                        new Identifier(
+                            Token.ident("arg1", Position.at(-1, -1)),
+                            "arg1",
+                            null,
+                            PrimitiveTypes.INTEGER
+                        )
+                    )
+                ),
+                PrimitiveTypes.STRING,
+                Kind.METHOD
+            );
+            MegaType type2 = typeChecker.typecheckAccessorExpression(expr2, env, expectedType2);
+            assertEquals(expectedType2, type2);
         }
     }
 }

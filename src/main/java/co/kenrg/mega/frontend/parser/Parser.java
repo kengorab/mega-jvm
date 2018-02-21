@@ -11,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.ArrayLiteral;
 import co.kenrg.mega.frontend.ast.expression.ArrowFunctionExpression;
 import co.kenrg.mega.frontend.ast.expression.AssignmentExpression;
@@ -50,6 +51,7 @@ import co.kenrg.mega.frontend.lexer.Lexer;
 import co.kenrg.mega.frontend.token.Position;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.token.TokenType;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import mega.lang.collections.Arrays;
@@ -107,6 +109,7 @@ public class Parser {
         this.registerInfix(TokenType.LPAREN, this::parseCallExpression);
         this.registerInfix(TokenType.LBRACK, this::parseIndexExpression);
         this.registerInfix(TokenType.ASSIGN, this::parseAssignmentExpression);
+        this.registerInfix(TokenType.DOT, this::parseAccessorExpression);
         this.registerInfix(TokenType.DOTDOT, this::parseRangeExpression);
     }
 
@@ -370,7 +373,7 @@ public class Parser {
         if (this.curTokenIs(TokenType.LBRACE)) {
             this.nextToken();
 
-            List<Pair<String, TypeExpression>> propTypes = Lists.newArrayList();
+            LinkedHashMultimap<String, TypeExpression> propTypes = LinkedHashMultimap.create();
 
             Identifier prop = (Identifier) this.parseIdentifier();
 
@@ -379,7 +382,7 @@ public class Parser {
             }
             this.nextToken();
 
-            propTypes.add(Pair.of(prop.value, this.parseTypeExpression()));
+            propTypes.put(prop.value, this.parseTypeExpression());
 
             while (this.peekTokenIs(TokenType.COMMA)) {
                 this.nextToken();   // Consume ','
@@ -392,7 +395,7 @@ public class Parser {
                 }
                 this.nextToken();
 
-                propTypes.add(Pair.of(propName, this.parseTypeExpression()));
+                propTypes.put(propName, this.parseTypeExpression());
             }
 
             if (!expectPeek(TokenType.RBRACE)) {
@@ -660,7 +663,13 @@ public class Parser {
     // { [<ident>: <expr> [,<ident>: <expr>]*] }
     private Expression parseObjectLiteral() {
         Token t = this.curTok;
-        List<Pair<Identifier, Expression>> pairs = this.parseNamedExpressionPairs(TokenType.RBRACE);
+        LinkedHashMultimap<Identifier, Expression> pairs = LinkedHashMultimap.create();
+        List<Pair<Identifier, Expression>> namedExpressionPairs = this.parseNamedExpressionPairs(TokenType.RBRACE);
+        if (namedExpressionPairs == null) {
+            return null;
+        }
+
+        namedExpressionPairs.forEach(pair -> pairs.put(pair.getKey(), pair.getValue()));
 
         if (!this.expectPeek(TokenType.RBRACE)) {
             return null;
@@ -920,6 +929,15 @@ public class Parser {
 
         Expression right = this.parseExpression(LOWEST);
         return new AssignmentExpression(t, name, right);
+    }
+
+    // <expr>.<ident>
+    private Expression parseAccessorExpression(Expression leftExpr) {
+        Token t = this.curTok;  // The '.' token
+        this.nextToken();   // Consume '.'
+
+        Identifier identifier = (Identifier) this.parseIdentifier();
+        return new AccessorExpression(t, leftExpr, identifier);
     }
 
     // <expr>..<expr>

@@ -53,6 +53,7 @@ import co.kenrg.mega.frontend.typechecking.errors.UninvokeableTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownExportError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownIdentifierError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownModuleError;
+import co.kenrg.mega.frontend.typechecking.errors.UnknownPropertyError;
 import co.kenrg.mega.frontend.typechecking.errors.UnknownTypeError;
 import co.kenrg.mega.frontend.typechecking.errors.UnsupportedFeatureError;
 import co.kenrg.mega.frontend.typechecking.errors.VisibilityError;
@@ -64,7 +65,9 @@ import co.kenrg.mega.frontend.typechecking.types.ObjectType;
 import co.kenrg.mega.frontend.typechecking.types.ParametrizedMegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
 import co.kenrg.mega.frontend.typechecking.types.StructType;
+import co.kenrg.mega.utils.LinkedHashMultimaps;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -170,8 +173,8 @@ class TypeCheckerTest {
                     null
                 ),
                 new StructTypeExpression(
-                    Lists.newArrayList(
-                        Pair.of("name", new BasicTypeExpression("String", Position.at(7, 30)))
+                    LinkedHashMultimaps.of(
+                        "name", new BasicTypeExpression("String", Position.at(7, 30))
                     ),
                     Position.at(7, 22)
                 ),
@@ -477,13 +480,13 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsObjectType() {
-        ObjectType personObjType = new ObjectType( Lists.newArrayList(
-            Pair.of("name", PrimitiveTypes.STRING),
-            Pair.of("age", PrimitiveTypes.INTEGER)
+        ObjectType personObjType = new ObjectType(LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "age", PrimitiveTypes.INTEGER
         ));
-        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
-            Pair.of("manager", personObjType),
-            Pair.of("members", arrayOf.apply(personObjType))
+        ObjectType teamObjType = new ObjectType(LinkedHashMultimaps.of(
+            "manager", personObjType,
+            "members", arrayOf.apply(personObjType)
         ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
@@ -517,17 +520,17 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsStructType_noTypeAnnotation_bindingHasCorrectlyGuessedType() {
-        ObjectType personObjType = new ObjectType( Lists.newArrayList(
-            Pair.of("name", PrimitiveTypes.STRING),
-            Pair.of("age", PrimitiveTypes.INTEGER)
+        ObjectType personObjType = new ObjectType(LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "age", PrimitiveTypes.INTEGER
         ));
-        ObjectType teamObjType = new ObjectType( Lists.newArrayList(
-            Pair.of("manager", personObjType),
-            Pair.of("members", arrayOf.apply(personObjType))
+        ObjectType teamObjType = new ObjectType(LinkedHashMultimaps.of(
+            "manager", personObjType,
+            "members", arrayOf.apply(personObjType)
         ));
-        ObjectType teamObjIncompleteType = new ObjectType( Lists.newArrayList(
-            Pair.of("manager", personObjType),
-            Pair.of("members", arrayOf.apply(PrimitiveTypes.NOTHING))
+        ObjectType teamObjIncompleteType = new ObjectType(LinkedHashMultimaps.of(
+            "manager", personObjType,
+            "members", arrayOf.apply(PrimitiveTypes.NOTHING)
         ));
 
         List<Pair<String, MegaType>> testCases = Lists.newArrayList(
@@ -555,13 +558,13 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckBindingDeclarationStatement_typeIsObjectType_bindingIsMissingFields_errors() {
-        ObjectType personObjType = new ObjectType(Lists.newArrayList(
-            Pair.of("name", PrimitiveTypes.STRING),
-            Pair.of("age", PrimitiveTypes.INTEGER)
+        ObjectType personObjType = new ObjectType(LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "age", PrimitiveTypes.INTEGER
         ));
-        ObjectType teamObjType = new ObjectType(Lists.newArrayList(
-            Pair.of("manager", personObjType),
-            Pair.of("members", arrayOf.apply(personObjType))
+        ObjectType teamObjType = new ObjectType(LinkedHashMultimaps.of(
+            "manager", personObjType,
+            "members", arrayOf.apply(personObjType)
         ));
 
         List<Triple<String, MegaType, String>> testCases = Lists.newArrayList(
@@ -675,8 +678,8 @@ class TypeCheckerTest {
                                 Token.ident("p", Position.at(2, 13)),
                                 "p",
                                 new BasicTypeExpression("Person", Position.at(2, 16)),
-                                new StructType("Person", Lists.newArrayList(
-                                    Pair.of("name", PrimitiveTypes.STRING)
+                                new StructType("Person", LinkedHashMultimaps.of(
+                                    "name", PrimitiveTypes.STRING
                                 ))
                             )
                         ),
@@ -816,9 +819,9 @@ class TypeCheckerTest {
             Triple.of("type UnaryOp = Int => Int", "UnaryOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type UnaryOp = (Int) => Int", "UnaryOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
             Triple.of("type BinOp = (Int, Int) => Int", "BinOp", FunctionType.ofSignature(Lists.newArrayList(PrimitiveTypes.INTEGER, PrimitiveTypes.INTEGER), PrimitiveTypes.INTEGER)),
-            Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+            Triple.of("type Person = { name: String, age: Int }", "Person", new StructType("Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             )))
         );
 
@@ -843,14 +846,14 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckTypeDeclarationStatement_structType_constructorFunctionDeclared() {
-        List<Triple<String, String, List<Pair<String, MegaType>>>> testCases = Lists.newArrayList(
-            Triple.of("type Person = { name: String, age: Int }", "Person", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("age", PrimitiveTypes.INTEGER)
+        List<Triple<String, String, LinkedHashMultimap<String, MegaType>>> testCases = Lists.newArrayList(
+            Triple.of("type Person = { name: String, age: Int }", "Person", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "age", PrimitiveTypes.INTEGER
             )),
-            Triple.of("type Team = { name: String, members: Array[String] }", "Team", Lists.newArrayList(
-                Pair.of("name", PrimitiveTypes.STRING),
-                Pair.of("members", arrayOf.apply(PrimitiveTypes.STRING))
+            Triple.of("type Team = { name: String, members: Array[String] }", "Team", LinkedHashMultimaps.of(
+                "name", PrimitiveTypes.STRING,
+                "members", arrayOf.apply(PrimitiveTypes.STRING)
             ))
         );
 
@@ -858,7 +861,7 @@ class TypeCheckerTest {
             .map(testCase -> {
                 String input = testCase.getLeft();
                 String typeName = testCase.getMiddle();
-                List<Pair<String, MegaType>> props = testCase.getRight();
+                LinkedHashMultimap<String, MegaType> props = testCase.getRight();
 
                 String name = String.format("'%s' should typecheck to Unit, and add type named %s to env, with constructor function", input, typeName);
                 return dynamicTest(name, () -> {
@@ -873,12 +876,12 @@ class TypeCheckerTest {
                     Binding binding = env.getBinding(typeName);
                     Binding expected = new Binding(
                         FunctionType.constructor(
-                            props.stream()
+                            props.entries().stream()
                                 .map(prop -> new Identifier(
-                                    Token.ident(prop.getLeft(), null),
-                                    prop.getLeft(),
-                                    TypeExpressions.fromType(prop.getRight()),
-                                    prop.getRight()
+                                    Token.ident(prop.getKey(), null),
+                                    prop.getKey(),
+                                    TypeExpressions.fromType(prop.getValue()),
+                                    prop.getValue()
                                 ))
                                 .collect(toList()),
                             type
@@ -934,9 +937,9 @@ class TypeCheckerTest {
             new TestCase(
                 "type MyType = { name: String, someField: BogusType }",
                 new UnknownTypeError("BogusType", Position.at(1, 42)),
-                new StructType("MyType", Lists.newArrayList(
-                    Pair.of("name", PrimitiveTypes.STRING),
-                    Pair.of("someField", TypeChecker.unknownType)
+                new StructType("MyType", LinkedHashMultimaps.of(
+                    "name", PrimitiveTypes.STRING,
+                    "someField", TypeChecker.unknownType
                 )),
                 ImmutableMap.of()
             ),
@@ -1090,41 +1093,41 @@ class TypeCheckerTest {
 
     @TestFactory
     List<DynamicTest> testTypecheckObjectLiteral() {
-        List<Pair<String, List<Pair<String, MegaType>>>> testCases = Lists.newArrayList(
-            Pair.of("{ }", Lists.newArrayList()),
+        List<Pair<String, LinkedHashMultimap<String, MegaType>>> testCases = Lists.newArrayList(
+            Pair.of("{ }", LinkedHashMultimaps.of()),
 
-            Pair.of("{ a: 1 }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.INTEGER))),
-            Pair.of("{ a: 1.2 }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.FLOAT))),
-            Pair.of("{ a: true }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.BOOLEAN))),
-            Pair.of("{ a: \"a\" }", Lists.newArrayList(Pair.of("a", PrimitiveTypes.STRING))),
+            Pair.of("{ a: 1 }", LinkedHashMultimaps.of("a", PrimitiveTypes.INTEGER)),
+            Pair.of("{ a: 1.2 }", LinkedHashMultimaps.of("a", PrimitiveTypes.FLOAT)),
+            Pair.of("{ a: true }", LinkedHashMultimaps.of("a", PrimitiveTypes.BOOLEAN)),
+            Pair.of("{ a: \"a\" }", LinkedHashMultimaps.of("a", PrimitiveTypes.STRING)),
 
-            Pair.of("{ a: [1] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.INTEGER)))),
-            Pair.of("{ a: [1.2] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.FLOAT)))),
-            Pair.of("{ a: [true] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.BOOLEAN)))),
-            Pair.of("{ a: [\"a\"] }", Lists.newArrayList(Pair.of("a", arrayOf.apply(PrimitiveTypes.STRING)))),
+            Pair.of("{ a: [1] }", LinkedHashMultimaps.of("a", arrayOf.apply(PrimitiveTypes.INTEGER))),
+            Pair.of("{ a: [1.2] }", LinkedHashMultimaps.of("a", arrayOf.apply(PrimitiveTypes.FLOAT))),
+            Pair.of("{ a: [true] }", LinkedHashMultimaps.of("a", arrayOf.apply(PrimitiveTypes.BOOLEAN))),
+            Pair.of("{ a: [\"a\"] }", LinkedHashMultimaps.of("a", arrayOf.apply(PrimitiveTypes.STRING))),
 
-            Pair.of("{ a: 1, b: 2 }", Lists.newArrayList(
-                Pair.of("a", PrimitiveTypes.INTEGER),
-                Pair.of("b", PrimitiveTypes.INTEGER)
+            Pair.of("{ a: 1, b: 2 }", LinkedHashMultimaps.of(
+                "a", PrimitiveTypes.INTEGER,
+                "b", PrimitiveTypes.INTEGER
             )),
-            Pair.of("{ a: 1, b: 2.2 }", Lists.newArrayList(
-                Pair.of("a", PrimitiveTypes.INTEGER),
-                Pair.of("b", PrimitiveTypes.FLOAT)
+            Pair.of("{ a: 1, b: 2.2 }", LinkedHashMultimaps.of(
+                "a", PrimitiveTypes.INTEGER,
+                "b", PrimitiveTypes.FLOAT
             )),
-            Pair.of("{ a: \"asdf\", b: 2.2 }", Lists.newArrayList(
-                Pair.of("a", PrimitiveTypes.STRING),
-                Pair.of("b", PrimitiveTypes.FLOAT)
+            Pair.of("{ a: \"asdf\", b: 2.2 }", LinkedHashMultimaps.of(
+                "a", PrimitiveTypes.STRING,
+                "b", PrimitiveTypes.FLOAT
             )),
-            Pair.of("{ a: true, b: [2.2] }", Lists.newArrayList(
-                Pair.of("a", PrimitiveTypes.BOOLEAN),
-                Pair.of("b", arrayOf.apply(PrimitiveTypes.FLOAT))
+            Pair.of("{ a: true, b: [2.2] }", LinkedHashMultimaps.of(
+                "a", PrimitiveTypes.BOOLEAN,
+                "b", arrayOf.apply(PrimitiveTypes.FLOAT)
             ))
         );
 
         return testCases.stream()
             .map(testCase -> {
                 String input = testCase.getLeft();
-                List<Pair<String, MegaType>> objProps = testCase.getRight();
+                LinkedHashMultimap<String, MegaType> objProps = testCase.getRight();
 
                 String name = String.format("'%s' should typecheck to an Object with appropriate props", input);
                 return dynamicTest(name, () -> {
@@ -1143,12 +1146,12 @@ class TypeCheckerTest {
             "  b: [1, 2, 3, 4]\n" +
             "}";
         MegaType type = testTypecheckExpression(input);
-        MegaType expected = new ObjectType(Lists.newArrayList(
-            Pair.of("a", new ObjectType(Lists.newArrayList(
-                Pair.of("a1", PrimitiveTypes.STRING),
-                Pair.of("a2", PrimitiveTypes.BOOLEAN)
-            ))),
-            Pair.of("b", arrayOf.apply(PrimitiveTypes.INTEGER))
+        MegaType expected = new ObjectType(LinkedHashMultimaps.of(
+            "a", new ObjectType(LinkedHashMultimaps.of(
+                "a1", PrimitiveTypes.STRING,
+                "a2", PrimitiveTypes.BOOLEAN
+            )),
+            "b", arrayOf.apply(PrimitiveTypes.INTEGER)
         ));
         assertEquals(expected, type);
     }
@@ -1188,8 +1191,8 @@ class TypeCheckerTest {
             Pair.of("-\"asdf\"", PrimitiveTypes.STRING),
             Pair.of("-true", PrimitiveTypes.BOOLEAN),
             Pair.of("-[1, 2, 3]", arrayOf.apply(PrimitiveTypes.INTEGER)),
-            Pair.of("-{ a: 1 }", new ObjectType(Lists.newArrayList(
-                Pair.of("a", PrimitiveTypes.INTEGER))
+            Pair.of("-{ a: 1 }", new ObjectType(LinkedHashMultimaps.of(
+                "a", PrimitiveTypes.INTEGER)
             ))
         );
 
@@ -1811,9 +1814,9 @@ class TypeCheckerTest {
                     "val p = Person(age: 26, name: 'Ke' + 'n')"
                 ),
                 "p",
-                new StructType("Person", Lists.newArrayList(
-                    Pair.of("name", PrimitiveTypes.STRING),
-                    Pair.of("age", PrimitiveTypes.INTEGER)
+                new StructType("Person", LinkedHashMultimaps.of(
+                    "name", PrimitiveTypes.STRING,
+                    "age", PrimitiveTypes.INTEGER
                 ))
             ),
             new TestCase(
@@ -1827,12 +1830,12 @@ class TypeCheckerTest {
                     "val t = Team(members: [Person(name: 'Ken', age: 26), Person(age: 25, name: 'Meg')], teamName: 'The' + ' ' + 'Best' + ' ' + 'Team')"
                 ),
                 "t",
-                new StructType("Team", Lists.newArrayList(
-                    Pair.of("teamName", PrimitiveTypes.STRING),
-                    Pair.of("members", arrayOf.apply(new StructType("Person", Lists.newArrayList(
-                        Pair.of("name", PrimitiveTypes.STRING),
-                        Pair.of("age", PrimitiveTypes.INTEGER)
-                    ))))
+                new StructType("Team", LinkedHashMultimaps.of(
+                    "teamName", PrimitiveTypes.STRING,
+                    "members", arrayOf.apply(new StructType("Person", LinkedHashMultimaps.of(
+                        "name", PrimitiveTypes.STRING,
+                        "age", PrimitiveTypes.INTEGER
+                    )))
                 ))
             )
         );
@@ -2006,6 +2009,210 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression_definedTypes() {
+        class TestCase {
+            public final String input;
+            public final Map<String, MegaType> environment;
+            public final MegaType expectedType;
+
+            public TestCase(String input, Map<String, MegaType> environment, MegaType expectedType) {
+                this.input = input;
+                this.environment = environment;
+                this.expectedType = expectedType;
+            }
+        }
+
+        StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "age", PrimitiveTypes.INTEGER
+        ));
+        StructType teamType = new StructType("Team", LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "manager", personType,
+            "members", arrayOf.apply(personType)
+        ));
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "person.name",
+                ImmutableMap.of("person", personType),
+                PrimitiveTypes.STRING
+            ),
+            new TestCase(
+                "team.manager",
+                ImmutableMap.of("team", teamType),
+                personType
+            ),
+            new TestCase(
+                "team.members[0]",
+                ImmutableMap.of("team", teamType),
+                personType
+            ),
+            new TestCase(
+                "team.manager.name",
+                ImmutableMap.of("team", teamType),
+                PrimitiveTypes.STRING
+            ),
+            new TestCase(
+                "team.members[0].name",
+                ImmutableMap.of("team", teamType),
+                PrimitiveTypes.STRING
+            ),
+
+            // Object literals
+            new TestCase(
+                "objLit.abc",
+                ImmutableMap.of("objLit", new ObjectType(LinkedHashMultimaps.of("abc", PrimitiveTypes.INTEGER))),
+                PrimitiveTypes.INTEGER
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                Map<String, MegaType> environment = testCase.environment;
+                MegaType expectedType = testCase.expectedType;
+
+                String name = String.format("'%s' should typecheck to %s", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(expectedType, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression_builtinTypes() {
+        List<Pair<String, MegaType>> testCases = Lists.newArrayList(
+            Pair.of(
+                "'asdf'.length",
+                new FunctionType(
+                    Lists.newArrayList(),
+                    PrimitiveTypes.INTEGER,
+                    Kind.METHOD
+                )
+            ),
+            Pair.of(
+                "(123).floatValue",
+                new FunctionType(
+                    Lists.newArrayList(),
+                    PrimitiveTypes.FLOAT,
+                    Kind.METHOD
+                )
+            ),
+            Pair.of(
+                "'asdf'.concat",
+                new FunctionType(
+                    Lists.newArrayList(
+                        new Parameter(
+                            new Identifier(
+                                Token.ident("arg0", Position.at(-1, -1)),
+                                "arg0",
+                                null,
+                                PrimitiveTypes.STRING
+                            )
+                        )
+                    ),
+                    PrimitiveTypes.STRING,
+                    Kind.METHOD
+                )
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.getLeft();
+                MegaType expectedType = testCase.getRight();
+
+                String name = String.format("'%s' should typecheck to %s", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+
+                    MegaType result = testTypecheckExpression(input, env);
+                    assertEquals(expectedType, result);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
+    List<DynamicTest> testTypecheckAccessorExpression_errors() {
+        class TestCase {
+            public final String input;
+            public final Map<String, MegaType> environment;
+            public final MegaType expectedType;
+            public final TypeCheckerError error;
+
+            public TestCase(String input, Map<String, MegaType> environment, MegaType expectedType, TypeCheckerError error) {
+                this.input = input;
+                this.environment = environment;
+                this.expectedType = expectedType;
+                this.error = error;
+            }
+        }
+
+        StructType personType = new StructType("Person", LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "age", PrimitiveTypes.INTEGER
+        ));
+        StructType teamType = new StructType("Team", LinkedHashMultimaps.of(
+            "name", PrimitiveTypes.STRING,
+            "manager", personType,
+            "members", arrayOf.apply(personType)
+        ));
+
+        List<TestCase> testCases = Lists.newArrayList(
+            new TestCase(
+                "person.nonExistentProp",
+                ImmutableMap.of("person", personType),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 8))
+            ),
+            new TestCase(
+                "team.manager.nonExistentProp",
+                ImmutableMap.of("team", teamType),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 14))
+            ),
+
+            // Object literals
+            new TestCase(
+                "objLit.nonExistentProp",
+                ImmutableMap.of("objLit", new ObjectType(LinkedHashMultimaps.of("abc", PrimitiveTypes.INTEGER))),
+                TypeChecker.unknownType,
+                new UnknownPropertyError("nonExistentProp", Position.at(1, 8))
+            )
+        );
+
+        return testCases.stream()
+            .map(testCase -> {
+                String input = testCase.input;
+                Map<String, MegaType> environment = testCase.environment;
+                MegaType expectedType = testCase.expectedType;
+                TypeCheckerError error = testCase.error;
+
+                String name = String.format("'%s' should typecheck to %s, with errors", input, expectedType);
+                return dynamicTest(name, () -> {
+                    TypeEnvironment env = new TypeEnvironment();
+                    env.addType("Person", personType);
+                    env.addType("Team", teamType);
+                    environment.forEach((key, value) -> env.addBindingWithType(key, value, false));
+
+                    TypeCheckResult result = testTypecheckExpressionAndGetResult(input, env);
+                    assertEquals(expectedType, result.type);
+                    assertEquals(Lists.newArrayList(error), result.errors);
+                });
+            })
+            .collect(toList());
+    }
+
+    @TestFactory
     List<DynamicTest> testTypecheckRangeExpression() {
         List<Pair<String, Map<String, MegaType>>> testCases = Lists.newArrayList(
             Pair.of("1..3", ImmutableMap.of()),
@@ -2055,13 +2262,13 @@ class TypeCheckerTest {
             ),
             Triple.of(
                 "a..d",
-                ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(Lists.newArrayList(
-                    Pair.of("a", PrimitiveTypes.INTEGER)
+                ImmutableMap.of("a", PrimitiveTypes.INTEGER, "d", new ObjectType(LinkedHashMultimaps.of(
+                    "a", PrimitiveTypes.INTEGER
                 ))),
                 new TypeMismatchError(
                     PrimitiveTypes.INTEGER,
-                    new ObjectType(Lists.newArrayList(
-                        Pair.of("a", PrimitiveTypes.INTEGER)
+                    new ObjectType(LinkedHashMultimaps.of(
+                        "a", PrimitiveTypes.INTEGER
                     )),
                     Position.at(1, 4)
                 )

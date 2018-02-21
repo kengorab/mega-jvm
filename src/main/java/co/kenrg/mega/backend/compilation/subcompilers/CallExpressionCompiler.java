@@ -20,6 +20,7 @@ import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.NEW;
 
 import java.util.Collection;
@@ -29,9 +30,10 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
-import co.kenrg.mega.backend.compilation.scope.Scope;
 import co.kenrg.mega.backend.compilation.scope.Binding;
 import co.kenrg.mega.backend.compilation.scope.BindingTypes;
+import co.kenrg.mega.backend.compilation.scope.Scope;
+import co.kenrg.mega.frontend.ast.expression.AccessorExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.NamedArgs;
 import co.kenrg.mega.frontend.ast.expression.CallExpression.UnnamedArgs;
@@ -113,6 +115,23 @@ public class CallExpressionCompiler {
                     scope.focusedMethod.writer.visitVarInsn(ALOAD, binding.index);
                 }
             }
+        } else if (target instanceof AccessorExpression) {
+            Expression accessorTarget = ((AccessorExpression) target).target;
+            MegaType accessorTargetType = accessorTarget.getType();
+            assert accessorTargetType != null;
+            compileNode.accept(accessorTarget);
+            if (isPrimitive(accessorTargetType)) {
+                compileBoxPrimitiveType(accessorTargetType, scope.focusedMethod.writer);
+            }
+
+            pushArguments(arguments, scope, compileNode, false);
+
+            String accessorTargetClass = getInternalName(accessorTargetType);
+            String jvmDesc = jvmMethodDescriptor(fnType, false);
+
+            String accessorPropertyName = ((AccessorExpression) target).property.value;
+            scope.focusedMethod.writer.visitMethodInsn(INVOKEVIRTUAL, accessorTargetClass, accessorPropertyName, jvmDesc, false);
+            return;
         } else {
             compileNode.accept(target);
         }
