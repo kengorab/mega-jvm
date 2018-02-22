@@ -190,7 +190,7 @@ class LexerTest {
 
     @Test
     void testNextToken_identifiers() {
-        String input = "someVar foo bar fooBar ab1 ABC_DEF";
+        String input = "someVar foo bar fooBar ab1 ABC_DEF _leadingUnderscore";
 
         List<Token> expectedTokens = Lists.newArrayList(
             Token.ident("someVar", Position.at(1, 1)),
@@ -198,7 +198,8 @@ class LexerTest {
             Token.ident("bar", Position.at(1, 13)),
             Token.ident("fooBar", Position.at(1, 17)),
             Token.ident("ab1", Position.at(1, 24)),
-            Token.ident("ABC_DEF", Position.at(1, 28))
+            Token.ident("ABC_DEF", Position.at(1, 28)),
+            Token.ident("_leadingUnderscore", Position.at(1, 36))
         );
 
         assertTokensForInput(expectedTokens, input);
