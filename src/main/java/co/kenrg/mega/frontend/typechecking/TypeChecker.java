@@ -424,6 +424,7 @@ public class TypeChecker {
                     for (Identifier _import : node.imports) {
                         String importName = _import.value;
                         env.addBindingWithType(importName, unknownType, true);
+                        _import.setType(unknownType);
                     }
                     return;
                 }
@@ -449,6 +450,7 @@ public class TypeChecker {
                 }
 
                 env.addBindingWithType(importName, importType, true);
+                _import.setType(importType);
             }
 
             return;
@@ -474,6 +476,7 @@ public class TypeChecker {
                 importType = binding.type;
             }
             env.addBindingWithType(importName, importType, true);
+            _import.setType(importType);
         }
     }
 

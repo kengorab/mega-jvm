@@ -73,7 +73,7 @@ class CompilerTestUtils {
         }
 
         TypeChecker typeChecker = new TypeChecker();
-        typeChecker.setModuleProvider(moduleName -> Optional.of(typedModuleProvider.apply(moduleName)));
+        typeChecker.setModuleProvider(moduleName -> Optional.ofNullable(typedModuleProvider.apply(moduleName)));
         TypeEnvironment typeEnv = new TypeEnvironment();
         TypeCheckResult<Module> typecheckResult = typeChecker.typecheck(module, typeEnv);
 

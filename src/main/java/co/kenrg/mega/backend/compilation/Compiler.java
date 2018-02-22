@@ -453,6 +453,13 @@ public class Compiler {
         for (Identifier _import : node.imports) {
             String importName = _import.value;
 
+            // If the module is not present, then assume it's a java class being imported from
+            if (module == null) {
+                String className = targetModuleName.replace('.', '/');
+                this.scope.addBinding(importName, _import.getType(), className, BindingTypes.METHOD, false, false);
+                continue;
+            }
+
             TypeEnvironment.Binding typeBinding = module.typeEnvironment.getBinding(importName);
             assert typeBinding != null;
             MegaType importType = typeBinding.type;

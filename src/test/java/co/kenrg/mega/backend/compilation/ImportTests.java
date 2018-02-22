@@ -123,4 +123,14 @@ class ImportTests {
         Object person = loadStaticValueFromClass(result2.className, bindingName);
         assertEquals(expectedToStringValue, person.toString());
     }
+
+    @Test
+    void testCompileImports_importedStaticMethodFromJavaClass() {
+        String input = "" +
+            "import logicalAnd from 'java.lang.Boolean'" +
+            "val b = logicalAnd(true, false)";
+        TestCompilationResult result = parseTypecheckAndCompileInput(input, moduleName -> null);
+
+        assertStaticBindingOnClassEquals(result.className, "b", false, true);
+    }
 }
