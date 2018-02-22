@@ -113,6 +113,9 @@ public class Lexer {
             case ';':
                 token = Token.semicolon(pos);
                 break;
+//            case '_':
+//                token = Token.underscore(pos);
+//                break;
             case ',':
                 token = Token.comma(pos);
                 break;
@@ -178,7 +181,7 @@ public class Lexer {
                 token = Token.eof(pos);
                 break;
             default:
-                if (Character.isLetter(this.ch)) {
+                if (Character.isLetter(this.ch) || this.ch == '_') {
                     String ident = this.readIdentifier();
                     return Pair.of(new Token(TokenType.lookupIdent(ident), ident, pos), null);
                 } else if (isDigit(this.ch)) {
@@ -232,11 +235,11 @@ public class Lexer {
     private String readIdentifier() {
         int position = this.position;
 
-        if (Character.isLetter(this.ch)) {
+        if (Character.isLetter(this.ch) || this.ch == '_') {
             this.readChar();
         }
 
-        while (Character.isLetter(this.ch) || Character.isDigit(this.ch)) {
+        while (Character.isLetter(this.ch) || Character.isDigit(this.ch) || this.ch == '_') {
             this.readChar();
         }
         return this.input.substring(position, this.position);
