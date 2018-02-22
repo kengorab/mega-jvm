@@ -1,10 +1,13 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.typeForMethod;
 import static co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.isBooleanOperator;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -399,21 +402,58 @@ public class TypeChecker {
         }
     }
 
+    private Map<String, Class> classCache = Maps.newHashMap();
+
     private void typecheckImportStatement(ImportStatement node, TypeEnvironment env) {
         if (this.moduleProvider == null) {
             throw new IllegalStateException("Module provider function not set on TypeChecker");
         }
 
-        Optional<TypeCheckResult<Module>> targetModuleResultOpt = this.moduleProvider.apply(node.targetModule.value);
+        String moduleName = node.targetModule.value;
+        Optional<TypeCheckResult<Module>> targetModuleResultOpt = this.moduleProvider.apply(moduleName);
         if (!targetModuleResultOpt.isPresent()) {
-            this.errors.add(new UnknownModuleError(node.targetModule.value, node.targetModule.token.position));
+            Class targetModule;
+            if (classCache.containsKey(moduleName)) {
+                targetModule = classCache.get(moduleName);
+            } else {
+                try {
+                    targetModule = Class.forName(moduleName);
+                } catch (ClassNotFoundException e) {
+                    this.errors.add(new UnknownModuleError(moduleName, node.targetModule.token.position));
+
+                    for (Identifier _import : node.imports) {
+                        String importName = _import.value;
+                        env.addBindingWithType(importName, unknownType, true);
+                    }
+                    return;
+                }
+            }
 
             for (Identifier _import : node.imports) {
                 String importName = _import.value;
-                env.addBindingWithType(importName, unknownType, true);
+
+                List<Method> methodsMatchingName = Lists.newArrayList();
+                for (Method method : targetModule.getDeclaredMethods()) {
+                    if (method.getName().equals(importName) && Modifier.isStatic(method.getModifiers())) {
+                        methodsMatchingName.add(method);
+                    }
+                }
+
+                MegaType importType;
+                if (methodsMatchingName.isEmpty()) {
+                    this.errors.add(new UnknownExportError(moduleName, importName, _import.token.position));
+                    importType = unknownType;
+                } else {
+                    Method method = methodsMatchingName.get(0); // TODO: Fix this
+                    importType = typeForMethod(method);
+                }
+
+                env.addBindingWithType(importName, importType, true);
             }
+
             return;
         }
+
         TypeCheckResult<Module> targetModuleResult = targetModuleResultOpt.get();
 
         Module module = targetModuleResult.node;
@@ -425,11 +465,11 @@ public class TypeChecker {
             MegaType importType;
             Binding binding = moduleTypeEnv.getBinding(importName);
             if (binding == null) {
-                this.errors.add(new UnknownExportError(node.targetModule.value, importName, _import.token.position));
+                this.errors.add(new UnknownExportError(moduleName, importName, _import.token.position));
                 importType = unknownType;
             } else {
                 if (!module.namedExports.containsKey(importName)) {
-                    this.errors.add(new VisibilityError(node.targetModule.value, importName, _import.token.position));
+                    this.errors.add(new VisibilityError(moduleName, importName, _import.token.position));
                 }
                 importType = binding.type;
             }
