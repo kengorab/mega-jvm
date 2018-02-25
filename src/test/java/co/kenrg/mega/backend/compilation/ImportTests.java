@@ -133,4 +133,14 @@ class ImportTests {
 
         assertStaticBindingOnClassEquals(result.className, "b", false, true);
     }
+
+    @Test
+    void testCompileImports_importedStaticFieldFromJavaClass() {
+        String input = "" +
+            "import MAX_VALUE from 'java.lang.Integer'" +
+            "val b = MAX_VALUE > 1";
+        TestCompilationResult result = parseTypecheckAndCompileInput(input, moduleName -> null);
+
+        assertStaticBindingOnClassEquals(result.className, "b", true, true);
+    }
 }

@@ -456,7 +456,14 @@ public class Compiler {
             // If the module is not present, then assume it's a java class being imported from
             if (module == null) {
                 String className = targetModuleName.replace('.', '/');
-                this.scope.addBinding(importName, _import.getType(), className, BindingTypes.METHOD, false, false);
+                MegaType importType = _import.getType();
+                BindingTypes bindingType;
+                if (importType instanceof FunctionType && ((FunctionType) importType).kind == Kind.METHOD) {
+                    bindingType = BindingTypes.METHOD;
+                } else {
+                    bindingType = BindingTypes.STATIC;
+                }
+                this.scope.addBinding(importName, importType, className, bindingType, false, false);
                 continue;
             }
 

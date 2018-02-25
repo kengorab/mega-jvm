@@ -71,7 +71,6 @@ import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -261,7 +260,6 @@ class TypeCheckerTest {
     }
 
     @Test
-    @Disabled("Disabled until underscores are considered valid characters in identifiers")
     void testTypecheckModuleImports_importStaticBindingFromClasspathModule() {
         String input = "import MAX_VALUE from 'java.lang.Integer'";
 

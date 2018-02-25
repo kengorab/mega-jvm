@@ -76,17 +76,17 @@ public class CompileSubcommand implements Subcommand {
     private static Map<String, TypeCheckResult<Module>> compiledModulesCache = Maps.newHashMap();
 
     private static TypeCheckResult<Module> compileModule(String moduleFileName, String outputDirectory) {
-        String fullyQualifiedModuleName = moduleFileName.replace(".meg", "");
+        String fullyQualifiedModuleName = moduleFileName.replaceAll("\\.meg$", "");
         if (compiledModulesCache.containsKey(fullyQualifiedModuleName)) {
             return compiledModulesCache.get(fullyQualifiedModuleName);
         }
 
         Optional<TypeCheckResult<Module>> resultOpt = typecheckModule(moduleFileName);
         if (!resultOpt.isPresent()) {
-            System.err.println("Could not proceed compilation due to errors");
-            System.exit(1);
+            // If there is no module returned, assume it's a non-meg module from classpath
             return null;
         }
+
         TypeCheckResult<Module> result = resultOpt.get();
         TypeEnvironment typeEnv = result.typeEnvironment;
 
@@ -108,24 +108,25 @@ public class CompileSubcommand implements Subcommand {
         if (typedModuleCache.containsKey(moduleName)) {
             return Optional.of(typedModuleCache.get(moduleName));
         } else {
-            String code = getFileContents(moduleName);
-            TypeEnvironment typeEnv = new TypeEnvironment();
-            Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code, typeEnv, moduleName, CompileSubcommand::typecheckModule);
-            resultOpt.ifPresent(moduleTypeCheckResult -> typedModuleCache.put(moduleName, moduleTypeCheckResult));
-            return resultOpt;
+            Optional<String> code = getFileContents(moduleName);
+            if (code.isPresent()) {
+                TypeEnvironment typeEnv = new TypeEnvironment();
+                Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code.get(), typeEnv, moduleName, CompileSubcommand::typecheckModule);
+                resultOpt.ifPresent(moduleTypeCheckResult -> typedModuleCache.put(moduleName, moduleTypeCheckResult));
+                return resultOpt;
+            }
+            return Optional.empty();
         }
     }
 
-    private static String getFileContents(String moduleName) {
+    private static Optional<String> getFileContents(String moduleName) {
         String moduleFilepath = moduleName.endsWith(".meg") ? moduleName : moduleName + ".meg";
-        Path filepath = Paths.get(moduleFilepath);
+        Path filepath = Paths.get(moduleFilepath.replace('.', '/'));
         try {
             byte[] bytes = Files.readAllBytes(filepath);
-            return new String(bytes);
+            return Optional.of(new String(bytes));
         } catch (IOException e) {
-            System.err.printf("No such file: %s\n", filepath.toAbsolutePath().toString());
-            System.exit(1);
-            return null;
+            return Optional.empty();
         }
     }
 

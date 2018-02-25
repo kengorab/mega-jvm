@@ -1,11 +1,13 @@
 package co.kenrg.mega.frontend.typechecking;
 
+import static co.kenrg.mega.backend.compilation.TypesAndSignatures.typeForClass;
 import static co.kenrg.mega.backend.compilation.TypesAndSignatures.typeForMethod;
 import static co.kenrg.mega.frontend.typechecking.OperatorTypeChecker.isBooleanOperator;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
@@ -430,11 +432,14 @@ public class TypeChecker {
                 }
             }
 
+            Method[] declaredMethods = targetModule.getDeclaredMethods();
+            Field[] declaredFields = targetModule.getDeclaredFields();
+
             for (Identifier _import : node.imports) {
                 String importName = _import.value;
 
                 List<Method> methodsMatchingName = Lists.newArrayList();
-                for (Method method : targetModule.getDeclaredMethods()) {
+                for (Method method : declaredMethods) {
                     if (method.getName().equals(importName) && Modifier.isStatic(method.getModifiers())) {
                         methodsMatchingName.add(method);
                     }
@@ -442,11 +447,33 @@ public class TypeChecker {
 
                 MegaType importType;
                 if (methodsMatchingName.isEmpty()) {
-                    this.errors.add(new UnknownExportError(moduleName, importName, _import.token.position));
-                    importType = unknownType;
+                    List<Field> fieldsMatchingName = Lists.newArrayList();
+                    for (Field field : declaredFields) {
+                        if (field.getName().equals(importName) && Modifier.isStatic(field.getModifiers())) {
+                            fieldsMatchingName.add(field);
+                        }
+                    }
+
+                    if (fieldsMatchingName.isEmpty()) {
+                        this.errors.add(new UnknownExportError(moduleName, importName, _import.token.position));
+                        importType = unknownType;
+                    } else {
+                        Field field = fieldsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
+                        if (Modifier.isPrivate(field.getModifiers())) {
+                            this.errors.add(new VisibilityError(moduleName, importName, _import.token.position));
+                            importType = unknownType;
+                        } else {
+                            importType = typeForClass(field.getType());
+                        }
+                    }
                 } else {
-                    Method method = methodsMatchingName.get(0); // TODO: Fix this
-                    importType = typeForMethod(method);
+                    Method method = methodsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
+                    if (Modifier.isPrivate(method.getModifiers())) {
+                        this.errors.add(new VisibilityError(moduleName, importName, _import.token.position));
+                        importType = unknownType;
+                    } else {
+                        importType = typeForMethod(method);
+                    }
                 }
 
                 env.addBindingWithType(importName, importType, true);
