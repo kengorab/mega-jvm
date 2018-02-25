@@ -10,6 +10,7 @@ import co.kenrg.mega.frontend.ast.statement.ImportStatement;
 import co.kenrg.mega.frontend.token.Token;
 import co.kenrg.mega.frontend.typechecking.types.MegaType;
 import co.kenrg.mega.frontend.typechecking.types.PrimitiveTypes;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class Module implements Node {
@@ -23,6 +24,10 @@ public class Module implements Node {
         this.statements = statements;
         this.exports = exports;
         this.imports = imports;
+    }
+
+    public static Module mock() {
+        return new Module(Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
     }
 
     @Override

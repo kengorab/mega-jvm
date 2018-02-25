@@ -19,8 +19,9 @@ public class ValStatement extends Statement implements Exportable {
         this.isExported = isExported;
     }
 
-    public ValStatement(Token token, Identifier name, Expression value) {
-        this(token, name, value, false);
+    public static ValStatement mock(String name, boolean isExported) {
+        Identifier ident = new Identifier(null, name, null);
+        return new ValStatement(null, ident, null, isExported);
     }
 
     @Override

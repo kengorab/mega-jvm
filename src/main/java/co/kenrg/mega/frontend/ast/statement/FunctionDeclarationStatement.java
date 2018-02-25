@@ -40,6 +40,11 @@ public class FunctionDeclarationStatement extends Statement implements Exportabl
         this(token, name, parameters, body, null, isExported);
     }
 
+    public static FunctionDeclarationStatement mock(String name, List<Parameter> parameters, boolean isExported) {
+        Identifier ident = new Identifier(null, name, null);
+        return new FunctionDeclarationStatement(null, ident, parameters, null, isExported);
+    }
+
     @Override
     public String repr(boolean debug, int indentLevel) {
         String params = this.parameters.stream()
