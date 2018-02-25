@@ -19,10 +19,6 @@ public class VarStatement extends Statement implements Exportable {
         this.isExported = isExported;
     }
 
-    public VarStatement(Token token, Identifier name, Expression value) {
-        this(token, name, value, false);
-    }
-
     @Override
     public String repr(boolean debug, int indentLevel) {
         String valueStr = (this.value == null)
