@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -406,6 +407,69 @@ public class TypeChecker {
 
     private Map<String, Class> classCache = Maps.newHashMap();
 
+    private Optional<Class> loadClass(String name) {
+        Class targetModule;
+        if (classCache.containsKey(name)) {
+            return Optional.of(classCache.get(name));
+        } else {
+            try {
+                targetModule = Class.forName(name);
+                classCache.put(name, targetModule);
+                return Optional.of(targetModule);
+            } catch (ClassNotFoundException e) {
+                return Optional.empty();
+            }
+        }
+    }
+
+    private Optional<TypeCheckResult<Module>> getTypecheckedModuleForClasspathImport(ImportStatement node) {
+        String moduleName = node.targetModule.value;
+        Optional<Class> optClass = loadClass(moduleName);
+        if (!optClass.isPresent()) {
+            return Optional.empty();
+        }
+        Class targetModule = optClass.get();
+
+        TypeEnvironment _env = new TypeEnvironment();
+        Module _m = Module.mock();
+
+        Method[] declaredMethods = targetModule.getDeclaredMethods();
+        Field[] declaredFields = targetModule.getDeclaredFields();
+
+        for (Identifier _import : node.imports) {
+            String importName = _import.value;
+
+            List<Method> methodsMatchingName = Arrays.stream(declaredMethods)
+                .filter(method -> method.getName().equals(importName) && Modifier.isStatic(method.getModifiers()))
+                .collect(toList());
+
+            if (!methodsMatchingName.isEmpty()) {
+                Method method = methodsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
+                FunctionType methodType = typeForMethod(method);
+                _env.addBindingWithType(importName, methodType, true);
+
+                boolean isPrivate = Modifier.isPrivate(method.getModifiers());
+                _m.namedExports.put(importName, FunctionDeclarationStatement.mock(importName, methodType.parameters, !isPrivate));
+                continue;
+            }
+
+            List<Field> fieldsMatchingName = Arrays.stream(declaredFields)
+                .filter(field -> field.getName().equals(importName) && Modifier.isStatic(field.getModifiers()))
+                .collect(toList());
+
+            if (!fieldsMatchingName.isEmpty()) {
+                Field field = fieldsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
+                MegaType fieldType = typeForClass(field.getType());
+                _env.addBindingWithType(importName, fieldType, true);
+
+                boolean isPrivate = Modifier.isPrivate(field.getModifiers());
+                _m.namedExports.put(importName, ValStatement.mock(importName, !isPrivate));
+            }
+        }
+
+        return Optional.of(new TypeCheckResult<>(_m, PrimitiveTypes.UNIT, Lists.newArrayList(), _env));
+    }
+
     private void typecheckImportStatement(ImportStatement node, TypeEnvironment env) {
         if (this.moduleProvider == null) {
             throw new IllegalStateException("Module provider function not set on TypeChecker");
@@ -413,77 +477,25 @@ public class TypeChecker {
 
         String moduleName = node.targetModule.value;
         Optional<TypeCheckResult<Module>> targetModuleResultOpt = this.moduleProvider.apply(moduleName);
+
+        TypeCheckResult<Module> targetModuleResult;
         if (!targetModuleResultOpt.isPresent()) {
-            Class targetModule;
-            if (classCache.containsKey(moduleName)) {
-                targetModule = classCache.get(moduleName);
+            Optional<TypeCheckResult<Module>> mockModuleOpt = this.getTypecheckedModuleForClasspathImport(node);
+            if (!mockModuleOpt.isPresent()) {
+                this.errors.add(new UnknownModuleError(moduleName, node.targetModule.token.position));
+
+                for (Identifier _import : node.imports) {
+                    String importName = _import.value;
+                    env.addBindingWithType(importName, unknownType, true);
+                    _import.setType(unknownType);
+                }
+                return;
             } else {
-                try {
-                    targetModule = Class.forName(moduleName);
-                } catch (ClassNotFoundException e) {
-                    this.errors.add(new UnknownModuleError(moduleName, node.targetModule.token.position));
-
-                    for (Identifier _import : node.imports) {
-                        String importName = _import.value;
-                        env.addBindingWithType(importName, unknownType, true);
-                        _import.setType(unknownType);
-                    }
-                    return;
-                }
+                targetModuleResult = mockModuleOpt.get();
             }
-
-            Method[] declaredMethods = targetModule.getDeclaredMethods();
-            Field[] declaredFields = targetModule.getDeclaredFields();
-
-            for (Identifier _import : node.imports) {
-                String importName = _import.value;
-
-                List<Method> methodsMatchingName = Lists.newArrayList();
-                for (Method method : declaredMethods) {
-                    if (method.getName().equals(importName) && Modifier.isStatic(method.getModifiers())) {
-                        methodsMatchingName.add(method);
-                    }
-                }
-
-                MegaType importType;
-                if (methodsMatchingName.isEmpty()) {
-                    List<Field> fieldsMatchingName = Lists.newArrayList();
-                    for (Field field : declaredFields) {
-                        if (field.getName().equals(importName) && Modifier.isStatic(field.getModifiers())) {
-                            fieldsMatchingName.add(field);
-                        }
-                    }
-
-                    if (fieldsMatchingName.isEmpty()) {
-                        this.errors.add(new UnknownExportError(moduleName, importName, _import.token.position));
-                        importType = unknownType;
-                    } else {
-                        Field field = fieldsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
-                        if (Modifier.isPrivate(field.getModifiers())) {
-                            this.errors.add(new VisibilityError(moduleName, importName, _import.token.position));
-                            importType = unknownType;
-                        } else {
-                            importType = typeForClass(field.getType());
-                        }
-                    }
-                } else {
-                    Method method = methodsMatchingName.get(0); // TODO: Fix this; env should have multimap of bindings with same name & diff types
-                    if (Modifier.isPrivate(method.getModifiers())) {
-                        this.errors.add(new VisibilityError(moduleName, importName, _import.token.position));
-                        importType = unknownType;
-                    } else {
-                        importType = typeForMethod(method);
-                    }
-                }
-
-                env.addBindingWithType(importName, importType, true);
-                _import.setType(importType);
-            }
-
-            return;
+        } else {
+            targetModuleResult = targetModuleResultOpt.get();
         }
-
-        TypeCheckResult<Module> targetModuleResult = targetModuleResultOpt.get();
 
         Module module = targetModuleResult.node;
         TypeEnvironment moduleTypeEnv = targetModuleResult.typeEnvironment;
