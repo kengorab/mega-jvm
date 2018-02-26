@@ -1,6 +1,4 @@
 import Person, greet from 'examples.person'
-import of from 'mega.lang.Ranges'
-import MAX_VALUE from 'java.lang.Integer'
 
 val people = [
   Person(name: 'Ken', age: 26),
@@ -10,5 +8,3 @@ val people = [
 val greetKen = greet(people[0])
 val greetMeg = greet(people[1], 'welcome')
 val greetings = greetKen + ', and ' + greetMeg
-
-val range = of(1, 4)
