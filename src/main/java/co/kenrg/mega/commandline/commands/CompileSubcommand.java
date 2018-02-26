@@ -13,6 +13,7 @@ import java.util.Optional;
 import co.kenrg.mega.backend.compilation.Compiler;
 import co.kenrg.mega.commandline.iface.Subcommand;
 import co.kenrg.mega.frontend.ast.Module;
+import co.kenrg.mega.frontend.typechecking.ModuleDescriptor;
 import co.kenrg.mega.frontend.typechecking.TypeCheckResult;
 import co.kenrg.mega.frontend.typechecking.TypeEnvironment;
 import co.kenrg.mega.repl.Repl;
@@ -67,21 +68,20 @@ public class CompileSubcommand implements Subcommand {
             System.err.printf("Invalid file extension for module %s; expected .meg extension\n", filepath.toAbsolutePath().toString());
             System.exit(1);
         }
-        compileModule(fileToCompile, outputDirectory);
+
+        compileModule(ModuleDescriptor.fromRaw(fileToCompile), outputDirectory);
 
         return true;
     }
 
-    private static Map<String, TypeCheckResult<Module>> typedModuleCache = Maps.newHashMap();
-    private static Map<String, TypeCheckResult<Module>> compiledModulesCache = Maps.newHashMap();
+    private static Map<ModuleDescriptor, TypeCheckResult<Module>> compiledModulesCache = Maps.newHashMap();
 
-    private static TypeCheckResult<Module> compileModule(String moduleFileName, String outputDirectory) {
-        String fullyQualifiedModuleName = moduleFileName.replaceAll("\\.meg$", "");
-        if (compiledModulesCache.containsKey(fullyQualifiedModuleName)) {
-            return compiledModulesCache.get(fullyQualifiedModuleName);
+    private static TypeCheckResult<Module> compileModule(ModuleDescriptor moduleDescriptor, String outputDirectory) {
+        if (compiledModulesCache.containsKey(moduleDescriptor)) {
+            return compiledModulesCache.get(moduleDescriptor);
         }
 
-        Optional<TypeCheckResult<Module>> resultOpt = typecheckModule(moduleFileName);
+        Optional<TypeCheckResult<Module>> resultOpt = typecheckModule(moduleDescriptor);
         if (!resultOpt.isPresent()) {
             // If there is no module returned, assume it's a non-meg module from classpath
             return null;
@@ -92,41 +92,57 @@ public class CompileSubcommand implements Subcommand {
 
         Module module = result.node;
 
-        String moduleName = Paths.get(moduleFileName).getFileName().toString().replace(".meg", "");
-        Compiler compiler = new Compiler(moduleName, typeEnv);
-        compiler.setTypedModuleProvider(_moduleName -> compileModule(_moduleName, outputDirectory));
+        Compiler compiler = new Compiler(moduleDescriptor.moduleName, typeEnv);
+        compiler.setTypedModuleProvider(_moduleName -> compileModule(ModuleDescriptor.fromRaw(_moduleName), outputDirectory));
         List<Pair<String, byte[]>> classes = compiler.compile(module);
         if (!writeClasses(outputDirectory, classes)) {
             return null;
         }
 
-        compiledModulesCache.put(moduleName, result);
+        compiledModulesCache.put(moduleDescriptor, result);
         return result;
     }
 
-    private static Optional<TypeCheckResult<Module>> typecheckModule(String moduleName) {
-        if (typedModuleCache.containsKey(moduleName)) {
-            return Optional.of(typedModuleCache.get(moduleName));
+    private static Map<ModuleDescriptor, Optional<TypeCheckResult<Module>>> typedModuleCache = Maps.newHashMap();
+
+    private static Optional<TypeCheckResult<Module>> typecheckModule(ModuleDescriptor moduleDescriptor) {
+        if (typedModuleCache.containsKey(moduleDescriptor)) {
+            return typedModuleCache.get(moduleDescriptor);
         } else {
-            Optional<String> code = getFileContents(moduleName);
+            Optional<String> code = getFileContents(moduleDescriptor);
             if (code.isPresent()) {
                 TypeEnvironment typeEnv = new TypeEnvironment();
-                Optional<TypeCheckResult<Module>> resultOpt = Repl.readAndTypecheck(code.get(), typeEnv, moduleName, CompileSubcommand::typecheckModule);
-                resultOpt.ifPresent(moduleTypeCheckResult -> typedModuleCache.put(moduleName, moduleTypeCheckResult));
-                return resultOpt;
+                Optional<TypeCheckResult<Module>> result = Repl.readAndTypecheck(
+                    code.get(),
+                    typeEnv,
+                    moduleDescriptor.moduleName,
+                    _moduleName -> CompileSubcommand.typecheckModule(ModuleDescriptor.fromRaw(_moduleName))
+                );
+                typedModuleCache.put(moduleDescriptor, result);
+                return result;
             }
             return Optional.empty();
         }
     }
 
-    private static Optional<String> getFileContents(String moduleName) {
-        String moduleFilepath = moduleName.endsWith(".meg") ? moduleName : moduleName + ".meg";
-        Path filepath = Paths.get(moduleFilepath.replace('.', '/'));
+    private static Map<String, Optional<String>> fileCache = Maps.newHashMap();
+
+    private static Optional<String> getFileContents(ModuleDescriptor moduleDescriptor) {
+        if (fileCache.containsKey(moduleDescriptor.filepath)) {
+            return fileCache.get(moduleDescriptor.filepath);
+        }
+
+        Path filepath = Paths.get(moduleDescriptor.filepath);
         try {
             byte[] bytes = Files.readAllBytes(filepath);
-            return Optional.of(new String(bytes));
+            String contents = new String(bytes);
+            Optional<String> result = Optional.of(contents);
+            fileCache.put(moduleDescriptor.filepath, result);
+            return result;
         } catch (IOException e) {
-            return Optional.empty();
+            Optional<String> result = Optional.empty();
+            fileCache.put(moduleDescriptor.filepath, result);
+            return result;
         }
     }
 
